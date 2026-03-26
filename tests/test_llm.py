@@ -1,0 +1,221 @@
+from __future__ import annotations
+
+import os
+import sys
+import tempfile
+import types
+import unittest
+from pathlib import Path
+from unittest import mock
+
+ROOT = Path(__file__).resolve().parents[2]
+PROJECT_DIR = ROOT / "AtariBench"
+candidate = str(PROJECT_DIR)
+if candidate not in sys.path:
+    sys.path.insert(0, candidate)
+
+from llm import GeminiClient, build_model_client, infer_model_provider, resolve_model_provider
+from llm.openai_client import OpenAIClient
+
+
+class LlmTests(unittest.TestCase):
+    def test_infer_model_provider(self) -> None:
+        self.assertEqual(infer_model_provider("gemini-2.5-flash"), "gemini")
+        self.assertEqual(infer_model_provider("gpt-5.4"), "openai")
+        self.assertEqual(infer_model_provider("o3"), "openai")
+
+    def test_resolve_model_provider_honors_explicit_provider(self) -> None:
+        self.assertEqual(resolve_model_provider("custom-model", provider="openai"), "openai")
+
+    def test_build_model_client_returns_openai_client(self) -> None:
+        with mock.patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}, clear=False):
+            client = build_model_client("gpt-5.4", provider="openai")
+        self.assertIsInstance(client, OpenAIClient)
+
+    def test_openai_client_builds_multimodal_request(self) -> None:
+        calls: list[dict[str, object]] = []
+
+        class FakeResponseText:
+            def __init__(self, text: str):
+                self.type = "output_text"
+                self.text = text
+
+        class FakeOutputItem:
+            def __init__(self, text: str):
+                self.content = [FakeResponseText(text)]
+
+        class FakeResponse:
+            def __init__(self, text: str):
+                self.output_text = None
+                self.output = [FakeOutputItem(text)]
+
+        class FakeResponsesApi:
+            def create(self, **kwargs):
+                calls.append(kwargs)
+                return FakeResponse("thought: aim right\nmove: [right]")
+
+        class FakeOpenAI:
+            def __init__(self, **kwargs):
+                self.client_kwargs = kwargs
+                self.responses = FakeResponsesApi()
+
+        fake_module = types.ModuleType("openai")
+        fake_module.OpenAI = FakeOpenAI
+
+        previous_module = sys.modules.get("openai")
+        sys.modules["openai"] = fake_module
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                image_path = Path(tmpdir) / "frame.png"
+                image_path.write_bytes(b"png-bytes")
+                client = OpenAIClient(api_key="test-key")
+                response_text = client.generate_turn(
+                    prompt_text="state",
+                    image_paths=[str(image_path)],
+                    model_name="gpt-5.4",
+                    thinking_mode="low",
+                )
+        finally:
+            if previous_module is None:
+                sys.modules.pop("openai", None)
+            else:
+                sys.modules["openai"] = previous_module
+
+        self.assertEqual(response_text, "thought: aim right\nmove: [right]")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0]["model"], "gpt-5.4")
+        self.assertEqual(calls[0]["reasoning"], {"effort": "low"})
+        content = calls[0]["input"][0]["content"]
+        self.assertEqual(content[0], {"type": "input_text", "text": "state"})
+        self.assertEqual(content[1]["type"], "input_image")
+        self.assertTrue(content[1]["image_url"].startswith("data:image/png;base64,"))
+
+    def test_openai_client_maps_off_to_reasoning_none(self) -> None:
+        calls: list[dict[str, object]] = []
+
+        class FakeResponse:
+            def __init__(self):
+                self.output_text = "thought: wait\nmove: [noop]"
+
+        class FakeResponsesApi:
+            def create(self, **kwargs):
+                calls.append(kwargs)
+                return FakeResponse()
+
+        class FakeOpenAI:
+            def __init__(self, **kwargs):
+                self.responses = FakeResponsesApi()
+
+        fake_module = types.ModuleType("openai")
+        fake_module.OpenAI = FakeOpenAI
+
+        previous_module = sys.modules.get("openai")
+        sys.modules["openai"] = fake_module
+        try:
+            client = OpenAIClient(api_key="test-key")
+            response_text = client.generate_turn(
+                prompt_text="state",
+                image_paths=[],
+                model_name="gpt-5.4-mini",
+                thinking_mode="off",
+            )
+        finally:
+            if previous_module is None:
+                sys.modules.pop("openai", None)
+            else:
+                sys.modules["openai"] = previous_module
+
+        self.assertEqual(response_text, "thought: wait\nmove: [noop]")
+        self.assertEqual(calls[0]["reasoning"], {"effort": "none"})
+
+    def test_gemini_client_sets_http_timeout(self) -> None:
+        calls: list[dict[str, object]] = []
+        client_kwargs: list[dict[str, object]] = []
+
+        class FakePart:
+            @staticmethod
+            def from_text(*, text: str):
+                return {"type": "text", "text": text}
+
+            @staticmethod
+            def from_bytes(*, data: bytes, mime_type: str):
+                return {"type": "bytes", "data": data, "mime_type": mime_type}
+
+        class FakeContent:
+            def __init__(self, role: str, parts: list[object]):
+                self.role = role
+                self.parts = parts
+
+        class FakeThinkingConfig:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+
+        class FakeGenerateContentConfig:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+
+        class FakeHttpOptions:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+
+        class FakeResponse:
+            text = "thought: hold fire\nmove: [noop]"
+
+        class FakeModels:
+            def generate_content(self, **kwargs):
+                calls.append(kwargs)
+                return FakeResponse()
+
+        class FakeClient:
+            def __init__(self, **kwargs):
+                client_kwargs.append(kwargs)
+                self.kwargs = kwargs
+                self.models = FakeModels()
+
+        fake_types = types.SimpleNamespace(
+            Part=FakePart,
+            Content=FakeContent,
+            ThinkingConfig=FakeThinkingConfig,
+            GenerateContentConfig=FakeGenerateContentConfig,
+            ThinkingLevel=types.SimpleNamespace(MEDIUM="medium", LOW="low", MINIMAL="minimal"),
+            HttpOptions=FakeHttpOptions,
+        )
+        fake_genai_module = types.ModuleType("google.genai")
+        fake_genai_module.Client = FakeClient
+        fake_genai_module.types = fake_types
+        fake_google_module = types.ModuleType("google")
+        fake_google_module.genai = fake_genai_module
+
+        previous_google = sys.modules.get("google")
+        previous_google_genai = sys.modules.get("google.genai")
+        try:
+            sys.modules["google"] = fake_google_module
+            sys.modules["google.genai"] = fake_genai_module
+            with mock.patch.dict(os.environ, {"ATARIBENCH_GEMINI_TIMEOUT_MS": "12345"}, clear=False):
+                client = GeminiClient(api_key="test-key")
+                response_text = client.generate_turn(
+                    prompt_text="state",
+                    image_paths=[],
+                    model_name="gemini-2.5-flash",
+                    thinking_mode="off",
+                )
+        finally:
+            if previous_google is None:
+                sys.modules.pop("google", None)
+            else:
+                sys.modules["google"] = previous_google
+            if previous_google_genai is None:
+                sys.modules.pop("google.genai", None)
+            else:
+                sys.modules["google.genai"] = previous_google_genai
+
+        self.assertEqual(response_text, "thought: hold fire\nmove: [noop]")
+        self.assertEqual(calls[0]["model"], "gemini-2.5-flash")
+        self.assertEqual(calls[0]["config"].kwargs["thinking_config"].kwargs["thinking_budget"], 0)
+        self.assertEqual(client.api_key, "test-key")
+        self.assertEqual(client_kwargs[0]["api_key"], "test-key")
+        self.assertEqual(client_kwargs[0]["http_options"].kwargs["timeout"], 12345)
+
+
+if __name__ == "__main__":
+    unittest.main()
