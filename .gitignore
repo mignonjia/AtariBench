@@ -2,6 +2,7 @@ computer_use/
 runs/
 _pycache_/
 runs/
+llm/api.sh
 
 .vscode/
 .claude/
