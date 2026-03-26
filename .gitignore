@@ -1,3 +1,39 @@
 computer_use/
 runs/
 _pycache_/
+runs/
+
+.vscode/
+.claude/
+.codex/
+openspec/
+
+# DS Store
+.DS_Store
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+eggs/
+.eggs/
+
+# vim swap files
+*.swo
+*.swp
+
+# Python pickle files
+*.pkl
+
+*.jpg
+*.safetensors
+*.mp4
+*.png
+*.gif
+*.pth
+*.pt
+**.pyc
+**.txt
+*.log
+*.pth
