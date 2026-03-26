@@ -23,7 +23,7 @@ The prompt is chosen between
 
 SINGLE_TURN_PROMPT_TEMPLATE: str = """
 You are an intelligent AI player playing a game. Your goal is to make progress
-and earn rewards in this game.
+and maximize total reward within the fixed time budget.
 
 {GAME_PROMPT}
 {GAME_OVER_PROMPT}
@@ -41,8 +41,8 @@ contains:
 * Game States: The sequence of game images with timestamps that resulted from
   your actions.
 * Feedback: This includes positive or negative scores, or notification that a
-  new life has begun. If nothing significant happened or there was no score
-  change, no feedback will be attached.
+  life was lost and play restarted. If nothing significant happened or there
+  was no score change, no feedback will be attached.
 
 You will receive two types of history built from clips:
 
@@ -84,7 +84,7 @@ move: [action_1, action_2, ..., action_n]
 
 MULTI_TURN_PROMPT_TEMPLATE: str = """
 You are an intelligent AI player playing a game. Your goal is to make progress
-and earn rewards in this game.
+and maximize total reward within the fixed time budget.
 
 {GAME_PROMPT}
 {GAME_OVER_PROMPT}

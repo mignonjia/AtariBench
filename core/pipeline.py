@@ -91,6 +91,7 @@ class PipelineRunner:
                     game_spec=self.game_spec,
                     trajectory=trajectory,
                     history_clips=self.config.history_clips,
+                    duration_seconds=self.config.duration_seconds,
                 )
                 raw_response = self.model_client.generate_turn(
                     prompt_text=prompt_package.text,
@@ -157,13 +158,6 @@ class PipelineRunner:
                         elif local_frames_elapsed >= self.frame_budget:
                             stop_reason = "frame_budget"
                             should_stop = True
-                        elif (
-                            self.game_spec.max_lost_lives is not None
-                            and total_lost_lives >= self.game_spec.max_lost_lives
-                        ):
-                            stop_reason = "lost_lives"
-                            should_stop = True
-
                         if should_stop:
                             break
 

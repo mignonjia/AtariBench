@@ -14,7 +14,6 @@ class GameSpec:
     env_id: str
     prompt_module: str
     action_map: dict[str, int]
-    max_lost_lives: int | None
     fps: int
     frames_per_action: int
     game_prompt: str
@@ -50,7 +49,6 @@ def _build_game_spec(
         env_id=env_id,
         prompt_module=prompt_module_name,
         action_map=normalized_action_map,
-        max_lost_lives=getattr(prompt_module, "MAX_LOST_LIVES", None),
         fps=fps,
         frames_per_action=frames_per_action,
         game_prompt=getattr(prompt_module, "GAME_PROMPT"),

@@ -26,8 +26,8 @@ move: [action_1, action_2, ..., action_n]
 {FPS_SPECIFIC_PROMPT}
 
 Action Planning Guidelines:
-- You have 50 seconds in total. The final reward is determined by how many
-  points you can earn.
+- The final reward is determined by how many crossings you complete within the
+  fixed game window.
 - There are two chickens in the game. You can only control the left chicken in
   the current game in this single player mode.
 - Pay attention to the direction and speed of the traffic, so the chicken

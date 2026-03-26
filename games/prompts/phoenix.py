@@ -92,5 +92,3 @@ ACTION_MAP = {
     "leftfire": 6,
     "downfire": 7,
 }
-
-MAX_LOST_LIVES = 2

@@ -16,10 +16,12 @@ from run_storage import game_model_dir, game_root, resolve_output_layout, update
 
 
 class RunStorageTests(unittest.TestCase):
-    def test_canonical_storage_enabled_for_breakout_and_assault(self) -> None:
+    def test_canonical_storage_enabled_for_all_prompt_games(self) -> None:
         self.assertTrue(uses_canonical_game_storage("breakout"))
         self.assertTrue(uses_canonical_game_storage("assault"))
-        self.assertFalse(uses_canonical_game_storage("seaquest"))
+        self.assertTrue(uses_canonical_game_storage("seaquest"))
+        self.assertTrue(uses_canonical_game_storage("time_pilot"))
+        self.assertFalse(uses_canonical_game_storage("termination"))
 
     def test_resolve_output_layout_uses_canonical_model_folder(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

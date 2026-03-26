@@ -27,11 +27,15 @@ move: [action_1, action_2, ..., action_n]
 {FPS_SPECIFIC_PROMPT}
 
 Action Planning Guidelines:
+- Your objective is to maximize total reward within the fixed game window.
 - Your primary objective is to shoot down the ten alien ships deployed by the
   mothership in each wave.
 - Enemy projectiles, including fireballs, can attack your cannon horizontally.
   You can move your cannon left and right to dodge them. If you got hit by an
   enemy projectile, you will lose a life.
+- Losing a life does not directly reduce score, but the respawn and reset of
+  position consume time and reduce scoring opportunities. Avoid life loss
+  whenever possible.
 - The mothership itself cannot be destroyed.
 - Alien ships exhibit different movement patterns depending on the wave,
   including horizontal movement with sudden direction changes, combined up-down
@@ -69,5 +73,3 @@ ACTION_MAP = {
     "fire right": 5,
     "fire left": 6,
 }
-
-MAX_LOST_LIVES = 1

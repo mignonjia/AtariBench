@@ -8,8 +8,8 @@ DemonAttack Quick Guide:
 
 Goal: You control a spaceship that can move sideways. You are facing waves of
 demons in the ice planet of Krybor. Points are accumulated by destroying demons.
-Every time an enemy hits you, you will lose a life. Your goal is to survive and
-earn as many points as possible.
+Your goal is to survive efficiently and earn as many points as possible within
+the fixed game window.
 
 Available actions:
 - noop: Do nothing.
@@ -65,5 +65,3 @@ ACTION_MAP = {
     "rightfire": 4,
     "leftfire": 5,
 }
-
-MAX_LOST_LIVES = 2

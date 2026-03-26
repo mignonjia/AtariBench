@@ -9,7 +9,19 @@ import json
 import re
 from pathlib import Path
 
-CANONICAL_GAME_KEYS = frozenset({"breakout", "assault"})
+_HELPER_PROMPT_MODULES = frozenset({"__init__", "common_prompt", "game_clip", "termination"})
+
+
+def _discover_canonical_game_keys() -> frozenset[str]:
+    prompts_dir = Path(__file__).resolve().parent / "games" / "prompts"
+    return frozenset(
+        path.stem
+        for path in prompts_dir.glob("*.py")
+        if path.stem not in _HELPER_PROMPT_MODULES
+    )
+
+
+CANONICAL_GAME_KEYS = _discover_canonical_game_keys()
 
 
 def sanitize_model_label(model_name: str) -> str:

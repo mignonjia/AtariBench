@@ -41,11 +41,12 @@ move: [action_1, action_2, ..., action_n]
 
 Action Planning Guidelines:
 
-- Your mission is to destroy enemy tanks. The game ends immediately if even one
-  enemy tank reaches the city at the bottom of the screen.
+- Your mission is to destroy enemy tanks while preventing them from overrunning
+  the city at the bottom of the screen, since that wastes valuable scoring time.
 - You command a squadron of 1 Robotanks (lives). Your tank can sustain several
   hits before being destroyed. When your tank is hit, the screen will flash red.
-  The game ends immediately if you lose a life. So avoid being hit is important.
+  Losing a life does not directly reduce score, but the recovery costs time and
+  momentum. Avoid being hit whenever possible.
 - The scanner at the bottom of the screen is your most critical tool. Think of
   it as a top-down radar. Your tank is located at the center of the bottom edge,
   and the white dots represent the positions of enemy tanks on the battlefield
@@ -97,5 +98,3 @@ ACTION_MAP = {
     "downrightfire": 16,
     "downleftfire": 17,
 }
-
-MAX_LOST_LIVES = 1

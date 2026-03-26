@@ -17,7 +17,8 @@ Edit guidance:
 Important invariants:
 - Registry currently exposes `assault` and `breakout` as supported main-runner games.
 - `prompt_builder.py` appends reward clips, recent clips, and the current frame in that order.
-- Lost-life behavior is controlled per game via `MAX_LOST_LIVES`.
+- Gameplay prompts should treat life loss as a gameplay setback that consumes
+  time, not as a separate runner termination rule.
 
 Usual follow-up tests:
 - `python -m unittest tests.test_games tests.test_pipeline`

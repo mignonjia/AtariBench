@@ -26,7 +26,6 @@ class GameSpecTests(unittest.TestCase):
         self.assertEqual(spec.action_map["move left"], 4)
         self.assertEqual(spec.action_map["fire right"], 5)
         self.assertEqual(spec.action_map["fire left"], 6)
-        self.assertEqual(spec.max_lost_lives, 1)
         self.assertEqual(spec.fps, 30)
         self.assertEqual(spec.frames_per_action, 3)
 
@@ -40,7 +39,6 @@ class GameSpecTests(unittest.TestCase):
         self.assertEqual(spec.action_map["start"], 1)
         self.assertEqual(spec.action_map["right"], 2)
         self.assertEqual(spec.action_map["left"], 3)
-        self.assertEqual(spec.max_lost_lives, 5)
         self.assertEqual(spec.fps, 30)
         self.assertEqual(spec.frames_per_action, 3)
 

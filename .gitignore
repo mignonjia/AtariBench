@@ -3,6 +3,7 @@ runs/
 _pycache_/
 runs/
 llm/api.sh
+games/prompts_mix_termination/
 
 .vscode/
 .claude/

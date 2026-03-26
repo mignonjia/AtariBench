@@ -34,7 +34,8 @@ Action Planning Guidelines:
   on the surface. The Farmer can only move horizontally. The Gopher will dig
   tunnels upwards. When a tunnel reaches the surface, the Gopher can emerge from
   the hole and run towards the carrots. When it touches a carrot, you lose that
-  carrot. Although there are 3 carrots, the game ends when you lose one carrot.
+  carrot. Losing a carrot does not directly reduce score, but it damages your
+  defensive position and wastes time recovering control.
 
 - As the Farmer, you need to defend against the Gopher. You can: 1) fill the 
   holes; 2) bonk the Gopher.
@@ -81,7 +82,5 @@ ACTION_MAP = {
     "rightbonk": 6,
     "leftbonk": 7,
 }
-
-MAX_LOST_LIVES = 1
 
 SKIP_SECONDS = 8.0

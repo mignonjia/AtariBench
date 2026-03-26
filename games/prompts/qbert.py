@@ -35,9 +35,9 @@ Action Planning Guidelines:
 - Jumping on a cube changes its color. The rules for color changes become more
   complex in later levels.
 - You can jump to any cube with the corresponding action. But if you jump to a
-  direction that is not a cube, you will lose a life. Game will end immediately
-  if you lose all lives.
-  So only jump to the direction that has a cube.
+  direction that is not a cube, you will lose a life. Losing a life does not
+  directly reduce score, but the recovery consumes time, so only jump in
+  directions that actually contain a cube.
 - Survival is critical. You lose a life if you jump off the pyramid or get
   caught by Coily (the snake) or a Red Ball.
 - Enemy Guide:
@@ -85,7 +85,5 @@ ACTION_MAP = {
     "top-left": 4,
     "bottom-left": 5,
 }
-
-MAX_LOST_LIVES = 2
 
 SKIP_SECONDS = 4

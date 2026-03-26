@@ -8,8 +8,9 @@ Laser Gates Quick Guide:
 
 Goal: Navigate the Dante Dart ship through the caverns. Your goal is to avoid
 collisions with the cavern walls, enemies and enemy fire to avoid losing
-shields. You will end the game if your shield is depleted. You can earn scores
-by destroying the enemies and successfully passing through Forcefields.
+shields. Preserving shields is important because heavy damage disrupts progress
+and reduces scoring opportunities. You can earn scores by destroying the
+enemies and successfully passing through Forcefields.
 
 Available actions (moving and firing):
 - noop: Do nothing.

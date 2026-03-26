@@ -115,5 +115,3 @@ ACTION_MAP = {
     "downrightshoot": 16,
     "downleftshoot": 17,
 }
-
-MAX_LOST_REWARDS = 3

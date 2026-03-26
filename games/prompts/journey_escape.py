@@ -39,7 +39,8 @@ move: [action_1, action_2, ..., action_n]
 {FPS_SPECIFIC_PROMPT}
 
 Action Planning Guidelines:
-- You have 50 seconds in total. You want to loss at few points as possible.
+- You are optimizing score over the fixed game window, so avoid unnecessary
+  point losses and keep moving through safer lanes.
 
 - Enemies & Obstacles (Avoid, 1 point loss per encounter):
   - Shifty-Eyed Promoters (unhappy torsos).

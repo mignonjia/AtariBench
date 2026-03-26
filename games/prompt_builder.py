@@ -31,6 +31,7 @@ def build_prompt(
     game_spec: GameSpec,
     trajectory: Trajectory,
     history_clips: int,
+    duration_seconds: int,
 ) -> PromptPackage:
     """Render the single-turn prompt from the current trajectory."""
 
@@ -62,11 +63,7 @@ def build_prompt(
         )
 
     game_prompt = game_spec.game_prompt.format(FPS_SPECIFIC_PROMPT=game_spec.fps_prompt)
-    game_over_prompt = ""
-    if game_spec.max_lost_lives is not None:
-        game_over_prompt = termination.MAX_LOST_LIVES_PROMPT.format(
-            MAX_LOST_LIVES=game_spec.max_lost_lives
-        )
+    game_over_prompt = termination.MAX_TIME_PROMPT.format(MAX_TIME=duration_seconds)
 
     prompt_text = common_prompt.SINGLE_TURN_PROMPT_TEMPLATE.format(
         GAME_PROMPT=game_prompt,
@@ -107,7 +104,7 @@ def _build_state_reward_prompt(action: ActionRecord, game_spec: GameSpec) -> str
         state_text += "Feedback: You received a negative score!\n"
     if action.lost_life:
         state_text += (
-            "Feedback: A new life has begun! This occurs either after you lose a "
-            "life or when the current episode ends.\n"
+            "Feedback: A life was lost and a new life has begun. This does not "
+            "directly reduce your score, but the restart consumes time.\n"
         )
     return state_text

@@ -8,8 +8,8 @@ Boxing Quick Guide:
 
 Goal: You fight an opponent in a boxing ring. You score points for hitting the
 opponent, and your opponent scores points for hitting you. Your goal is to score
-as many points as possible within 50 seconds, while let your opponent score as
-few points as possible.
+as many points as possible within the fixed game window, while letting your
+opponent score as few points as possible.
 
 Available actions:
 - noop: Do nothing.

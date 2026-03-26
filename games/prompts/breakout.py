@@ -24,6 +24,8 @@ on your next actions.
 
 Action Planning Guidelines:
 
+- Your objective is to maximize total reward within the fixed game window.
+
 - If no ball (a small red dot) is on the screen, the first action must be
 start to serve a new ball into play.
 
@@ -33,6 +35,10 @@ Only press left, right, or noop in this case. The ball is small so pay attention
 - The choice between left and right should be based on the ball's current
 trajectory and horizontal position. Try to infer the trajectory based on
 the historical images.
+
+- Losing a life does not directly reduce score, but it wastes time because the
+  ball must be relaunched and scoring opportunities are interrupted. Avoid life
+  loss whenever possible.
 
 - For action durations exceeding 0.1 seconds, the left and right movements will
 speed up after the first 0.1 seconds, then the speed will remain the same.
@@ -59,5 +65,3 @@ ACTION_MAP = {
     "right": 2,
     "left": 3,
 }
-
-MAX_LOST_LIVES = 5

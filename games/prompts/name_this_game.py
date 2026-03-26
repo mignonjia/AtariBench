@@ -8,8 +8,7 @@ Name This Game Quick Guide:
 
 Goal: Shoot the shark and the octopus's tentacles and get as many points as
 possible. You also receive points for replenishing your oxygen if the tank is
-already full. The game has a fixed time limit, but you will end early if the
-shark or the octopus's tentacles reaches the bottom of the screen.
+already full. You should maximize score within the fixed game window.
 
 Available actions (moving and firing):
 - noop: Do nothing.
@@ -43,10 +42,11 @@ Action Planning Guidelines:
     its attack again.
   - The Octopus: An octopus will lower its tentacles from above. You must shoot
     the lowest segment of a descending tentacle to make it retract.
-- Losing Conditions (Game Over before the time limit is reached):
-  - You run out of oxygen.
-  - You are touched (bitten) by the shark.
-  - An octopus tentacle successfully reaches the sea floor.
+- Risk Conditions:
+  - Running out of oxygen wastes time and prevents scoring.
+  - Being touched by the shark disrupts control and costs time.
+  - Letting an octopus tentacle reach the sea floor gives up a dangerous lane
+    and reduces scoring opportunities.
 - Scoring Details:
   - Hitting a tentacle: 1 point
   - Hitting the shark: 1 point

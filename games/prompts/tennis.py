@@ -68,5 +68,3 @@ ACTION_MAP = {
     "downright": 8,
     "downleft": 9,
 }
-
-MAX_LOST_REWARDS = 3

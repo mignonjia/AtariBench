@@ -111,12 +111,39 @@ class PipelineRunnerTests(unittest.TestCase):
         self.assertIsNone(summary["thinking_budget"])
         self.assertEqual(client.calls[0]["thinking_mode"], "default")
 
-    def test_life_loss_stops_the_run(self) -> None:
+    def test_life_loss_does_not_stop_the_run(self) -> None:
         spec = get_game_spec("breakout")
         client = FakeGeminiClient(
             responses=["thought: start\nmove: [start, noop, noop, noop, noop, noop, noop, noop, noop, noop]"]
         )
         env = FakeEnv(lives_schedule={4: 4, 5: 4, 6: 4, 7: 3, 8: 3, 9: 3, 10: 2, 11: 2, 12: 2, 13: 1, 14: 1, 15: 1, 16: 0})
+        runner = PipelineRunner(
+            game_spec=spec,
+            model_client=client,
+            config=PipelineConfig(
+                duration_seconds=1,
+                max_actions_per_turn=10,
+                history_clips=1,
+                output_dir=tempfile.mkdtemp(),
+            ),
+            env_factory=lambda: env,
+            frame_writer=fake_frame_writer,
+        )
+
+        summary = runner.run()
+
+        self.assertEqual(summary["stop_reason"], "frame_budget")
+        self.assertEqual(summary["total_lost_lives"], 5)
+
+    def test_prompt_describes_time_budget_and_life_loss_tradeoff(self) -> None:
+        spec = get_game_spec("breakout")
+        client = FakeGeminiClient(
+            responses=[
+                "thought: drift\nmove: [noop, noop, noop, noop, noop, noop, noop, noop, noop, noop]",
+            ]
+            * 30
+        )
+        env = FakeEnv()
         runner = PipelineRunner(
             game_spec=spec,
             model_client=client,
@@ -130,10 +157,11 @@ class PipelineRunnerTests(unittest.TestCase):
             frame_writer=fake_frame_writer,
         )
 
-        summary = runner.run()
+        runner.run()
 
-        self.assertEqual(summary["stop_reason"], "lost_lives")
-        self.assertEqual(summary["total_lost_lives"], 5)
+        prompt_text = str(client.calls[0]["prompt_text"])
+        self.assertIn("fixed budget of 30 seconds", prompt_text)
+        self.assertIn("does not directly reduce your score", prompt_text)
 
     def test_parse_error_defaults_to_noop_and_persists_raw_response(self) -> None:
         spec = get_game_spec("breakout")

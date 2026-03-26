@@ -41,8 +41,8 @@ Action Planning Guidelines:
 - If the game has started but there are no enemies, you can move left or right
   to officially start the game.
 - The yellow spaceships in the bottom-left corner indicate your remaining lives.
-  Although there are multiple lives as shown in the image, we will end the game
-  after the first loss (i.e. when you are hit by an enemy ship).
+  Losing a life does not directly reduce score, but the respawn consumes time
+  and interrupts scoring opportunities, so avoid being hit whenever possible.
 """
 
 FPS_10_PROMPT: str = """
@@ -69,6 +69,3 @@ ACTION_MAP = {
 }
 
 SKIP_SECONDS = 8.0
-
-# gemini-2.5-flash: 1 life = ~800 frames
-MAX_LOST_LIVES = 1
