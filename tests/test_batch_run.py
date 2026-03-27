@@ -15,6 +15,7 @@ if candidate not in sys.path:
 
 from batch_run import (
     BatchJobSpec,
+    build_jobs_from_config,
     classify_error_output,
     compute_retry_sleep_seconds,
     execute_run,
@@ -37,6 +38,80 @@ class BatchRunTests(unittest.TestCase):
         job = parse_job_spec("gemini-2.5-pro:3")
         self.assertEqual(job.thinking_mode, "default")
 
+    def test_build_jobs_from_config_merges_common_and_setting_specific_values(self) -> None:
+        batch_options, jobs = build_jobs_from_config(
+            common_settings={
+                "max_concurrency": 4,
+                "max_retries": 8,
+                "render_video_fps": 24,
+                "retry_backoff_seconds": 12,
+                "duration_seconds": 30,
+                "history_clips": 3,
+                "non_zero_reward_clips": 3,
+                "prompt_mode": "structured_history",
+            },
+            setting_entries=[
+                {
+                    "model_name": "gemini-2.5-flash",
+                    "thinking_mode": "off",
+                    "games": "selected",
+                    "seed_start": 0,
+                    "num_runs": 2,
+                },
+                {
+                    "model_name": "gpt-5.4-mini",
+                    "thinking_mode": "none",
+                    "games": ["assault", "breakout"],
+                    "num_runs": 1,
+                    "history_clips": 10,
+                },
+            ],
+            default_output_dir="runs/batches",
+            default_duration_seconds=30,
+            default_max_actions_per_turn=10,
+            default_history_clips=3,
+            default_non_zero_reward_clips=3,
+            default_prompt_mode="structured_history",
+            default_seed=None,
+            default_max_concurrency=2,
+            default_fallback_thinking="minimal",
+            default_max_retries=1,
+            default_retry_backoff_seconds=5.0,
+            default_render_video_fps=30,
+        )
+
+        self.assertEqual(batch_options["max_concurrency"], 4)
+        self.assertEqual(batch_options["max_retries"], 8)
+        self.assertEqual(batch_options["render_video_fps"], 24)
+        self.assertEqual(len(jobs), 2)
+        self.assertEqual(jobs[0].games, ["breakout", "assault"])
+        self.assertEqual(jobs[0].run_count, 2)
+        self.assertEqual(jobs[0].seed_start, 0)
+        self.assertEqual(jobs[0].history_clips, 3)
+        self.assertEqual(jobs[1].games, ["assault", "breakout"])
+        self.assertEqual(jobs[1].history_clips, 10)
+
+    def test_expand_run_requests_uses_seed_start_for_each_run(self) -> None:
+        jobs = [
+            BatchJobSpec(
+                model_name="gemini-2.5-flash",
+                run_count=3,
+                thinking_mode="off",
+                label="gemini-2.5-flash",
+                games=["breakout"],
+                seed_start=0,
+            )
+        ]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            requests = expand_run_requests(
+                jobs=jobs,
+                project_dir=PROJECT_DIR,
+                base_output_dir=Path(tmpdir) / "runs",
+                log_dir=Path(tmpdir) / "logs",
+            )
+
+        self.assertEqual([request.seed for request in requests], [0, 1, 2])
+
     def test_expand_run_requests_creates_unique_output_roots(self) -> None:
         jobs = [
             BatchJobSpec(
@@ -44,11 +119,13 @@ class BatchRunTests(unittest.TestCase):
                 run_count=2,
                 thinking_mode="off",
                 label="gemini-2.5-flash",
+                games=["custom_game"],
             )
         ]
         with tempfile.TemporaryDirectory() as tmpdir:
             requests = expand_run_requests(
                 jobs=jobs,
+                project_dir=PROJECT_DIR,
                 base_output_dir=Path(tmpdir) / "runs",
                 log_dir=Path(tmpdir) / "logs",
             )
@@ -65,17 +142,42 @@ class BatchRunTests(unittest.TestCase):
                 run_count=1,
                 thinking_mode="off",
                 label="gpt-5.4-mini",
+                games=["breakout"],
             )
         ]
         with tempfile.TemporaryDirectory() as tmpdir:
             requests = expand_run_requests(
                 jobs=jobs,
+                project_dir=PROJECT_DIR,
                 base_output_dir=Path(tmpdir) / "ignored",
                 log_dir=Path(tmpdir) / "logs",
-                canonical_output_root=Path(tmpdir) / "breakout",
             )
 
-        self.assertEqual(requests[0].output_dir, str(Path(tmpdir) / "breakout" / "gpt-5.4-mini"))
+        self.assertEqual(requests[0].output_dir, str(PROJECT_DIR / "runs" / "breakout" / "gpt-5.4-mini"))
+
+    def test_expand_run_requests_supports_multiple_games(self) -> None:
+        jobs = [
+            BatchJobSpec(
+                model_name="gemini-2.5-flash",
+                run_count=1,
+                thinking_mode="off",
+                label="gemini-2.5-flash",
+                games=["breakout", "assault"],
+            )
+        ]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            requests = expand_run_requests(
+                jobs=jobs,
+                project_dir=PROJECT_DIR,
+                base_output_dir=Path(tmpdir) / "runs",
+                log_dir=Path(tmpdir) / "logs",
+            )
+
+        self.assertEqual(len(requests), 2)
+        self.assertEqual(requests[0].game, "breakout")
+        self.assertEqual(requests[1].game, "assault")
+        self.assertIn("breakout_gemini-2.5-flash_run_001.log", requests[0].log_path)
+        self.assertIn("assault_gemini-2.5-flash_run_001.log", requests[1].log_path)
 
     def test_classify_error_output(self) -> None:
         self.assertEqual(
@@ -125,9 +227,12 @@ class BatchRunTests(unittest.TestCase):
             run_count=1,
             thinking_mode="low",
             label="gpt-5.4",
+            games=["breakout"],
+            prompt_mode="append_only",
         )
         run_request = expand_run_requests(
             jobs=[request],
+            project_dir=PROJECT_DIR,
             base_output_dir=Path("/tmp") / "runs",
             log_dir=Path("/tmp") / "logs",
         )[0]
@@ -136,13 +241,6 @@ class BatchRunTests(unittest.TestCase):
             run_mock.return_value = subprocess.CompletedProcess(args=[], returncode=0, stdout="")
             _run_subprocess(
                 request=run_request,
-                game="breakout",
-                duration_seconds=30,
-                max_actions_per_turn=10,
-                history_clips=3,
-                non_zero_reward_clips=3,
-                prompt_mode="append_only",
-                seed=None,
                 thinking_mode="low",
             )
 
@@ -170,8 +268,10 @@ class BatchRunTests(unittest.TestCase):
                         run_count=1,
                         thinking_mode="off",
                         label="gemini-2.5-pro",
+                        games=["breakout"],
                     )
                 ],
+                project_dir=PROJECT_DIR,
                 base_output_dir=Path(tmpdir) / "runs",
                 log_dir=Path(tmpdir) / "logs",
             )[0]
@@ -203,13 +303,6 @@ class BatchRunTests(unittest.TestCase):
                     ):
                         result = execute_run(
                             request=request,
-                            game="breakout",
-                            duration_seconds=30,
-                            max_actions_per_turn=10,
-                            history_clips=3,
-                            non_zero_reward_clips=3,
-                            prompt_mode="structured_history",
-                            seed=None,
                             fallback_thinking="minimal",
                             max_retries=1,
                             retry_backoff_seconds=0.0,
@@ -217,6 +310,7 @@ class BatchRunTests(unittest.TestCase):
                         )
 
         self.assertTrue(result.success)
+        self.assertEqual(result.game, "breakout")
         self.assertEqual(result.final_thinking_mode, "minimal")
         self.assertEqual(result.attempts, 2)
         self.assertEqual(run_mock.call_count, 2)
@@ -231,8 +325,10 @@ class BatchRunTests(unittest.TestCase):
                         run_count=1,
                         thinking_mode="off",
                         label="gemini-2.5-flash",
+                        games=["breakout"],
                     )
                 ],
+                project_dir=PROJECT_DIR,
                 base_output_dir=Path(tmpdir) / "runs",
                 log_dir=Path(tmpdir) / "logs",
             )[0]
@@ -264,13 +360,6 @@ class BatchRunTests(unittest.TestCase):
                     ):
                         result = execute_run(
                             request=request,
-                            game="breakout",
-                            duration_seconds=30,
-                            max_actions_per_turn=10,
-                            history_clips=3,
-                            non_zero_reward_clips=3,
-                            prompt_mode="structured_history",
-                            seed=None,
                             fallback_thinking="minimal",
                             max_retries=1,
                             retry_backoff_seconds=0.0,
@@ -291,8 +380,10 @@ class BatchRunTests(unittest.TestCase):
                         run_count=1,
                         thinking_mode="off",
                         label="gemini-2.5-flash",
+                        games=["breakout"],
                     )
                 ],
+                project_dir=PROJECT_DIR,
                 base_output_dir=Path(tmpdir) / "runs",
                 log_dir=Path(tmpdir) / "logs",
             )[0]
@@ -321,13 +412,6 @@ class BatchRunTests(unittest.TestCase):
                     ):
                         result = execute_run(
                             request=request,
-                            game="breakout",
-                            duration_seconds=30,
-                            max_actions_per_turn=10,
-                            history_clips=3,
-                            non_zero_reward_clips=3,
-                            prompt_mode="structured_history",
-                            seed=None,
                             fallback_thinking="minimal",
                             max_retries=1,
                             retry_backoff_seconds=0.0,
@@ -347,8 +431,10 @@ class BatchRunTests(unittest.TestCase):
                         run_count=1,
                         thinking_mode="off",
                         label="gemini-2.5-flash",
+                        games=["breakout"],
                     )
                 ],
+                project_dir=PROJECT_DIR,
                 base_output_dir=Path(tmpdir) / "runs",
                 log_dir=Path(tmpdir) / "logs",
             )[0]
@@ -371,13 +457,6 @@ class BatchRunTests(unittest.TestCase):
                     ):
                         result = execute_run(
                             request=request,
-                            game="breakout",
-                            duration_seconds=30,
-                            max_actions_per_turn=10,
-                            history_clips=3,
-                            non_zero_reward_clips=3,
-                            prompt_mode="structured_history",
-                            seed=None,
                             fallback_thinking="minimal",
                             max_retries=1,
                             retry_backoff_seconds=0.0,

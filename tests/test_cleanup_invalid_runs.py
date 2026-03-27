@@ -12,10 +12,10 @@ candidate = str(PROJECT_DIR)
 if candidate not in sys.path:
     sys.path.insert(0, candidate)
 
-from prune_non_30s_runs import iter_prunable_run_dirs, prune_non_30s_runs
+from cleanup_invalid_runs import cleanup_invalid_runs, iter_prunable_run_dirs
 
 
-class PruneNon30sRunsTests(unittest.TestCase):
+class CleanupInvalidRunsTests(unittest.TestCase):
     def test_iter_prunable_run_dirs_finds_only_non_30_second_runs(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             keep_dir = Path(tmpdir) / "runs" / "breakout" / "gemini-2.5-flash" / "20260324_100000"
@@ -56,7 +56,7 @@ class PruneNon30sRunsTests(unittest.TestCase):
         self.assertEqual(removals["demon_attack"][0].run_dir, incomplete_dir.resolve())
         self.assertEqual(removals["demon_attack"][0].reason, "missing_summary")
 
-    def test_prune_non_30s_runs_removes_runs_and_refreshes_summary(self) -> None:
+    def test_cleanup_invalid_runs_removes_runs_and_refreshes_summary(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             keep_dir = Path(tmpdir) / "runs" / "assault" / "gemini-2.5-flash" / "20260324_100000"
             remove_dir = Path(tmpdir) / "runs" / "assault" / "gemini-2.5-flash" / "20260324_110000"
@@ -91,15 +91,17 @@ class PruneNon30sRunsTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            prune_non_30s_runs(tmpdir, apply=True)
+            cleanup_invalid_runs(tmpdir, apply=True)
 
             self.assertTrue(keep_dir.exists())
             self.assertFalse(remove_dir.exists())
             summary_path = Path(tmpdir) / "runs" / "assault" / "model_summary.json"
             payload = json.loads(summary_path.read_text(encoding="utf-8"))
 
-        self.assertEqual(payload["models"]["gemini-2.5-flash"]["run_count"], 1)
-        self.assertEqual(payload["models"]["gemini-2.5-flash"]["latest_timestamp"], "20260324_100000")
+        model_summaries = payload["models"]["gemini-2.5-flash"]
+        self.assertEqual(len(model_summaries), 1)
+        self.assertEqual(model_summaries[0]["run_count"], 1)
+        self.assertEqual(model_summaries[0]["latest_timestamp"], "20260324_100000")
 
 
 if __name__ == "__main__":

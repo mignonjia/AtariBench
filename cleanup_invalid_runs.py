@@ -1,4 +1,4 @@
-"""Remove non-30-second runs and refresh per-game summaries."""
+"""Remove invalid stored runs and refresh per-game summaries."""
 
 from __future__ import annotations
 
@@ -20,7 +20,10 @@ class RemovalCandidate:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Remove run directories whose summary duration_seconds is not 30."
+        description=(
+            "Remove incomplete, invalid, or non-30-second run directories "
+            "and refresh per-game summaries."
+        )
     )
     parser.add_argument(
         "--project-dir",
@@ -80,7 +83,7 @@ def iter_prunable_run_dirs(project_dir: str | Path) -> dict[str, list[RemovalCan
     return removals
 
 
-def prune_non_30s_runs(project_dir: str | Path, apply: bool) -> dict[str, list[Path]]:
+def cleanup_invalid_runs(project_dir: str | Path, apply: bool) -> dict[str, list[Path]]:
     removals = iter_prunable_run_dirs(project_dir)
     for game, candidates in removals.items():
         for candidate in candidates:
@@ -97,7 +100,7 @@ def prune_non_30s_runs(project_dir: str | Path, apply: bool) -> dict[str, list[P
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    removals = prune_non_30s_runs(project_dir=args.project_dir, apply=args.apply)
+    removals = cleanup_invalid_runs(project_dir=args.project_dir, apply=args.apply)
 
     removed_count = sum(len(run_dirs) for run_dirs in removals.values())
     affected_games = len(removals)

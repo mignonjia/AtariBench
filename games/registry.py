@@ -87,6 +87,10 @@ def _discover_game_specs() -> dict[str, GameSpec]:
 
 
 _GAME_SPECS = _discover_game_specs()
+_GAME_SELECTIONS = {
+    "selected": ("breakout", "assault"),
+    "full": tuple(sorted(_GAME_SPECS)),
+}
 
 
 def get_game_spec(game_key: str) -> GameSpec:
@@ -104,3 +108,18 @@ def list_game_keys() -> list[str]:
     """List supported game keys."""
 
     return sorted(_GAME_SPECS)
+
+
+def list_game_selection_keys() -> list[str]:
+    """List supported game selection presets."""
+
+    return sorted(_GAME_SELECTIONS)
+
+
+def resolve_game_selection(selection: str) -> list[str]:
+    """Resolve one game key or a named game selection preset."""
+
+    normalized_selection = selection.strip().lower()
+    if normalized_selection in _GAME_SELECTIONS:
+        return list(_GAME_SELECTIONS[normalized_selection])
+    return [get_game_spec(normalized_selection).game_key]

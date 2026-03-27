@@ -15,7 +15,11 @@ Edit guidance:
 - Prompt changes should preserve the ordering contract between `IMG_HOLDER` references and `image_paths`.
 
 Important invariants:
-- Registry currently exposes `assault` and `breakout` as supported main-runner games.
+- Registry discovers all prompt-backed games, and also exposes named selections:
+  `selected` = `breakout`, `assault`
+  `full` = all currently registered games.
+- Config-driven batch runs can reference those same selections through
+  `config/model_game_specific.yaml`.
 - `prompt_builder.py` supports two prompt modes:
   `structured_history` appends reward clips, recent clips, and the current frame in that order;
   `append_only` builds a chronological user/assistant transcript while preserving the same per-action clip format.

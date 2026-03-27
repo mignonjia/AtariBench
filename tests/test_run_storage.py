@@ -42,7 +42,7 @@ class RunStorageTests(unittest.TestCase):
         self.assertEqual(output_dir, game_model_dir(tmpdir, "assault", "gpt-5.4-mini"))
         self.assertFalse(nest_output_by_game)
 
-    def test_update_game_model_summary_aggregates_per_model(self) -> None:
+    def test_update_game_model_summary_aggregates_per_setting(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = game_root(tmpdir, "assault")
             run_a = root / "gpt-5.4-mini" / "20260324_100000"
@@ -94,7 +94,7 @@ class RunStorageTests(unittest.TestCase):
             (run_c / "summary.json").write_text(
                 json.dumps(
                     {
-                        "duration_seconds": 1,
+                        "duration_seconds": 30,
                         "model_name": "gpt-5.4-mini",
                         "prompt_mode": "structured_history",
                         "thinking_mode": "off",
@@ -102,10 +102,10 @@ class RunStorageTests(unittest.TestCase):
                         "thinking_budget": 0,
                         "history_clips": 1,
                         "non_zero_reward_clips": 1,
-                        "total_reward": 99.0,
+                        "total_reward": 9.0,
                         "total_lost_lives": 0,
                         "turn_count": 4,
-                        "frame_count": 31,
+                        "frame_count": 901,
                         "stop_reason": "frame_budget",
                     }
                 ),
@@ -115,24 +115,34 @@ class RunStorageTests(unittest.TestCase):
             summary_path = update_game_model_summary(tmpdir, "assault")
             payload = json.loads(summary_path.read_text(encoding="utf-8"))
 
-        model_summary = payload["models"]["gpt-5.4-mini"]
+        model_summaries = payload["models"]["gpt-5.4-mini"]
+        append_only_summary = next(
+            summary for summary in model_summaries if summary["thinking_mode"] == "low"
+        )
+        structured_history_summary = next(
+            summary for summary in model_summaries if summary["thinking_mode"] == "off"
+        )
         self.assertEqual(payload["game"], "assault")
-        self.assertEqual(model_summary["run_count"], 2)
-        self.assertEqual(model_summary["avg_total_reward"], 4.0)
-        self.assertEqual(model_summary["avg_total_lost_lives"], 2.0)
-        self.assertEqual(model_summary["avg_turn_count"], 12.0)
-        self.assertEqual(model_summary["avg_frame_count"], 110.0)
-        self.assertEqual(model_summary["latest_timestamp"], "20260324_110000")
-        self.assertEqual(model_summary["thinking_mode"], "low")
-        self.assertEqual(model_summary["prompt_mode"], "append_only")
-        self.assertEqual(model_summary["thinking_level"], "low")
-        self.assertIsNone(model_summary["thinking_budget"])
-        self.assertEqual(model_summary["thinking_modes"], {"low": 2})
-        self.assertEqual(model_summary["prompt_modes"], {"append_only": 2})
-        self.assertEqual(model_summary["history_clips"], 3)
-        self.assertEqual(model_summary["non_zero_reward_clips"], 2)
-        self.assertEqual(model_summary["history_clip_counts"], {"3": 2})
-        self.assertEqual(model_summary["non_zero_reward_clip_counts"], {"2": 2})
+        self.assertEqual(len(model_summaries), 2)
+        self.assertEqual(append_only_summary["run_count"], 2)
+        self.assertEqual(append_only_summary["avg_total_reward"], 4.0)
+        self.assertEqual(append_only_summary["avg_total_lost_lives"], 2.0)
+        self.assertEqual(append_only_summary["avg_turn_count"], 12.0)
+        self.assertEqual(append_only_summary["avg_frame_count"], 110.0)
+        self.assertEqual(append_only_summary["latest_timestamp"], "20260324_110000")
+        self.assertEqual(append_only_summary["thinking_mode"], "low")
+        self.assertEqual(append_only_summary["prompt_mode"], "append_only")
+        self.assertEqual(append_only_summary["thinking_level"], "low")
+        self.assertIsNone(append_only_summary["thinking_budget"])
+        self.assertEqual(append_only_summary["history_clips"], 3)
+        self.assertEqual(append_only_summary["non_zero_reward_clips"], 2)
+        self.assertEqual(structured_history_summary["run_count"], 1)
+        self.assertEqual(structured_history_summary["avg_total_reward"], 9.0)
+        self.assertEqual(structured_history_summary["prompt_mode"], "structured_history")
+        self.assertEqual(structured_history_summary["thinking_mode"], "off")
+        self.assertEqual(structured_history_summary["thinking_budget"], 0)
+        self.assertEqual(structured_history_summary["history_clips"], 1)
+        self.assertEqual(structured_history_summary["non_zero_reward_clips"], 1)
 
     def test_update_game_model_summary_ignores_non_full_runs(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -165,14 +175,16 @@ class RunStorageTests(unittest.TestCase):
 
         self.assertEqual(payload["models"], {})
 
-    def test_update_runs_model_summary_aggregates_flat_entries(self) -> None:
+    def test_update_runs_model_summary_aggregates_flat_entries_per_setting(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             assault_root = game_root(tmpdir, "assault")
             breakout_root = game_root(tmpdir, "breakout")
             assault_run = assault_root / "gemini-2.5-flash" / "20260324_100000"
-            breakout_run = breakout_root / "gpt-5.4-mini" / "20260324_110000"
+            breakout_run_a = breakout_root / "gpt-5.4-mini" / "20260324_110000"
+            breakout_run_b = breakout_root / "gpt-5.4-mini" / "20260324_120000"
             assault_run.mkdir(parents=True, exist_ok=True)
-            breakout_run.mkdir(parents=True, exist_ok=True)
+            breakout_run_a.mkdir(parents=True, exist_ok=True)
+            breakout_run_b.mkdir(parents=True, exist_ok=True)
             (assault_run / "summary.json").write_text(
                 json.dumps(
                     {
@@ -193,7 +205,7 @@ class RunStorageTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            (breakout_run / "summary.json").write_text(
+            (breakout_run_a / "summary.json").write_text(
                 json.dumps(
                     {
                         "duration_seconds": 30,
@@ -213,13 +225,33 @@ class RunStorageTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
+            (breakout_run_b / "summary.json").write_text(
+                json.dumps(
+                    {
+                        "duration_seconds": 30,
+                        "model_name": "gpt-5.4-mini",
+                        "prompt_mode": "structured_history",
+                        "thinking_mode": "off",
+                        "thinking_level": None,
+                        "thinking_budget": 0,
+                        "history_clips": 2,
+                        "non_zero_reward_clips": 1,
+                        "total_reward": 5.0,
+                        "total_lost_lives": 0,
+                        "turn_count": 12,
+                        "frame_count": 901,
+                        "stop_reason": "frame_budget",
+                    }
+                ),
+                encoding="utf-8",
+            )
 
             update_game_model_summary(tmpdir, "assault")
             update_game_model_summary(tmpdir, "breakout")
             summary_path = update_runs_model_summary(tmpdir)
             payload = json.loads(summary_path.read_text(encoding="utf-8"))
 
-        self.assertEqual(len(payload["entries"]), 2)
+        self.assertEqual(len(payload["entries"]), 3)
         self.assertEqual(payload["entries"][0]["game"], "assault")
         self.assertEqual(payload["entries"][0]["model_name"], "gemini-2.5-flash")
         self.assertEqual(payload["entries"][0]["prompt_mode"], "structured_history")
@@ -231,6 +263,12 @@ class RunStorageTests(unittest.TestCase):
         self.assertEqual(payload["entries"][1]["thinking_mode"], "low")
         self.assertEqual(payload["entries"][1]["history_clips"], 4)
         self.assertEqual(payload["entries"][1]["non_zero_reward_clips"], 2)
+        self.assertEqual(payload["entries"][2]["game"], "breakout")
+        self.assertEqual(payload["entries"][2]["model_name"], "gpt-5.4-mini")
+        self.assertEqual(payload["entries"][2]["prompt_mode"], "structured_history")
+        self.assertEqual(payload["entries"][2]["thinking_mode"], "off")
+        self.assertEqual(payload["entries"][2]["history_clips"], 2)
+        self.assertEqual(payload["entries"][2]["non_zero_reward_clips"], 1)
 
 
 if __name__ == "__main__":

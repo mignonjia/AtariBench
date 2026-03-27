@@ -1,24 +1,23 @@
 # AtariBench
 
-This runner executes Atari games with multimodal LLMs in a repeatable workflow.
+Compact Atari runner for multimodal LLM experiments.
 
 ## Setup
 
-Use the `ale` conda environment and set the API key for the provider you want:
+Use the `ale` conda environment and export the provider keys you need:
 
 ```bash
 source ~/.zshrc
 conda activate ale
 export GEMINI_API_KEY="YOUR_GEMINI_KEY"
 export OPENAI_API_KEY="YOUR_OPENAI_KEY"
+export ANTHROPIC_API_KEY="YOUR_ANTHROPIC_KEY"
 ```
 
 ## Single Run
 
-Run Breakout once:
-
 ```bash
-python AtariBench/main.py \
+python main.py \
   --game breakout \
   --model gemini-2.5-flash \
   --thinking off \
@@ -26,54 +25,33 @@ python AtariBench/main.py \
   --duration-seconds 30
 ```
 
-Run Breakout once on OpenAI:
+Append-only prompt mode:
 
 ```bash
-python AtariBench/main.py \
+python main.py \
   --game breakout \
-  --model gpt-5.4 \
-  --provider openai \
-  --thinking low \
-  --prompt-mode structured_history \
-  --duration-seconds 30
+  --model gemini-2.5-flash \
+  --thinking off \
+  --prompt-mode append_only \
+  --duration-seconds 5
 ```
 
 ## Batch Run
 
-Use `AtariBench/batch_run.py`.
-
-Basic shape:
+Job-driven batch mode:
 
 ```bash
-python AtariBench/batch_run.py \
-  --game breakout \
-  --job MODEL:COUNT:THINKING \
-  --prompt-mode structured_history \
+python batch_run.py \
+  --game selected \
+  --job gemini-2.5-flash:3:off \
   --max-concurrency 1
 ```
 
-Example: run Gemini 3 Flash Preview 5 times with minimal thinking:
+`--game` accepts:
 
-```bash
-python AtariBench/batch_run.py \
-  --game breakout \
-  --job gemini-3-flash-preview:5:minimal \
-  --max-concurrency 1 \
-  --max-retries 2 \
-  --retry-backoff-seconds 10
-```
-
-Example: mix multiple models in one batch:
-
-```bash
-python AtariBench/batch_run.py \
-  --game breakout \
-  --job gemini-2.5-flash:5:off \
-  --job gemini-3-flash-preview:5:minimal \
-  --max-concurrency 1
-```
-
-## Job Format
+- one game key such as `breakout`
+- `selected` = `breakout`, `assault`
+- `full` = all registered prompt-backed games
 
 Each `--job` is:
 
@@ -84,109 +62,108 @@ MODEL:COUNT[:THINKING]
 Examples:
 
 ```text
-gemini-2.5-flash:5:off
-gemini-3-flash-preview:5:minimal
-gemini-3.1-pro-preview:1:low
+gemini-2.5-flash:3:off
+gpt-5.4-mini:1:none
+claude-sonnet-4-6:2:medium
 ```
 
-## Thinking Modes
+## Config Batch Run
 
-Supported values:
+Config-driven batch mode uses:
 
-- `default`: no explicit thinking config
-- `off`: sends `thinking_budget=0`
-- `minimal`: sends `thinking_level=MINIMAL`
-- `low`: sends `thinking_level=LOW`
-- `on`: sends `thinking_level=MEDIUM`
+- [`config/common.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/common.yaml): shared defaults
+- [`config/model_game_specific.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/model_game_specific.yaml): per-setting entries
 
-Logged metadata:
+Run it with:
 
-- `thinking_mode` records the requested mode
-- `thinking_level` records the named level used for the request
-- `thinking_budget` is only set for `off`
+```bash
+python batch_run.py \
+  --common-config config/common.yaml \
+  --model-game-specific-config config/model_game_specific.yaml
+```
 
-## Important Flags
+Per-setting entries can specify:
 
-- `--duration-seconds 30`: total game budget
-- `--history-clips 3`: number of recent clips included in structured-history mode
-- `--non-zero-reward-clips 3`: number of reward/life-loss clips included in structured-history mode
-- `--prompt-mode structured_history|append_only`: choose curated history vs chronological append-only transcript prompting
-- `--max-concurrency`: how many runs to execute at once
-- `--max-retries`: retries for transient `429` and `503` failures
-- `--retry-backoff-seconds`: base backoff between retries
-- `--render-video-fps 30`: output FPS for the visualization video
+- `model_name`
+- `thinking_mode`
+- `prompt_mode`
+- `history_clips`
+- `non_zero_reward_clips`
+- `games`
+- `seed_start`
+- `num_runs`
+
+`games` can be:
+
+- one game key
+- `selected`
+- `full`
+- a list mixing those values
+
+`seed_start: 0` with `num_runs: 3` expands to seeds `0`, `1`, and `2`.
 
 ## Prompt Modes
 
-- `structured_history`: the original prompt style, with separate recent-history and non-zero-reward-history sections
-- `append_only`: a chronological transcript where prior assistant actions are followed by user-provided observed states, rewards, and updated instructions
+Supported values:
 
-## Output Layout
+- `structured_history`
+- `append_only`
 
-A batch creates:
+`structured_history` uses curated recent clips plus non-zero-reward clips.
+
+`append_only` uses a chronological user/assistant transcript. At serving time this is sent as structured chat messages, not hand-written role tags.
+
+## Thinking Modes
+
+Thinking support is model-specific.
+
+- The allowed modes per model live in [`llm/model_thinking.json`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/llm/model_thinking.json).
+- The effective resolved request settings come from [`llm/common.py`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/llm/common.py) via `describe_effective_thinking_mode()`.
+- `thinking_mode` is the requested user-facing knob.
+- `thinking_level` and `thinking_budget` are the resolved provider-specific settings recorded in summaries.
+
+## Important Flags
+
+- `--duration-seconds`: total game budget
+- `--history-clips`: recent clips for `structured_history`
+- `--non-zero-reward-clips`: reward-bearing clips for `structured_history`
+- `--prompt-mode`: `structured_history` or `append_only`
+- `--max-concurrency`: batch parallelism
+- `--max-retries`: transient retry count
+- `--retry-backoff-seconds`: transient retry backoff base
+- `--render-video-fps`: visualization FPS
+
+## Output
+
+Successful runs are stored under canonical per-game roots:
 
 ```text
-AtariBench/runs/batches/<game>_<timestamp>/
-  batch_summary.json
-  logs/
-  runs/
-    <model>/
-      run_001/
-        <game>/
-          <timestamp>/
-            frames/
-            prompts/
-              turn_0001.txt
-              turn_0001.html
-            responses/
-            turns.jsonl
-            summary.json
-            visualization.mp4
+runs/<game>/<model-or-config-label>/<timestamp>/
 ```
 
-## What Gets Logged
+Each completed run writes:
 
-Each completed run stores:
+- `frames/`
+- `prompts/turn_XXXX.txt`
+- `prompts/turn_XXXX.html`
+- `responses/turn_XXXX.txt`
+- `turns.jsonl`
+- `summary.json`
+- `visualization.mp4`
 
-- raw prompt text in `prompts/turn_XXXX.txt`
-- HTML prompt render in `prompts/turn_XXXX.html`
-- raw model response in `responses/turn_XXXX.txt`
-- frame trajectory in `frames/`
-- structured turn data in `turns.jsonl`
-- run summary in `summary.json`
-- whiteboard video in `visualization.mp4`
+Per-game summaries live at:
 
-The HTML prompt render expands each `IMG_HOLDER` to the actual referenced image file so you can inspect which screenshot was sent.
+- `runs/<game>/model_summary.json`
 
-Important summary metadata now includes:
+Cross-game flat summaries live at:
 
-- `thinking_mode`, `thinking_level`, `thinking_budget`
-- `history_clips`, `non_zero_reward_clips`
-- `prompt_mode`
+- `runs/model_summary.json`
 
-## Reading Results
-
-Batch status summary:
-
-```bash
-cat AtariBench/runs/batches/<batch>/batch_summary.json
-```
-
-Open one run summary:
-
-```bash
-cat AtariBench/runs/batches/<batch>/runs/<model>/run_001/<game>/<timestamp>/summary.json
-```
-
-Open one rendered video:
-
-```bash
-open AtariBench/runs/batches/<batch>/runs/<model>/run_001/<game>/<timestamp>/visualization.mp4
-```
+These summaries are aggregated per setting, not by mixing different prompt/thinking/clip configurations into one average.
 
 ## Notes
 
-- The primary entrypoint is `AtariBench/main.py`.
-- Breakout currently runs at `30 FPS`.
-- Each planned action executes for `3` frames, which is `0.1` seconds.
-- Some models reject specific thinking or reasoning levels. In that case, use a supported mode for that model.
+- The main runtime entrypoint is [`main.py`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/main.py).
+- Batch orchestration lives in [`batch_run.py`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/batch_run.py).
+- Video rendering lives in [`visualize.py`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/visualize.py) and [`viz/render.py`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/viz/render.py).
+- Gameplay is always time-budgeted now; life loss consumes time but is not a separate runner termination rule.

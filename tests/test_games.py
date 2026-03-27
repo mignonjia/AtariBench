@@ -10,7 +10,7 @@ candidate = str(PROJECT_DIR)
 if candidate not in sys.path:
     sys.path.insert(0, candidate)
 
-from games import get_game_spec, list_game_keys
+from games import get_game_spec, list_game_keys, list_game_selection_keys, resolve_game_selection
 
 
 class GameSpecTests(unittest.TestCase):
@@ -53,6 +53,16 @@ class GameSpecTests(unittest.TestCase):
     def test_qbert_env_id_is_normalized_correctly(self) -> None:
         spec = get_game_spec("qbert")
         self.assertEqual(spec.env_id, "ALE/Qbert-v5")
+
+    def test_game_selection_presets_are_registered(self) -> None:
+        self.assertIn("selected", list_game_selection_keys())
+        self.assertIn("full", list_game_selection_keys())
+
+    def test_selected_game_selection_contains_breakout_and_assault(self) -> None:
+        self.assertEqual(resolve_game_selection("selected"), ["breakout", "assault"])
+
+    def test_full_game_selection_expands_to_all_registered_games(self) -> None:
+        self.assertEqual(resolve_game_selection("full"), list_game_keys())
 
 
 if __name__ == "__main__":

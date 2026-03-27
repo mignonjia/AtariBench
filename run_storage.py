@@ -113,7 +113,7 @@ def update_runs_model_summary(project_dir: str | Path) -> Path:
 
 
 def _build_game_summary_payload(root: Path, game: str) -> dict[str, object]:
-    models: dict[str, dict[str, object]] = {}
+    models: dict[str, list[dict[str, object]]] = {}
 
     for model_dir in sorted(root.iterdir()):
         if not model_dir.is_dir() or model_dir.name.startswith("_"):
@@ -146,59 +146,19 @@ def _build_game_summary_payload(root: Path, game: str) -> dict[str, object]:
             eligible_runs[0][1].get("model_name"),
             default=model_dir.name,
         )
-        latest_run_dir, latest_summary = max(eligible_runs, key=lambda item: item[0].name)
+        setting_groups: dict[str, list[tuple[Path, dict[str, object]]]] = {}
+        for run_dir, summary in eligible_runs:
+            setting_key = _build_setting_key(summary)
+            setting_groups.setdefault(setting_key, []).append((run_dir, summary))
 
-        total_rewards = [_coerce_float(summary.get("total_reward")) for _, summary in eligible_runs]
-        total_lost_lives = [
-            _coerce_float(summary.get("total_lost_lives")) for _, summary in eligible_runs
+        models[model_name] = [
+            _build_setting_summary(
+                model_name=model_name,
+                setting_key=setting_key,
+                eligible_runs=group_runs,
+            )
+            for setting_key, group_runs in sorted(setting_groups.items())
         ]
-        turn_counts = [_coerce_float(summary.get("turn_count")) for _, summary in eligible_runs]
-        frame_counts = [_coerce_float(summary.get("frame_count")) for _, summary in eligible_runs]
-        thinking_modes = _count_strings(
-            _coerce_string(summary.get("thinking_mode"), default="default")
-            for _, summary in eligible_runs
-        )
-        prompt_modes = _count_strings(
-            _coerce_string(summary.get("prompt_mode"), default="structured_history")
-            for _, summary in eligible_runs
-        )
-        thinking_levels = _count_optional_strings(summary.get("thinking_level") for _, summary in eligible_runs)
-        thinking_budgets = _count_values(summary.get("thinking_budget") for _, summary in eligible_runs)
-        history_clip_counts = _count_values(
-            _extract_history_clips(summary) for _, summary in eligible_runs
-        )
-        non_zero_reward_clip_counts = _count_values(
-            _extract_non_zero_reward_clips(summary) for _, summary in eligible_runs
-        )
-
-        run_count = len(eligible_runs)
-        models[model_name] = {
-            "run_count": run_count,
-            "avg_total_reward": sum(total_rewards) / run_count,
-            "avg_total_lost_lives": sum(total_lost_lives) / run_count,
-            "avg_turn_count": sum(turn_counts) / run_count,
-            "avg_frame_count": sum(frame_counts) / run_count,
-            "best_total_reward": max(total_rewards),
-            "worst_total_reward": min(total_rewards),
-            "latest_run_dir": str(latest_run_dir.resolve()),
-            "latest_timestamp": latest_run_dir.name,
-            "latest_total_reward": _coerce_float(latest_summary.get("total_reward")),
-            "thinking_mode": _coerce_string(latest_summary.get("thinking_mode"), default="default"),
-            "prompt_mode": _coerce_string(
-                latest_summary.get("prompt_mode"),
-                default="structured_history",
-            ),
-            "thinking_level": latest_summary.get("thinking_level"),
-            "thinking_budget": latest_summary.get("thinking_budget"),
-            "thinking_modes": thinking_modes,
-            "prompt_modes": prompt_modes,
-            "thinking_levels": thinking_levels,
-            "thinking_budgets": thinking_budgets,
-            "history_clips": _extract_history_clips(latest_summary),
-            "non_zero_reward_clips": _extract_non_zero_reward_clips(latest_summary),
-            "history_clip_counts": history_clip_counts,
-            "non_zero_reward_clip_counts": non_zero_reward_clip_counts,
-        }
 
     return {
         "updated_at": dt.datetime.now().isoformat(timespec="seconds"),
@@ -221,12 +181,33 @@ def _build_runs_summary_payload(root: Path) -> dict[str, object]:
             models = payload.get("models", {})
             if not isinstance(models, dict):
                 continue
-            for model_name, model_summary in sorted(models.items()):
-                if not isinstance(model_summary, dict):
+            for model_name, model_entries in sorted(models.items()):
+                if isinstance(model_entries, list):
+                    iterable = model_entries
+                elif isinstance(model_entries, dict):
+                    iterable = [model_entries]
+                else:
                     continue
-                entry = {"game": game_dir.name, "model_name": model_name}
-                entry.update(model_summary)
-                entries.append(entry)
+                for model_summary in iterable:
+                    if not isinstance(model_summary, dict):
+                        continue
+                    entry = {
+                        "game": game_dir.name,
+                        "model_name": _coerce_string(
+                            model_summary.get("model_name"),
+                            default=model_name,
+                        ),
+                    }
+                    entry.update(model_summary)
+                    entries.append(entry)
+
+    entries.sort(
+        key=lambda entry: (
+            _coerce_string(entry.get("game"), default=""),
+            _coerce_string(entry.get("model_name"), default=""),
+            _coerce_string(entry.get("setting_key"), default=""),
+        )
+    )
 
     return {
         "updated_at": dt.datetime.now().isoformat(timespec="seconds"),
@@ -256,30 +237,63 @@ def _coerce_string(value: object, default: str) -> str:
     return str(value)
 
 
-def _count_strings(values) -> dict[str, int]:
-    counts: dict[str, int] = {}
-    for value in values:
-        counts[value] = counts.get(value, 0) + 1
-    return counts
+def _build_setting_summary(
+    model_name: str,
+    setting_key: str,
+    eligible_runs: list[tuple[Path, dict[str, object]]],
+) -> dict[str, object]:
+    latest_run_dir, latest_summary = max(eligible_runs, key=lambda item: item[0].name)
+
+    total_rewards = [_coerce_float(summary.get("total_reward")) for _, summary in eligible_runs]
+    total_lost_lives = [
+        _coerce_float(summary.get("total_lost_lives")) for _, summary in eligible_runs
+    ]
+    turn_counts = [_coerce_float(summary.get("turn_count")) for _, summary in eligible_runs]
+    frame_counts = [_coerce_float(summary.get("frame_count")) for _, summary in eligible_runs]
+
+    run_count = len(eligible_runs)
+    return {
+        "model_name": model_name,
+        "setting_key": setting_key,
+        "run_count": run_count,
+        "avg_total_reward": sum(total_rewards) / run_count,
+        "avg_total_lost_lives": sum(total_lost_lives) / run_count,
+        "avg_turn_count": sum(turn_counts) / run_count,
+        "avg_frame_count": sum(frame_counts) / run_count,
+        "best_total_reward": max(total_rewards),
+        "worst_total_reward": min(total_rewards),
+        "latest_run_dir": str(latest_run_dir.resolve()),
+        "latest_timestamp": latest_run_dir.name,
+        "latest_total_reward": _coerce_float(latest_summary.get("total_reward")),
+        "thinking_mode": _coerce_string(latest_summary.get("thinking_mode"), default="default"),
+        "prompt_mode": _coerce_string(
+            latest_summary.get("prompt_mode"),
+            default="structured_history",
+        ),
+        "thinking_level": latest_summary.get("thinking_level"),
+        "thinking_budget": latest_summary.get("thinking_budget"),
+        "history_clips": _extract_history_clips(latest_summary),
+        "non_zero_reward_clips": _extract_non_zero_reward_clips(latest_summary),
+    }
 
 
-def _count_optional_strings(values) -> dict[str, int]:
-    counts: dict[str, int] = {}
-    for value in values:
-        if value is None:
-            key = "null"
-        else:
-            key = str(value)
-        counts[key] = counts.get(key, 0) + 1
-    return counts
+def _build_setting_key(summary: dict[str, object]) -> str:
+    return "|".join(
+        (
+            f"prompt_mode={_coerce_string(summary.get('prompt_mode'), default='structured_history')}",
+            f"thinking_mode={_coerce_string(summary.get('thinking_mode'), default='default')}",
+            f"thinking_level={_stringify_setting_value(summary.get('thinking_level'))}",
+            f"thinking_budget={_stringify_setting_value(summary.get('thinking_budget'))}",
+            f"history_clips={_extract_history_clips(summary)}",
+            f"non_zero_reward_clips={_extract_non_zero_reward_clips(summary)}",
+        )
+    )
 
 
-def _count_values(values) -> dict[str, int]:
-    counts: dict[str, int] = {}
-    for value in values:
-        key = "null" if value is None else str(value)
-        counts[key] = counts.get(key, 0) + 1
-    return counts
+def _stringify_setting_value(value: object) -> str:
+    if value is None:
+        return "null"
+    return str(value)
 
 
 def _extract_history_clips(summary: dict[str, object]) -> int:
