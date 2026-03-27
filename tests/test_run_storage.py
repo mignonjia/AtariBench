@@ -56,6 +56,12 @@ class RunStorageTests(unittest.TestCase):
                     {
                         "duration_seconds": 30,
                         "model_name": "gpt-5.4-mini",
+                        "prompt_mode": "append_only",
+                        "thinking_mode": "low",
+                        "thinking_level": "low",
+                        "thinking_budget": None,
+                        "history_clips": 3,
+                        "non_zero_reward_clips": 2,
                         "total_reward": 2.0,
                         "total_lost_lives": 1,
                         "turn_count": 10,
@@ -70,6 +76,12 @@ class RunStorageTests(unittest.TestCase):
                     {
                         "duration_seconds": 30,
                         "model_name": "gpt-5.4-mini",
+                        "prompt_mode": "append_only",
+                        "thinking_mode": "low",
+                        "thinking_level": "low",
+                        "thinking_budget": None,
+                        "history_clips": 3,
+                        "non_zero_reward_clips": 2,
                         "total_reward": 6.0,
                         "total_lost_lives": 3,
                         "turn_count": 14,
@@ -84,6 +96,12 @@ class RunStorageTests(unittest.TestCase):
                     {
                         "duration_seconds": 1,
                         "model_name": "gpt-5.4-mini",
+                        "prompt_mode": "structured_history",
+                        "thinking_mode": "off",
+                        "thinking_level": None,
+                        "thinking_budget": 0,
+                        "history_clips": 1,
+                        "non_zero_reward_clips": 1,
                         "total_reward": 99.0,
                         "total_lost_lives": 0,
                         "turn_count": 4,
@@ -105,6 +123,16 @@ class RunStorageTests(unittest.TestCase):
         self.assertEqual(model_summary["avg_turn_count"], 12.0)
         self.assertEqual(model_summary["avg_frame_count"], 110.0)
         self.assertEqual(model_summary["latest_timestamp"], "20260324_110000")
+        self.assertEqual(model_summary["thinking_mode"], "low")
+        self.assertEqual(model_summary["prompt_mode"], "append_only")
+        self.assertEqual(model_summary["thinking_level"], "low")
+        self.assertIsNone(model_summary["thinking_budget"])
+        self.assertEqual(model_summary["thinking_modes"], {"low": 2})
+        self.assertEqual(model_summary["prompt_modes"], {"append_only": 2})
+        self.assertEqual(model_summary["history_clips"], 3)
+        self.assertEqual(model_summary["non_zero_reward_clips"], 2)
+        self.assertEqual(model_summary["history_clip_counts"], {"3": 2})
+        self.assertEqual(model_summary["non_zero_reward_clip_counts"], {"2": 2})
 
     def test_update_game_model_summary_ignores_non_full_runs(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -116,6 +144,12 @@ class RunStorageTests(unittest.TestCase):
                     {
                         "duration_seconds": 30,
                         "model_name": "gpt-5.4-mini",
+                        "prompt_mode": "structured_history",
+                        "thinking_mode": "off",
+                        "thinking_level": None,
+                        "thinking_budget": 0,
+                        "history_clips": 3,
+                        "non_zero_reward_clips": 3,
                         "total_reward": 2.0,
                         "total_lost_lives": 1,
                         "turn_count": 10,
@@ -144,6 +178,12 @@ class RunStorageTests(unittest.TestCase):
                     {
                         "duration_seconds": 30,
                         "model_name": "gemini-2.5-flash",
+                        "prompt_mode": "structured_history",
+                        "thinking_mode": "off",
+                        "thinking_level": None,
+                        "thinking_budget": 0,
+                        "history_clips": 3,
+                        "non_zero_reward_clips": 3,
                         "total_reward": 7.0,
                         "total_lost_lives": 1,
                         "turn_count": 11,
@@ -158,6 +198,12 @@ class RunStorageTests(unittest.TestCase):
                     {
                         "duration_seconds": 30,
                         "model_name": "gpt-5.4-mini",
+                        "prompt_mode": "append_only",
+                        "thinking_mode": "low",
+                        "thinking_level": "low",
+                        "thinking_budget": None,
+                        "history_clips": 4,
+                        "non_zero_reward_clips": 2,
                         "total_reward": 3.0,
                         "total_lost_lives": 2,
                         "turn_count": 17,
@@ -176,8 +222,15 @@ class RunStorageTests(unittest.TestCase):
         self.assertEqual(len(payload["entries"]), 2)
         self.assertEqual(payload["entries"][0]["game"], "assault")
         self.assertEqual(payload["entries"][0]["model_name"], "gemini-2.5-flash")
+        self.assertEqual(payload["entries"][0]["prompt_mode"], "structured_history")
+        self.assertEqual(payload["entries"][0]["thinking_mode"], "off")
+        self.assertEqual(payload["entries"][0]["history_clips"], 3)
         self.assertEqual(payload["entries"][1]["game"], "breakout")
         self.assertEqual(payload["entries"][1]["model_name"], "gpt-5.4-mini")
+        self.assertEqual(payload["entries"][1]["prompt_mode"], "append_only")
+        self.assertEqual(payload["entries"][1]["thinking_mode"], "low")
+        self.assertEqual(payload["entries"][1]["history_clips"], 4)
+        self.assertEqual(payload["entries"][1]["non_zero_reward_clips"], 2)
 
 
 if __name__ == "__main__":

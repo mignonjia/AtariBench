@@ -31,16 +31,45 @@ def build_prompt(
     game_spec: GameSpec,
     trajectory: Trajectory,
     history_clips: int,
+    non_zero_reward_clips: int,
     duration_seconds: int,
+    prompt_mode: str = "structured_history",
 ) -> PromptPackage:
     """Render the single-turn prompt from the current trajectory."""
+
+    if prompt_mode == "append_only":
+        return _build_append_only_prompt(
+            game_spec=game_spec,
+            trajectory=trajectory,
+            duration_seconds=duration_seconds,
+        )
+    if prompt_mode != "structured_history":
+        raise ValueError(f"Unsupported prompt mode: {prompt_mode}")
+
+    return _build_structured_history_prompt(
+        game_spec=game_spec,
+        trajectory=trajectory,
+        history_clips=history_clips,
+        non_zero_reward_clips=non_zero_reward_clips,
+        duration_seconds=duration_seconds,
+    )
+
+
+def _build_structured_history_prompt(
+    game_spec: GameSpec,
+    trajectory: Trajectory,
+    history_clips: int,
+    non_zero_reward_clips: int,
+    duration_seconds: int,
+) -> PromptPackage:
+    """Render the curated-history prompt."""
 
     current_frame = trajectory.latest_frame()
     recent_turns = trajectory.turn_records[-history_clips:]
     reward_turns = [
         turn for turn in trajectory.turn_records if _belongs_in_reward_history(turn)
     ]
-    reward_turns = reward_turns[-history_clips:]
+    reward_turns = reward_turns[-non_zero_reward_clips:]
 
     recent_clip_texts: list[str] = []
     reward_clip_texts: list[str] = []
@@ -81,6 +110,44 @@ def build_prompt(
             "reward history as context, but treat the current ball, paddle, and "
             "lives as reset.\n"
         )
+    return PromptPackage(text=prompt_text, image_paths=image_paths)
+
+
+def _build_append_only_prompt(
+    game_spec: GameSpec,
+    trajectory: Trajectory,
+    duration_seconds: int,
+) -> PromptPackage:
+    """Render the append-only chronological transcript prompt."""
+
+    current_frame = trajectory.latest_frame()
+    image_paths: list[str] = []
+    turn_texts: list[str] = []
+    game_prompt = game_spec.game_prompt.format(FPS_SPECIFIC_PROMPT=game_spec.fps_prompt)
+    game_over_prompt = termination.MAX_TIME_PROMPT.format(MAX_TIME=duration_seconds)
+
+    for turn in trajectory.turn_records:
+        clip_text, clip_images = build_clip_prompt(turn, game_spec)
+        turn_texts.append(
+            common_prompt.APPEND_ONLY_ASSISTANT_TURN_TEMPLATE.format(
+                TURN_INDEX=turn.turn_index,
+                THOUGHT=turn.parsed_thought,
+                ACTIONS_STR=str(turn.planned_action_strings),
+                CLIP_TEMPLATE=clip_text,
+            )
+        )
+        image_paths.extend(clip_images)
+
+    image_paths.append(current_frame.frame_path)
+    prompt_text = common_prompt.APPEND_ONLY_HEADER_TEMPLATE.format(
+        GAME_PROMPT=game_prompt,
+        GAME_OVER_PROMPT=game_over_prompt,
+    )
+    if turn_texts:
+        prompt_text += "\n".join(turn_texts)
+    prompt_text += common_prompt.APPEND_ONLY_CURRENT_STATE_TEMPLATE.format(
+        CURRENT_TIME=format_time(current_frame.local_frame_index, game_spec.fps)
+    )
     return PromptPackage(text=prompt_text, image_paths=image_paths)
 
 

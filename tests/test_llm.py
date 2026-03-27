@@ -18,6 +18,7 @@ from llm import AnthropicClient, GeminiClient, build_model_client, infer_model_p
 from llm.anthropic_client import _build_request_kwargs as _build_anthropic_request_kwargs
 from llm.gemini_client import _build_generate_config
 from llm.openai_client import OpenAIClient
+from llm.retry import is_retryable_error
 
 
 class LlmTests(unittest.TestCase):
@@ -182,6 +183,10 @@ class LlmTests(unittest.TestCase):
         self.assertEqual(response_text, "thought: wait\nmove: [noop]")
         self.assertEqual(calls, 3)
         self.assertEqual(sleep_mock.call_count, 2)
+
+    def test_retry_classifier_treats_remote_protocol_disconnect_as_transient(self) -> None:
+        exc = RuntimeError("httpx.RemoteProtocolError: Server disconnected without sending a response.")
+        self.assertTrue(is_retryable_error(exc))
 
     def test_anthropic_client_builds_multimodal_request(self) -> None:
         calls: list[dict[str, object]] = []

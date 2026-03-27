@@ -86,6 +86,9 @@ class TrajectoryTests(unittest.TestCase):
                 thinking_mode="off",
                 thinking_budget=0,
                 thinking_level=None,
+                history_clips=3,
+                non_zero_reward_clips=3,
+                prompt_mode="append_only",
             )
 
             self.assertTrue(Path(first_frame.frame_path).exists())
@@ -96,6 +99,9 @@ class TrajectoryTests(unittest.TestCase):
             self.assertEqual(summary["duration_seconds"], 30)
             self.assertEqual(summary["model_name"], "gemini-2.5-flash")
             self.assertEqual(summary["thinking_budget"], 0)
+            self.assertEqual(summary["history_clips"], 3)
+            self.assertEqual(summary["non_zero_reward_clips"], 3)
+            self.assertEqual(summary["prompt_mode"], "append_only")
             prompt_html_path = Path(trajectory.turn_records[0].prompt_html_path)
             self.assertTrue(prompt_html_path.exists())
             prompt_html = prompt_html_path.read_text(encoding="utf-8")
@@ -107,6 +113,9 @@ class TrajectoryTests(unittest.TestCase):
             self.assertEqual(saved_summary["total_reward"], 1.0)
             self.assertEqual(saved_summary["last_frame"]["frame_number"], 3)
             self.assertEqual(saved_summary["thinking_mode"], "off")
+            self.assertEqual(saved_summary["history_clips"], 3)
+            self.assertEqual(saved_summary["non_zero_reward_clips"], 3)
+            self.assertEqual(saved_summary["prompt_mode"], "append_only")
             saved_turn = json.loads(trajectory.turns_path.read_text(encoding="utf-8").splitlines()[0])
             self.assertFalse(saved_turn["new_game_started"])
 

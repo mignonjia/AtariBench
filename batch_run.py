@@ -94,6 +94,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--max-actions-per-turn", type=int, default=10)
     parser.add_argument("--history-clips", type=int, default=3)
+    parser.add_argument("--non-zero-reward-clips", type=int, default=3)
+    parser.add_argument(
+        "--prompt-mode",
+        default="structured_history",
+        choices=["structured_history", "append_only"],
+    )
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--max-concurrency", type=int, default=2)
     parser.add_argument(
@@ -222,6 +228,8 @@ def main(argv: list[str] | None = None) -> int:
                 args.duration_seconds,
                 args.max_actions_per_turn,
                 args.history_clips,
+                args.non_zero_reward_clips,
+                args.prompt_mode,
                 args.seed,
                 args.fallback_thinking,
                 args.max_retries,
@@ -266,6 +274,8 @@ def execute_run(
     duration_seconds: int,
     max_actions_per_turn: int,
     history_clips: int,
+    non_zero_reward_clips: int,
+    prompt_mode: str,
     seed: int | None,
     fallback_thinking: str,
     max_retries: int,
@@ -283,6 +293,8 @@ def execute_run(
             duration_seconds=duration_seconds,
             max_actions_per_turn=max_actions_per_turn,
             history_clips=history_clips,
+            non_zero_reward_clips=non_zero_reward_clips,
+            prompt_mode=prompt_mode,
             seed=seed,
             thinking_mode=current_thinking,
         )
@@ -376,6 +388,8 @@ def _run_subprocess(
     duration_seconds: int,
     max_actions_per_turn: int,
     history_clips: int,
+    non_zero_reward_clips: int,
+    prompt_mode: str,
     seed: int | None,
     thinking_mode: str,
 ) -> subprocess.CompletedProcess[str]:
@@ -397,6 +411,10 @@ def _run_subprocess(
         str(max_actions_per_turn),
         "--history-clips",
         str(history_clips),
+        "--non-zero-reward-clips",
+        str(non_zero_reward_clips),
+        "--prompt-mode",
+        prompt_mode,
     ]
     if seed is not None:
         command.extend(["--seed", str(seed)])

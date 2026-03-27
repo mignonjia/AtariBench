@@ -154,6 +154,22 @@ def _build_game_summary_payload(root: Path, game: str) -> dict[str, object]:
         ]
         turn_counts = [_coerce_float(summary.get("turn_count")) for _, summary in eligible_runs]
         frame_counts = [_coerce_float(summary.get("frame_count")) for _, summary in eligible_runs]
+        thinking_modes = _count_strings(
+            _coerce_string(summary.get("thinking_mode"), default="default")
+            for _, summary in eligible_runs
+        )
+        prompt_modes = _count_strings(
+            _coerce_string(summary.get("prompt_mode"), default="structured_history")
+            for _, summary in eligible_runs
+        )
+        thinking_levels = _count_optional_strings(summary.get("thinking_level") for _, summary in eligible_runs)
+        thinking_budgets = _count_values(summary.get("thinking_budget") for _, summary in eligible_runs)
+        history_clip_counts = _count_values(
+            _extract_history_clips(summary) for _, summary in eligible_runs
+        )
+        non_zero_reward_clip_counts = _count_values(
+            _extract_non_zero_reward_clips(summary) for _, summary in eligible_runs
+        )
 
         run_count = len(eligible_runs)
         models[model_name] = {
@@ -167,6 +183,21 @@ def _build_game_summary_payload(root: Path, game: str) -> dict[str, object]:
             "latest_run_dir": str(latest_run_dir.resolve()),
             "latest_timestamp": latest_run_dir.name,
             "latest_total_reward": _coerce_float(latest_summary.get("total_reward")),
+            "thinking_mode": _coerce_string(latest_summary.get("thinking_mode"), default="default"),
+            "prompt_mode": _coerce_string(
+                latest_summary.get("prompt_mode"),
+                default="structured_history",
+            ),
+            "thinking_level": latest_summary.get("thinking_level"),
+            "thinking_budget": latest_summary.get("thinking_budget"),
+            "thinking_modes": thinking_modes,
+            "prompt_modes": prompt_modes,
+            "thinking_levels": thinking_levels,
+            "thinking_budgets": thinking_budgets,
+            "history_clips": _extract_history_clips(latest_summary),
+            "non_zero_reward_clips": _extract_non_zero_reward_clips(latest_summary),
+            "history_clip_counts": history_clip_counts,
+            "non_zero_reward_clip_counts": non_zero_reward_clip_counts,
         }
 
     return {
@@ -223,3 +254,46 @@ def _coerce_string(value: object, default: str) -> str:
     if value is None:
         return default
     return str(value)
+
+
+def _count_strings(values) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for value in values:
+        counts[value] = counts.get(value, 0) + 1
+    return counts
+
+
+def _count_optional_strings(values) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for value in values:
+        if value is None:
+            key = "null"
+        else:
+            key = str(value)
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def _count_values(values) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for value in values:
+        key = "null" if value is None else str(value)
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def _extract_history_clips(summary: dict[str, object]) -> int:
+    value = summary.get("history_clips")
+    if value is None:
+        return 3
+    return int(value)
+
+
+def _extract_non_zero_reward_clips(summary: dict[str, object]) -> int:
+    value = summary.get("non_zero_reward_clips")
+    if value is not None:
+        return int(value)
+    history_clips = summary.get("history_clips")
+    if history_clips is not None:
+        return int(history_clips)
+    return 3

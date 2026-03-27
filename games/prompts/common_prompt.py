@@ -116,6 +116,52 @@ states and feedbacks after your actions:
 Now please choose your actions following the same format in the initial prompt.
 """
 
+APPEND_ONLY_HEADER_TEMPLATE: str = """
+You are an intelligent AI player playing a game. Your goal is to make progress
+and maximize total reward within the fixed time budget.
+
+{GAME_PROMPT}
+{GAME_OVER_PROMPT}
+
+You will be given a chronological transcript of your prior decisions and the
+observed game states that followed those actions. For each completed turn, the
+observed outcome uses the same action-by-action state format:
+
+* time
+* image
+* reward / life-loss feedback when present
+
+Use the full transcript below as context for your next decision.
+"""
+
+APPEND_ONLY_ASSISTANT_TURN_TEMPLATE: str = """
+<turn index="{TURN_INDEX}">
+<assistant>
+thought: {THOUGHT}
+move: {ACTIONS_STR}
+</assistant>
+<user>
+Updated states, rewards, and instructions after your actions:
+{CLIP_TEMPLATE}
+</user>
+</turn>
+"""
+
+APPEND_ONLY_CURRENT_STATE_TEMPLATE: str = """
+<user>
+Current state and updated instruction:
+time: {CURRENT_TIME}
+IMG_HOLDER
+
+Now please predict the next actions.
+
+IMPORTANT: You MUST format your response using EXACTLY these lines:
+
+thought: [Your reasoning about the game state]
+move: [action_1, action_2, ..., action_n]
+</user>
+"""
+
 REWARD_CLIPS_TEMPLATE: str = """
 <non_zero_reward_history>
 {LIST_OF_CLIPS_TEMPLATE}

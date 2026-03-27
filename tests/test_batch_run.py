@@ -140,6 +140,8 @@ class BatchRunTests(unittest.TestCase):
                 duration_seconds=30,
                 max_actions_per_turn=10,
                 history_clips=3,
+                non_zero_reward_clips=3,
+                prompt_mode="append_only",
                 seed=None,
                 thinking_mode="low",
             )
@@ -149,6 +151,9 @@ class BatchRunTests(unittest.TestCase):
         self.assertTrue(command[1].endswith("main.py"))
         self.assertIn("--model", command)
         self.assertEqual(command[command.index("--model") + 1], "gpt-5.4")
+        self.assertEqual(command[command.index("--history-clips") + 1], "3")
+        self.assertEqual(command[command.index("--non-zero-reward-clips") + 1], "3")
+        self.assertEqual(command[command.index("--prompt-mode") + 1], "append_only")
         self.assertEqual(Path(cwd).resolve(), PROJECT_DIR.resolve())
 
     def test_normalize_run_dir_resolves_subprocess_relative_paths(self) -> None:
@@ -202,6 +207,8 @@ class BatchRunTests(unittest.TestCase):
                             duration_seconds=30,
                             max_actions_per_turn=10,
                             history_clips=3,
+                            non_zero_reward_clips=3,
+                            prompt_mode="structured_history",
                             seed=None,
                             fallback_thinking="minimal",
                             max_retries=1,
@@ -261,6 +268,8 @@ class BatchRunTests(unittest.TestCase):
                             duration_seconds=30,
                             max_actions_per_turn=10,
                             history_clips=3,
+                            non_zero_reward_clips=3,
+                            prompt_mode="structured_history",
                             seed=None,
                             fallback_thinking="minimal",
                             max_retries=1,
@@ -316,6 +325,8 @@ class BatchRunTests(unittest.TestCase):
                             duration_seconds=30,
                             max_actions_per_turn=10,
                             history_clips=3,
+                            non_zero_reward_clips=3,
+                            prompt_mode="structured_history",
                             seed=None,
                             fallback_thinking="minimal",
                             max_retries=1,
@@ -364,6 +375,8 @@ class BatchRunTests(unittest.TestCase):
                             duration_seconds=30,
                             max_actions_per_turn=10,
                             history_clips=3,
+                            non_zero_reward_clips=3,
+                            prompt_mode="structured_history",
                             seed=None,
                             fallback_thinking="minimal",
                             max_retries=1,

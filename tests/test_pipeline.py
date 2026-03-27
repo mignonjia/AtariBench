@@ -114,6 +114,9 @@ class PipelineRunnerTests(unittest.TestCase):
         self.assertEqual(summary["model_name"], "gemini-2.5-flash")
         self.assertIsNone(summary["thinking_budget"])
         self.assertEqual(client.calls[0]["thinking_mode"], "default")
+        self.assertEqual(summary["history_clips"], 2)
+        self.assertEqual(summary["non_zero_reward_clips"], 3)
+        self.assertEqual(summary["prompt_mode"], "structured_history")
 
     def test_life_loss_does_not_stop_the_run(self) -> None:
         spec = get_game_spec("breakout")
@@ -252,6 +255,45 @@ class PipelineRunnerTests(unittest.TestCase):
         self.assertIn("A life was lost and a new life has begun", prompt_text)
         self.assertIn("<clip start=\"0.00s\" to end=\"0.10s\">", prompt_text)
 
+    def test_append_only_prompt_accumulates_previous_response_and_outcome(self) -> None:
+        spec = get_game_spec("breakout")
+        client = FakeGeminiClient(
+            responses=[
+                "thought: serve now\nmove: [start]",
+                "thought: drift right\nmove: [right]",
+            ]
+            + ["thought: continue\nmove: [noop]"] * 20
+        )
+        env = FakeEnv()
+        runner = PipelineRunner(
+            game_spec=spec,
+            model_client=client,
+            config=PipelineConfig(
+                duration_seconds=1,
+                max_actions_per_turn=10,
+                history_clips=1,
+                non_zero_reward_clips=1,
+                prompt_mode="append_only",
+                output_dir=tempfile.mkdtemp(),
+            ),
+            env_factory=lambda: env,
+            frame_writer=fake_frame_writer,
+        )
+
+        summary = runner.run()
+
+        prompt_text = str(client.calls[1]["prompt_text"])
+        self.assertEqual(summary["prompt_mode"], "append_only")
+        self.assertIn("<assistant>", prompt_text)
+        self.assertIn("thought: serve now", prompt_text)
+        self.assertIn("move: ['start']", prompt_text)
+        self.assertIn("<user>", prompt_text)
+        self.assertIn("Updated states, rewards, and instructions after your actions:", prompt_text)
+        self.assertIn("<clip start=\"0.00s\" to end=\"0.10s\">", prompt_text)
+        self.assertIn("<states_and_rewards_after_actions>", prompt_text)
+        self.assertNotIn("<recent_history>", prompt_text)
+        self.assertNotIn("<non_zero_reward_history>", prompt_text)
+
     def test_parse_error_defaults_to_noop_and_persists_raw_response(self) -> None:
         spec = get_game_spec("breakout")
         client = FakeGeminiClient(
@@ -318,6 +360,9 @@ class PipelineRunnerTests(unittest.TestCase):
         self.assertEqual(summary["thinking_budget"], 0)
         self.assertIsNone(summary["thinking_level"])
         self.assertEqual(client.calls[0]["thinking_mode"], "off")
+        self.assertEqual(summary["history_clips"], 1)
+        self.assertEqual(summary["non_zero_reward_clips"], 3)
+        self.assertEqual(summary["prompt_mode"], "structured_history")
 
     def test_summary_records_thinking_low_level(self) -> None:
         spec = get_game_spec("breakout")
@@ -347,6 +392,9 @@ class PipelineRunnerTests(unittest.TestCase):
         self.assertEqual(summary["thinking_level"], "low")
         self.assertIsNone(summary["thinking_budget"])
         self.assertEqual(client.calls[0]["thinking_mode"], "low")
+        self.assertEqual(summary["history_clips"], 1)
+        self.assertEqual(summary["non_zero_reward_clips"], 3)
+        self.assertEqual(summary["prompt_mode"], "structured_history")
 
     def test_summary_preserves_minimal_mode_with_low_level(self) -> None:
         spec = get_game_spec("breakout")
@@ -376,6 +424,39 @@ class PipelineRunnerTests(unittest.TestCase):
         self.assertEqual(summary["thinking_level"], "minimal")
         self.assertIsNone(summary["thinking_budget"])
         self.assertEqual(client.calls[0]["thinking_mode"], "minimal")
+        self.assertEqual(summary["history_clips"], 1)
+        self.assertEqual(summary["non_zero_reward_clips"], 3)
+        self.assertEqual(summary["prompt_mode"], "structured_history")
+
+    def test_non_zero_reward_clips_can_differ_from_history_clips(self) -> None:
+        spec = get_game_spec("breakout")
+        client = FakeGeminiClient(
+            responses=[
+                "thought: serve\nmove: [left]",
+                "thought: continue\nmove: [noop]",
+            ]
+            + ["thought: continue\nmove: [noop]"] * 20
+        )
+        env = FakeEnv()
+        runner = PipelineRunner(
+            game_spec=spec,
+            model_client=client,
+            config=PipelineConfig(
+                duration_seconds=1,
+                max_actions_per_turn=10,
+                history_clips=1,
+                non_zero_reward_clips=2,
+                output_dir=tempfile.mkdtemp(),
+            ),
+            env_factory=lambda: env,
+            frame_writer=fake_frame_writer,
+        )
+
+        summary = runner.run()
+
+        self.assertEqual(summary["history_clips"], 1)
+        self.assertEqual(summary["non_zero_reward_clips"], 2)
+        self.assertEqual(summary["prompt_mode"], "structured_history")
 
 
 if __name__ == "__main__":

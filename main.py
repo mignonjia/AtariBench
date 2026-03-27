@@ -54,6 +54,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--max-actions-per-turn", type=int, default=10)
     parser.add_argument("--history-clips", type=int, default=3)
+    parser.add_argument("--non-zero-reward-clips", type=int, default=3)
+    parser.add_argument(
+        "--prompt-mode",
+        default="structured_history",
+        choices=["structured_history", "append_only"],
+    )
     return parser
 
 
@@ -73,6 +79,8 @@ def main(argv: list[str] | None = None) -> int:
         duration_seconds=args.duration_seconds,
         max_actions_per_turn=args.max_actions_per_turn,
         history_clips=args.history_clips,
+        non_zero_reward_clips=args.non_zero_reward_clips,
+        prompt_mode=args.prompt_mode,
         model_name=args.model,
         thinking_mode=args.thinking,
         seed=args.seed,

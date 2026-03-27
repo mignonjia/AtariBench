@@ -194,6 +194,9 @@ class Trajectory:
         thinking_mode: str | None = None,
         thinking_budget: int | None = None,
         thinking_level: str | None = None,
+        history_clips: int | None = None,
+        non_zero_reward_clips: int | None = None,
+        prompt_mode: str | None = None,
     ) -> dict[str, Any]:
         """Write and return the run summary."""
 
@@ -209,6 +212,9 @@ class Trajectory:
             "thinking_mode": thinking_mode,
             "thinking_budget": thinking_budget,
             "thinking_level": thinking_level,
+            "history_clips": history_clips,
+            "non_zero_reward_clips": non_zero_reward_clips,
+            "prompt_mode": prompt_mode,
             "last_frame": dataclasses.asdict(self.frame_records[-1])
             if self.frame_records
             else None,

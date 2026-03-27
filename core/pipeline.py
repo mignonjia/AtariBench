@@ -31,6 +31,8 @@ class PipelineConfig:
     duration_seconds: int = 30
     max_actions_per_turn: int = 10
     history_clips: int = 3
+    non_zero_reward_clips: int = 3
+    prompt_mode: str = "structured_history"
     model_name: str = "gemini-2.5-flash"
     thinking_mode: str = "default"
     seed: int | None = None
@@ -95,7 +97,9 @@ class PipelineRunner:
                     game_spec=self.game_spec,
                     trajectory=trajectory,
                     history_clips=self.config.history_clips,
+                    non_zero_reward_clips=self.config.non_zero_reward_clips,
                     duration_seconds=self.config.duration_seconds,
+                    prompt_mode=self.config.prompt_mode,
                 )
                 raw_response = self.model_client.generate_turn(
                     prompt_text=prompt_package.text,
@@ -233,6 +237,9 @@ class PipelineRunner:
                 thinking_mode=thinking_metadata["thinking_mode"],
                 thinking_budget=thinking_metadata["thinking_budget"],
                 thinking_level=thinking_metadata["thinking_level"],
+                history_clips=self.config.history_clips,
+                non_zero_reward_clips=self.config.non_zero_reward_clips,
+                prompt_mode=self.config.prompt_mode,
             )
         finally:
             close = getattr(env, "close", None)
