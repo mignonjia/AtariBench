@@ -25,9 +25,11 @@ Working guidance:
 - Prefer edits in the main runner path before touching `computer_use/`.
 - When adding a game, update `games/registry.py`, add a prompt module under `games/prompts/`, and extend tests.
 - When changing provider behavior, keep `llm/common.py`, provider adapters, and tests aligned.
+- When changing CLI/runtime config, keep `main.py`, `batch_run.py`, persisted `summary.json` fields, `run_storage.py`, and docs aligned.
 
 Useful commands:
-- `python main.py --game breakout --model gemini-2.5-flash --thinking off --duration-seconds 30`
+- `python main.py --game breakout --model gemini-2.5-flash --thinking off --prompt-mode structured_history --duration-seconds 30`
+- `python main.py --game breakout --model gemini-2.5-flash --thinking off --prompt-mode append_only --duration-seconds 5`
 - `python batch_run.py --game breakout --job gpt-5.4-mini:1:off --max-concurrency 1`
 - `python -m unittest`
 - `python -m unittest tests.test_pipeline tests.test_batch_run`

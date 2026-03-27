@@ -22,6 +22,7 @@ python AtariBench/main.py \
   --game breakout \
   --model gemini-2.5-flash \
   --thinking off \
+  --prompt-mode structured_history \
   --duration-seconds 30
 ```
 
@@ -33,6 +34,7 @@ python AtariBench/main.py \
   --model gpt-5.4 \
   --provider openai \
   --thinking low \
+  --prompt-mode structured_history \
   --duration-seconds 30
 ```
 
@@ -46,6 +48,7 @@ Basic shape:
 python AtariBench/batch_run.py \
   --game breakout \
   --job MODEL:COUNT:THINKING \
+  --prompt-mode structured_history \
   --max-concurrency 1
 ```
 
@@ -105,10 +108,18 @@ Logged metadata:
 ## Important Flags
 
 - `--duration-seconds 30`: total game budget
+- `--history-clips 3`: number of recent clips included in structured-history mode
+- `--non-zero-reward-clips 3`: number of reward/life-loss clips included in structured-history mode
+- `--prompt-mode structured_history|append_only`: choose curated history vs chronological append-only transcript prompting
 - `--max-concurrency`: how many runs to execute at once
 - `--max-retries`: retries for transient `429` and `503` failures
 - `--retry-backoff-seconds`: base backoff between retries
 - `--render-video-fps 30`: output FPS for the visualization video
+
+## Prompt Modes
+
+- `structured_history`: the original prompt style, with separate recent-history and non-zero-reward-history sections
+- `append_only`: a chronological transcript where prior assistant actions are followed by user-provided observed states, rewards, and updated instructions
 
 ## Output Layout
 
@@ -146,6 +157,12 @@ Each completed run stores:
 - whiteboard video in `visualization.mp4`
 
 The HTML prompt render expands each `IMG_HOLDER` to the actual referenced image file so you can inspect which screenshot was sent.
+
+Important summary metadata now includes:
+
+- `thinking_mode`, `thinking_level`, `thinking_budget`
+- `history_clips`, `non_zero_reward_clips`
+- `prompt_mode`
 
 ## Reading Results
 
