@@ -108,7 +108,6 @@ Logged metadata:
 - `--max-concurrency`: how many runs to execute at once
 - `--max-retries`: retries for transient `429` and `503` failures
 - `--retry-backoff-seconds`: base backoff between retries
-- `--skip-video`: disables per-run video rendering
 - `--render-video-fps 30`: output FPS for the visualization video
 
 ## Output Layout

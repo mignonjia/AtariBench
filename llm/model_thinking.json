@@ -1,0 +1,12 @@
+{
+    "gemini-2.5-flash": ["on", "off"],
+    "gemini-3-flash-preview": ["minimal", "low", "medium", "high"],
+    "gemini-3.1-pro-preview": ["low", "medium", "high"],
+    "gemini-2.5-pro": ["auto"],
+    "gpt-5.4": ["none", "low", "medium", "high", "xhigh"],
+    "gpt-5.4-mini": ["none", "low", "medium", "high", "xhigh"],
+    "gpt-5.4-nano": ["none", "low", "medium", "high", "xhigh"],
+    "claude-sonnet-4-6": ["low", "medium", "high", "max"],
+    "claude-opus-4-6": ["low", "medium", "high", "max"],
+    "claude-haiku-4-5": ["on", "off"]
+}

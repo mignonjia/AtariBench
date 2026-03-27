@@ -77,7 +77,11 @@ class PipelineRunner:
         stop_reason = "unknown"
 
         try:
-            _, current_info = self._reset_and_record_initial_frame(env, trajectory)
+            _, current_info = self._reset_and_record_initial_frame(
+                env,
+                trajectory,
+                local_frame_index=0,
+            )
             initial_env_frame = current_info.frame_number or 0
             previous_lives = current_info.lives
 
@@ -107,6 +111,7 @@ class PipelineRunner:
                 turn_start_path = latest_frame.frame_path
 
                 should_stop = False
+                should_reset_episode = False
                 for action_name, action_id in zip(
                     parsed_response.action_strings,
                     parsed_response.action_ids,
@@ -147,11 +152,13 @@ class PipelineRunner:
                         )
                         local_frames_elapsed = trajectory.latest_frame().local_frame_index
                         if terminated:
-                            stop_reason = "terminated"
+                            stop_reason = "frame_budget"
                             should_stop = True
+                            should_reset_episode = True
                         elif truncated:
-                            stop_reason = "truncated"
+                            stop_reason = "frame_budget"
                             should_stop = True
+                            should_reset_episode = True
                         elif env_frames_elapsed >= self.frame_budget:
                             stop_reason = "frame_budget"
                             should_stop = True
@@ -186,7 +193,29 @@ class PipelineRunner:
                     executed_frame_end=trajectory.latest_frame().local_frame_index,
                     reward_delta=turn_reward,
                     action_records=action_records,
+                    new_game_started=False,
                 )
+
+                if should_stop and should_reset_episode:
+                    next_local_frame_index = trajectory.latest_frame().local_frame_index + 1
+                    if next_local_frame_index > self.frame_budget:
+                        stop_reason = "frame_budget"
+                        break
+
+                    _, current_info = self._reset_and_record_initial_frame(
+                        env,
+                        trajectory,
+                        local_frame_index=next_local_frame_index,
+                    )
+                    previous_lives = current_info.lives
+                    initial_env_frame = current_info.frame_number or 0
+                    trajectory.replace_last_turn(
+                        dataclasses.replace(
+                            trajectory.turn_records[-1],
+                            new_game_started=True,
+                        )
+                    )
+                    continue
 
                 if should_stop:
                     break
@@ -210,7 +239,12 @@ class PipelineRunner:
             if callable(close):
                 close()
 
-    def _reset_and_record_initial_frame(self, env: Any, trajectory: Trajectory):
+    def _reset_and_record_initial_frame(
+        self,
+        env: Any,
+        trajectory: Trajectory,
+        local_frame_index: int,
+    ):
         try:
             observation, info = env.reset(seed=self.config.seed)
         except TypeError:
@@ -223,7 +257,7 @@ class PipelineRunner:
             frame=frame,
             reward=0.0,
             info=info,
-            local_frame_index=0,
+            local_frame_index=local_frame_index,
         )
         return frame_record.local_frame_index, extract_env_info(info)
 

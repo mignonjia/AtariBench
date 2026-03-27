@@ -5,7 +5,7 @@ Purpose:
 
 Key files:
 - `common.py`: thinking-mode metadata and provider inference
-- `gemini.py`: Gemini client
+- `gemini_client.py`: Gemini client
 - `openai_client.py`: OpenAI client
 - `__init__.py`: public client factory
 

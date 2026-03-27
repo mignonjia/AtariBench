@@ -12,7 +12,14 @@ candidate = str(PROJECT_DIR)
 if candidate not in sys.path:
     sys.path.insert(0, candidate)
 
-from run_storage import game_model_dir, game_root, resolve_output_layout, update_game_model_summary, uses_canonical_game_storage
+from run_storage import (
+    game_model_dir,
+    game_root,
+    resolve_output_layout,
+    update_game_model_summary,
+    update_runs_model_summary,
+    uses_canonical_game_storage,
+)
 
 
 class RunStorageTests(unittest.TestCase):
@@ -123,6 +130,54 @@ class RunStorageTests(unittest.TestCase):
             payload = json.loads(summary_path.read_text(encoding="utf-8"))
 
         self.assertEqual(payload["models"], {})
+
+    def test_update_runs_model_summary_aggregates_flat_entries(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            assault_root = game_root(tmpdir, "assault")
+            breakout_root = game_root(tmpdir, "breakout")
+            assault_run = assault_root / "gemini-2.5-flash" / "20260324_100000"
+            breakout_run = breakout_root / "gpt-5.4-mini" / "20260324_110000"
+            assault_run.mkdir(parents=True, exist_ok=True)
+            breakout_run.mkdir(parents=True, exist_ok=True)
+            (assault_run / "summary.json").write_text(
+                json.dumps(
+                    {
+                        "duration_seconds": 30,
+                        "model_name": "gemini-2.5-flash",
+                        "total_reward": 7.0,
+                        "total_lost_lives": 1,
+                        "turn_count": 11,
+                        "frame_count": 901,
+                        "stop_reason": "frame_budget",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (breakout_run / "summary.json").write_text(
+                json.dumps(
+                    {
+                        "duration_seconds": 30,
+                        "model_name": "gpt-5.4-mini",
+                        "total_reward": 3.0,
+                        "total_lost_lives": 2,
+                        "turn_count": 17,
+                        "frame_count": 901,
+                        "stop_reason": "frame_budget",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            update_game_model_summary(tmpdir, "assault")
+            update_game_model_summary(tmpdir, "breakout")
+            summary_path = update_runs_model_summary(tmpdir)
+            payload = json.loads(summary_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(len(payload["entries"]), 2)
+        self.assertEqual(payload["entries"][0]["game"], "assault")
+        self.assertEqual(payload["entries"][0]["model_name"], "gemini-2.5-flash")
+        self.assertEqual(payload["entries"][1]["game"], "breakout")
+        self.assertEqual(payload["entries"][1]["model_name"], "gpt-5.4-mini")
 
 
 if __name__ == "__main__":

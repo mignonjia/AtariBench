@@ -37,7 +37,9 @@ def build_prompt(
 
     current_frame = trajectory.latest_frame()
     recent_turns = trajectory.turn_records[-history_clips:]
-    reward_turns = [turn for turn in trajectory.turn_records if turn.reward_delta != 0.0]
+    reward_turns = [
+        turn for turn in trajectory.turn_records if _belongs_in_reward_history(turn)
+    ]
     reward_turns = reward_turns[-history_clips:]
 
     recent_clip_texts: list[str] = []
@@ -72,7 +74,20 @@ def build_prompt(
         LIST_OF_CLIPS_TEMPLATE="".join(recent_clip_texts),
         CURRENT_TIME=format_time(current_frame.local_frame_index, game_spec.fps),
     )
+    if recent_turns and recent_turns[-1].new_game_started:
+        prompt_text += (
+            "\nContext update: The previous episode ended early, and the current "
+            "frame is the start of a new game. Keep using the recent clips and "
+            "reward history as context, but treat the current ball, paddle, and "
+            "lives as reset.\n"
+        )
     return PromptPackage(text=prompt_text, image_paths=image_paths)
+
+
+def _belongs_in_reward_history(turn: TurnRecord) -> bool:
+    if turn.reward_delta != 0.0:
+        return True
+    return any(action.lost_life for action in turn.action_records)
 
 
 def build_clip_prompt(turn: TurnRecord, game_spec: GameSpec) -> tuple[str, list[str]]:
@@ -91,6 +106,11 @@ def build_clip_prompt(turn: TurnRecord, game_spec: GameSpec) -> tuple[str, list[
         ACTIONS_STR=str(turn.planned_action_strings),
         LIST_OF_STATE_REWARD_TEMPLATE="".join(state_strings),
     )
+    if turn.new_game_started:
+        clip_text += (
+            "Context: This clip ended with the episode terminating, and the run "
+            "continued from a freshly reset game afterward.\n"
+        )
     return clip_text, image_paths
 
 

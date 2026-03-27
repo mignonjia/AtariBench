@@ -66,6 +66,7 @@ class TurnRecord:
     executed_frame_end: int
     reward_delta: float
     action_records: list[ActionRecord]
+    new_game_started: bool
 
 
 class Trajectory:
@@ -140,6 +141,7 @@ class Trajectory:
         executed_frame_end: int,
         reward_delta: float,
         action_records: list[ActionRecord],
+        new_game_started: bool = False,
     ) -> TurnRecord:
         """Persist a model turn and append it to the trajectory."""
 
@@ -175,6 +177,7 @@ class Trajectory:
             executed_frame_end=executed_frame_end,
             reward_delta=float(reward_delta),
             action_records=list(action_records),
+            new_game_started=bool(new_game_started),
         )
         self.turn_records.append(record)
         with self.turns_path.open("a", encoding="utf-8") as handle:
@@ -215,6 +218,16 @@ class Trajectory:
             encoding="utf-8",
         )
         return summary
+
+    def replace_last_turn(self, turn: TurnRecord) -> None:
+        """Update the most recent turn record and rewrite turns.jsonl."""
+
+        if not self.turn_records:
+            raise RuntimeError("No turns recorded yet.")
+        self.turn_records[-1] = turn
+        with self.turns_path.open("w", encoding="utf-8") as handle:
+            for existing_turn in self.turn_records:
+                handle.write(json.dumps(_turn_to_dict(existing_turn)) + "\n")
 
 
 def _turn_to_dict(turn: TurnRecord) -> dict[str, Any]:

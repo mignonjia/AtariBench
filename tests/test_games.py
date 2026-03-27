@@ -14,6 +14,14 @@ from games import get_game_spec, list_game_keys
 
 
 class GameSpecTests(unittest.TestCase):
+    def test_all_prompt_games_are_registered(self) -> None:
+        game_keys = list_game_keys()
+        self.assertIn("assault", game_keys)
+        self.assertIn("breakout", game_keys)
+        self.assertIn("seaquest", game_keys)
+        self.assertIn("time_pilot", game_keys)
+        self.assertIn("air_raid", game_keys)
+
     def test_assault_is_registered(self) -> None:
         self.assertIn("assault", list_game_keys())
 
@@ -41,6 +49,10 @@ class GameSpecTests(unittest.TestCase):
         self.assertEqual(spec.action_map["left"], 3)
         self.assertEqual(spec.fps, 30)
         self.assertEqual(spec.frames_per_action, 3)
+
+    def test_qbert_env_id_is_normalized_correctly(self) -> None:
+        spec = get_game_spec("qbert")
+        self.assertEqual(spec.env_id, "ALE/Qbert-v5")
 
 
 if __name__ == "__main__":

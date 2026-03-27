@@ -47,26 +47,30 @@ class FakeGeminiClient:
 class FakeEnv:
     def __init__(self, lives_schedule: dict[int, int] | None = None):
         self.step_count = 0
+        self.total_step_count = 0
         self.closed = False
         self.lives_schedule = lives_schedule or {}
+        self.reset_count = 0
 
     def reset(self, seed=None):
+        self.reset_count += 1
         self.step_count = 0
         return "obs0", {
             "lives": 5,
             "episode_frame_number": 0,
-            "frame_number": 0,
+            "frame_number": self.total_step_count,
         }
 
     def step(self, action_id: int):
         del action_id
         self.step_count += 1
+        self.total_step_count += 1
         lives = self.lives_schedule.get(self.step_count, 5)
         reward = 1.0 if self.step_count % 3 == 0 else 0.0
         info = {
             "lives": lives,
             "episode_frame_number": self.step_count,
-            "frame_number": self.step_count,
+            "frame_number": self.total_step_count,
         }
         terminated = False
         truncated = False
@@ -135,6 +139,51 @@ class PipelineRunnerTests(unittest.TestCase):
         self.assertEqual(summary["stop_reason"], "frame_budget")
         self.assertEqual(summary["total_lost_lives"], 5)
 
+    def test_terminated_episode_resets_and_continues_to_frame_budget(self) -> None:
+        class TerminatingEnv(FakeEnv):
+            def __init__(self):
+                super().__init__(lives_schedule={4: 4, 5: 0})
+
+            def step(self, action_id: int):
+                obs, reward, _, truncated, info = super().step(action_id)
+                terminated = self.step_count >= 5
+                return obs, reward, terminated, truncated, info
+
+        spec = get_game_spec("breakout")
+        client = FakeGeminiClient(
+            responses=[
+                "thought: recover\nmove: [start, noop, noop, noop, noop, noop, noop, noop, noop, noop]",
+            ]
+            * 10
+        )
+        env = TerminatingEnv()
+        output_dir = tempfile.mkdtemp()
+        runner = PipelineRunner(
+            game_spec=spec,
+            model_client=client,
+            config=PipelineConfig(
+                duration_seconds=1,
+                max_actions_per_turn=10,
+                history_clips=2,
+                output_dir=output_dir,
+            ),
+            env_factory=lambda: env,
+            frame_writer=fake_frame_writer,
+        )
+
+        summary = runner.run()
+
+        self.assertEqual(summary["stop_reason"], "frame_budget")
+        self.assertEqual(summary["frame_count"], 31)
+        self.assertGreaterEqual(env.reset_count, 2)
+        self.assertEqual(env.total_step_count, 25)
+        self.assertIn("current frame is the start of a new game", str(client.calls[1]["prompt_text"]))
+
+        run_root = next(Path(output_dir).glob("breakout/*"))
+        turns = (run_root / "turns.jsonl").read_text(encoding="utf-8").splitlines()
+        self.assertTrue(turns)
+        self.assertIn('"new_game_started": true', turns[0])
+
     def test_prompt_describes_time_budget_and_life_loss_tradeoff(self) -> None:
         spec = get_game_spec("breakout")
         client = FakeGeminiClient(
@@ -162,6 +211,46 @@ class PipelineRunnerTests(unittest.TestCase):
         prompt_text = str(client.calls[0]["prompt_text"])
         self.assertIn("fixed budget of 30 seconds", prompt_text)
         self.assertIn("does not directly reduce your score", prompt_text)
+
+    def test_life_loss_clip_is_included_in_non_zero_reward_history(self) -> None:
+        class LifeLossThenContinueEnv(FakeEnv):
+            def __init__(self):
+                super().__init__(lives_schedule={1: 4, 2: 4, 3: 4})
+
+            def step(self, action_id: int):
+                obs, reward, terminated, truncated, info = super().step(action_id)
+                if self.total_step_count in {1, 2, 3}:
+                    reward = 0.0
+                return obs, reward, terminated, truncated, info
+
+        spec = get_game_spec("breakout")
+        client = FakeGeminiClient(
+            responses=[
+                "thought: serve\nmove: [left]",
+                "thought: continue\nmove: [noop]",
+            ]
+            + ["thought: continue\nmove: [noop]"] * 20
+        )
+        env = LifeLossThenContinueEnv()
+        runner = PipelineRunner(
+            game_spec=spec,
+            model_client=client,
+            config=PipelineConfig(
+                duration_seconds=1,
+                max_actions_per_turn=10,
+                history_clips=2,
+                output_dir=tempfile.mkdtemp(),
+            ),
+            env_factory=lambda: env,
+            frame_writer=fake_frame_writer,
+        )
+
+        runner.run()
+
+        prompt_text = str(client.calls[1]["prompt_text"])
+        self.assertIn("<non_zero_reward_history>", prompt_text)
+        self.assertIn("A life was lost and a new life has begun", prompt_text)
+        self.assertIn("<clip start=\"0.00s\" to end=\"0.10s\">", prompt_text)
 
     def test_parse_error_defaults_to_noop_and_persists_raw_response(self) -> None:
         spec = get_game_spec("breakout")

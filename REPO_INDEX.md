@@ -55,7 +55,7 @@ This index covers the source tree and intentionally excludes `runs/`.
 `llm/common.py`
 - Thinking-mode metadata and provider inference/resolution.
 
-`llm/gemini.py`
+`llm/gemini_client.py`
 - Gemini adapter.
 
 `llm/openai_client.py`

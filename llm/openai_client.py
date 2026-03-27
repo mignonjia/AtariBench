@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 
 from .common import describe_thinking_mode
+from .retry import call_with_retries
 
 
 class OpenAIClient:
@@ -45,15 +46,17 @@ class OpenAIClient:
             client_kwargs["project"] = self.project
         client = OpenAI(**client_kwargs)
 
-        response = client.responses.create(
-            model=model_name,
-            input=[
-                {
-                    "role": "user",
-                    "content": _build_input_content(prompt_text, image_paths),
-                }
-            ],
-            **_build_request_kwargs(thinking_mode),
+        response = call_with_retries(
+            lambda: client.responses.create(
+                model=model_name,
+                input=[
+                    {
+                        "role": "user",
+                        "content": _build_input_content(prompt_text, image_paths),
+                    }
+                ],
+                **_build_request_kwargs(thinking_mode),
+            )
         )
         text = _extract_response_text(response)
         if text:
@@ -78,9 +81,9 @@ def _build_input_content(prompt_text: str, image_paths: list[str]) -> list[dict[
 
 def _build_request_kwargs(thinking_mode: str) -> dict[str, object]:
     metadata = describe_thinking_mode(thinking_mode)
-    if metadata["thinking_mode"] == "default":
+    if metadata["thinking_mode"] in {"default", "auto"}:
         return {}
-    if metadata["thinking_mode"] == "off":
+    if metadata["thinking_mode"] in {"off", "none"}:
         return {"reasoning": {"effort": "none"}}
     return {"reasoning": {"effort": metadata["thinking_level"]}}
 

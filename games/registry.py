@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import importlib
+from pathlib import Path
 
 
 @dataclasses.dataclass(frozen=True)
@@ -56,18 +57,36 @@ def _build_game_spec(
     )
 
 
-_GAME_SPECS = {
-    "assault": _build_game_spec(
-        game_key="assault",
-        env_id="ALE/Assault-v5",
-        prompt_module_name=".prompts.assault",
-    ),
-    "breakout": _build_game_spec(
-        game_key="breakout",
-        env_id="ALE/Breakout-v5",
-        prompt_module_name=".prompts.breakout",
-    ),
+_HELPER_PROMPT_MODULES = frozenset({"__init__", "common_prompt", "game_clip", "termination"})
+_ENV_NAME_OVERRIDES = {
+    "qbert": "Qbert",
 }
+
+
+def _game_key_to_env_id(game_key: str) -> str:
+    env_name = _ENV_NAME_OVERRIDES.get(
+        game_key,
+        "".join(part.title() for part in game_key.split("_")),
+    )
+    return f"ALE/{env_name}-v5"
+
+
+def _discover_game_specs() -> dict[str, GameSpec]:
+    prompts_dir = Path(__file__).resolve().parent / "prompts"
+    specs: dict[str, GameSpec] = {}
+    for path in sorted(prompts_dir.glob("*.py")):
+        game_key = path.stem
+        if game_key in _HELPER_PROMPT_MODULES:
+            continue
+        specs[game_key] = _build_game_spec(
+            game_key=game_key,
+            env_id=_game_key_to_env_id(game_key),
+            prompt_module_name=f".prompts.{game_key}",
+        )
+    return specs
+
+
+_GAME_SPECS = _discover_game_specs()
 
 
 def get_game_spec(game_key: str) -> GameSpec:

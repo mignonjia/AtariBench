@@ -107,6 +107,8 @@ class TrajectoryTests(unittest.TestCase):
             self.assertEqual(saved_summary["total_reward"], 1.0)
             self.assertEqual(saved_summary["last_frame"]["frame_number"], 3)
             self.assertEqual(saved_summary["thinking_mode"], "off")
+            saved_turn = json.loads(trajectory.turns_path.read_text(encoding="utf-8").splitlines()[0])
+            self.assertFalse(saved_turn["new_game_started"])
 
 
 if __name__ == "__main__":

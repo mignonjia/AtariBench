@@ -1,7 +1,8 @@
 """LLM client exports."""
 
+from .anthropic_client import AnthropicClient
 from .common import describe_thinking_mode, infer_model_provider, resolve_model_provider
-from .gemini import GeminiClient
+from .gemini_client import GeminiClient
 from .openai_client import OpenAIClient
 
 
@@ -13,10 +14,13 @@ def build_model_client(model_name: str, provider: str = "auto"):
         return GeminiClient()
     if resolved_provider == "openai":
         return OpenAIClient()
+    if resolved_provider == "anthropic":
+        return AnthropicClient()
     raise AssertionError(f"Unhandled provider: {resolved_provider}")
 
 
 __all__ = [
+    "AnthropicClient",
     "GeminiClient",
     "OpenAIClient",
     "build_model_client",

@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 from .common import describe_thinking_mode
+from .retry import call_with_retries
 
 DEFAULT_GEMINI_TIMEOUT_MS = 60_000
 
@@ -51,10 +52,12 @@ class GeminiClient:
                 )
             )
 
-        response = client.models.generate_content(
-            model=model_name,
-            contents=[types.Content(role="user", parts=parts)],
-            config=_build_generate_config(types, thinking_mode),
+        response = call_with_retries(
+            lambda: client.models.generate_content(
+                model=model_name,
+                contents=[types.Content(role="user", parts=parts)],
+                config=_build_generate_config(types, model_name, thinking_mode),
+            )
         )
         text = _extract_response_text(response)
         if text:
@@ -84,9 +87,9 @@ def _empty_response_fallback(response) -> str:
         )
 
 
-def _build_generate_config(types, thinking_mode: str):
+def _build_generate_config(types, model_name: str, thinking_mode: str):
     metadata = describe_thinking_mode(thinking_mode)
-    if metadata["thinking_mode"] == "default":
+    if metadata["thinking_mode"] in {"default", "auto", "none"}:
         return None
     if metadata["thinking_mode"] == "off":
         return types.GenerateContentConfig(
@@ -96,6 +99,14 @@ def _build_generate_config(types, thinking_mode: str):
             )
         )
     if metadata["thinking_mode"] == "on":
+        normalized_model = model_name.strip().lower()
+        if normalized_model.startswith("gemini-2.5-flash"):
+            return types.GenerateContentConfig(
+                thinking_config=types.ThinkingConfig(
+                    thinking_budget=-1,
+                    include_thoughts=False,
+                )
+            )
         return types.GenerateContentConfig(
             thinking_config=types.ThinkingConfig(
                 thinking_level=types.ThinkingLevel.MEDIUM,
@@ -106,6 +117,20 @@ def _build_generate_config(types, thinking_mode: str):
         return types.GenerateContentConfig(
             thinking_config=types.ThinkingConfig(
                 thinking_level=types.ThinkingLevel.LOW,
+                include_thoughts=False,
+            )
+        )
+    if metadata["thinking_mode"] in {"on", "medium"}:
+        return types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(
+                thinking_level=types.ThinkingLevel.MEDIUM,
+                include_thoughts=False,
+            )
+        )
+    if metadata["thinking_mode"] == "high":
+        return types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(
+                thinking_level=types.ThinkingLevel.HIGH,
                 include_thoughts=False,
             )
         )

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -20,11 +21,13 @@ if __package__ in {None, ""}:
     from games import get_game_spec, list_game_keys
     from llm import build_model_client
     from run_storage import resolve_output_layout, update_game_model_summary, uses_canonical_game_storage
+    from viz import render_run_video
 else:
     from .core.pipeline import PipelineConfig, PipelineRunner
     from .games import get_game_spec, list_game_keys
     from .llm import build_model_client
     from .run_storage import resolve_output_layout, update_game_model_summary, uses_canonical_game_storage
+    from .viz import render_run_video
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -34,13 +37,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--provider",
         default="auto",
-        choices=["auto", "gemini", "openai"],
+        choices=["auto", "gemini", "openai", "anthropic"],
         help="Backend provider. Defaults to auto-detect from --model.",
     )
     parser.add_argument(
         "--thinking",
         default="default",
-        choices=["default", "on", "off", "minimal", "low"],
+        choices=["default", "auto", "on", "off", "none", "minimal", "low", "medium", "high", "xhigh", "max"],
         help="Control provider thinking/reasoning mode.",
     )
     parser.add_argument("--duration-seconds", type=int, default=30)
@@ -83,11 +86,35 @@ def main(argv: list[str] | None = None) -> int:
         config=config,
     )
     summary = runner.run()
+    video_path = None
+    video_error = None
+    try:
+        rendered_path = render_run_video(run_dir=summary["run_dir"], fps=game_spec.fps)
+        video_path = str(rendered_path)
+    except Exception as exc:  # pragma: no cover
+        video_error = str(exc)
+    summary = _attach_video_metadata(summary, video_path=video_path, video_error=video_error)
     if uses_canonical_game_storage(args.game):
         update_game_model_summary(project_dir, args.game)
     print(summary["run_dir"])
     print(summary["stop_reason"])
     return 0
+
+
+def _attach_video_metadata(
+    summary: dict[str, object],
+    video_path: str | None,
+    video_error: str | None,
+) -> dict[str, object]:
+    summary["video_path"] = video_path
+    summary["video_error"] = video_error
+    summary_path = Path(str(summary["run_dir"])) / "summary.json"
+    if summary_path.exists():
+        summary_path.write_text(
+            json.dumps(summary, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+    return summary
 
 
 if __name__ == "__main__":

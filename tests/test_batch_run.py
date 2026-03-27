@@ -206,7 +206,6 @@ class BatchRunTests(unittest.TestCase):
                             fallback_thinking="minimal",
                             max_retries=1,
                             retry_backoff_seconds=0.0,
-                            render_video=True,
                             render_video_fps=30,
                         )
 
@@ -215,6 +214,167 @@ class BatchRunTests(unittest.TestCase):
         self.assertEqual(result.attempts, 2)
         self.assertEqual(run_mock.call_count, 2)
         self.assertTrue(str(result.video_path).endswith("visualization.mp4"))
+
+    def test_execute_run_retries_incomplete_clean_exit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            request = expand_run_requests(
+                jobs=[
+                    BatchJobSpec(
+                        model_name="gemini-2.5-flash",
+                        run_count=1,
+                        thinking_mode="off",
+                        label="gemini-2.5-flash",
+                    )
+                ],
+                base_output_dir=Path(tmpdir) / "runs",
+                log_dir=Path(tmpdir) / "logs",
+            )[0]
+
+            responses = [
+                subprocess.CompletedProcess(
+                    args=[],
+                    returncode=0,
+                    stdout="runs/example/breakout/20260316_000000\nterminated\n",
+                ),
+                subprocess.CompletedProcess(
+                    args=[],
+                    returncode=0,
+                    stdout="runs/example/breakout/20260316_000001\nframe_budget\n",
+                ),
+            ]
+
+            with mock.patch("batch_run._run_subprocess", side_effect=responses) as run_mock:
+                with mock.patch(
+                    "batch_run.load_run_summary",
+                    side_effect=[
+                        {"stop_reason": "terminated", "duration_seconds": 30, "frame_count": 779},
+                        {"stop_reason": "frame_budget", "duration_seconds": 30, "frame_count": 901},
+                    ],
+                ):
+                    with mock.patch(
+                        "batch_run.render_run_video",
+                        return_value=Path("runs/example/breakout/20260316_000001/visualization.mp4"),
+                    ):
+                        result = execute_run(
+                            request=request,
+                            game="breakout",
+                            duration_seconds=30,
+                            max_actions_per_turn=10,
+                            history_clips=3,
+                            seed=None,
+                            fallback_thinking="minimal",
+                            max_retries=1,
+                            retry_backoff_seconds=0.0,
+                            render_video_fps=30,
+                        )
+
+        self.assertTrue(result.success)
+        self.assertEqual(result.attempts, 2)
+        self.assertEqual(run_mock.call_count, 2)
+        self.assertEqual(result.stop_reason, "frame_budget")
+
+    def test_execute_run_retries_non_transient_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            request = expand_run_requests(
+                jobs=[
+                    BatchJobSpec(
+                        model_name="gemini-2.5-flash",
+                        run_count=1,
+                        thinking_mode="off",
+                        label="gemini-2.5-flash",
+                    )
+                ],
+                base_output_dir=Path(tmpdir) / "runs",
+                log_dir=Path(tmpdir) / "logs",
+            )[0]
+
+            responses = [
+                subprocess.CompletedProcess(
+                    args=[],
+                    returncode=1,
+                    stdout="some unrelated traceback",
+                ),
+                subprocess.CompletedProcess(
+                    args=[],
+                    returncode=0,
+                    stdout="runs/example/breakout/20260316_000002\nframe_budget\n",
+                ),
+            ]
+
+            with mock.patch("batch_run._run_subprocess", side_effect=responses) as run_mock:
+                with mock.patch(
+                    "batch_run.load_run_summary",
+                    return_value={"stop_reason": "frame_budget", "duration_seconds": 30, "frame_count": 901},
+                ):
+                    with mock.patch(
+                        "batch_run.render_run_video",
+                        return_value=Path("runs/example/breakout/20260316_000002/visualization.mp4"),
+                    ):
+                        result = execute_run(
+                            request=request,
+                            game="breakout",
+                            duration_seconds=30,
+                            max_actions_per_turn=10,
+                            history_clips=3,
+                            seed=None,
+                            fallback_thinking="minimal",
+                            max_retries=1,
+                            retry_backoff_seconds=0.0,
+                            render_video_fps=30,
+                        )
+
+        self.assertTrue(result.success)
+        self.assertEqual(result.attempts, 2)
+        self.assertEqual(run_mock.call_count, 2)
+
+    def test_execute_run_marks_incomplete_run_failed_after_retry_budget(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            request = expand_run_requests(
+                jobs=[
+                    BatchJobSpec(
+                        model_name="gemini-2.5-flash",
+                        run_count=1,
+                        thinking_mode="off",
+                        label="gemini-2.5-flash",
+                    )
+                ],
+                base_output_dir=Path(tmpdir) / "runs",
+                log_dir=Path(tmpdir) / "logs",
+            )[0]
+
+            with mock.patch(
+                "batch_run._run_subprocess",
+                return_value=subprocess.CompletedProcess(
+                    args=[],
+                    returncode=0,
+                    stdout="runs/example/breakout/20260316_000003\nterminated\n",
+                ),
+            ) as run_mock:
+                with mock.patch(
+                    "batch_run.load_run_summary",
+                    return_value={"stop_reason": "terminated", "duration_seconds": 30, "frame_count": 728},
+                ):
+                    with mock.patch(
+                        "batch_run.render_run_video",
+                        return_value=Path("runs/example/breakout/20260316_000003/visualization.mp4"),
+                    ):
+                        result = execute_run(
+                            request=request,
+                            game="breakout",
+                            duration_seconds=30,
+                            max_actions_per_turn=10,
+                            history_clips=3,
+                            seed=None,
+                            fallback_thinking="minimal",
+                            max_retries=1,
+                            retry_backoff_seconds=0.0,
+                            render_video_fps=30,
+                        )
+
+        self.assertFalse(result.success)
+        self.assertEqual(result.error_type, "incomplete_run")
+        self.assertEqual(result.attempts, 2)
+        self.assertEqual(run_mock.call_count, 2)
 
 
 if __name__ == "__main__":

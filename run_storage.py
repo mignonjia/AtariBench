@@ -42,6 +42,12 @@ def game_root(project_dir: str | Path, game: str) -> Path:
     return Path(project_dir).resolve() / "runs" / game
 
 
+def runs_root(project_dir: str | Path) -> Path:
+    """Return the root directory for all stored runs."""
+
+    return Path(project_dir).resolve() / "runs"
+
+
 def game_model_dir(project_dir: str | Path, game: str, model_name: str) -> Path:
     """Return the canonical directory for one model under a game."""
 
@@ -78,6 +84,26 @@ def update_game_model_summary(project_dir: str | Path, game: str) -> Path:
     with lock_path.open("w", encoding="utf-8") as lock_handle:
         fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
         payload = _build_game_summary_payload(root=root, game=game)
+        summary_path.write_text(
+            json.dumps(payload, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+    update_runs_model_summary(project_dir)
+    return summary_path
+
+
+def update_runs_model_summary(project_dir: str | Path) -> Path:
+    """Recompute the flat cross-game model summary for all canonical games."""
+
+    root = runs_root(project_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    summary_path = root / "model_summary.json"
+    lock_path = root / ".model_summary.lock"
+
+    with lock_path.open("w", encoding="utf-8") as lock_handle:
+        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
+        payload = _build_runs_summary_payload(root=root)
         summary_path.write_text(
             json.dumps(payload, indent=2, sort_keys=True),
             encoding="utf-8",
@@ -147,6 +173,33 @@ def _build_game_summary_payload(root: Path, game: str) -> dict[str, object]:
         "updated_at": dt.datetime.now().isoformat(timespec="seconds"),
         "game": game,
         "models": models,
+    }
+
+
+def _build_runs_summary_payload(root: Path) -> dict[str, object]:
+    entries: list[dict[str, object]] = []
+
+    for game_dir in sorted(root.iterdir()):
+        if not game_dir.is_dir() or game_dir.name.startswith("_"):
+            continue
+        per_game_summary_path = game_dir / "model_summary.json"
+        if not per_game_summary_path.exists():
+            continue
+        with contextlib.suppress(json.JSONDecodeError):
+            payload = json.loads(per_game_summary_path.read_text(encoding="utf-8"))
+            models = payload.get("models", {})
+            if not isinstance(models, dict):
+                continue
+            for model_name, model_summary in sorted(models.items()):
+                if not isinstance(model_summary, dict):
+                    continue
+                entry = {"game": game_dir.name, "model_name": model_name}
+                entry.update(model_summary)
+                entries.append(entry)
+
+    return {
+        "updated_at": dt.datetime.now().isoformat(timespec="seconds"),
+        "entries": entries,
     }
 
 

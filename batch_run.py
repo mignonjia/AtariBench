@@ -115,11 +115,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Base backoff in seconds between transient retries.",
     )
     parser.add_argument("--render-video-fps", type=int, default=30)
-    parser.add_argument(
-        "--skip-video",
-        action="store_true",
-        help="Do not render a visualization video for each completed run.",
-    )
     return parser
 
 
@@ -231,7 +226,6 @@ def main(argv: list[str] | None = None) -> int:
                 args.fallback_thinking,
                 args.max_retries,
                 args.retry_backoff_seconds,
-                not args.skip_video,
                 args.render_video_fps,
             ): request
             for request in requests
@@ -276,7 +270,6 @@ def execute_run(
     fallback_thinking: str,
     max_retries: int,
     retry_backoff_seconds: float,
-    render_video: bool,
     render_video_fps: int,
 ) -> RunResult:
     current_thinking = request.thinking_mode
@@ -309,9 +302,17 @@ def execute_run(
         if completed.returncode == 0:
             run_dir = normalize_run_dir(extract_run_dir(combined_output))
             summary = load_run_summary(run_dir)
+            is_full_duration_run = _is_full_duration_run(summary, duration_seconds)
+            if not is_full_duration_run and attempts <= max_retries:
+                sleep_seconds = compute_retry_sleep_seconds(
+                    attempt=attempts,
+                    base_backoff_seconds=retry_backoff_seconds,
+                )
+                time.sleep(sleep_seconds)
+                continue
             video_path = None
             video_error = None
-            if render_video and run_dir:
+            if run_dir:
                 try:
                     rendered_path = render_run_video(run_dir=run_dir, fps=render_video_fps)
                     video_path = str(rendered_path)
@@ -325,8 +326,8 @@ def execute_run(
                 model_name=request.model_name,
                 requested_thinking_mode=request.thinking_mode,
                 final_thinking_mode=current_thinking,
-                success=True,
-                return_code=0,
+                success=is_full_duration_run,
+                return_code=0 if is_full_duration_run else 1,
                 run_dir=run_dir,
                 stop_reason=_extract_stop_reason(summary, combined_output),
                 log_path=request.log_path,
@@ -334,7 +335,7 @@ def execute_run(
                 summary=summary,
                 video_path=video_path,
                 video_error=video_error,
-                error_type=None,
+                error_type=None if is_full_duration_run else "incomplete_run",
             )
 
         if _should_fallback_to_thinking(combined_output, current_thinking):
@@ -342,7 +343,7 @@ def execute_run(
             continue
 
         error_type = classify_error_output(combined_output)
-        if error_type == "transient" and attempts <= max_retries:
+        if (error_type == "transient" or error_type is None) and attempts <= max_retries:
             sleep_seconds = compute_retry_sleep_seconds(
                 attempt=attempts,
                 base_backoff_seconds=retry_backoff_seconds,
@@ -512,6 +513,21 @@ def _extract_stop_reason(
     if len(lines) >= 2:
         return lines[-1]
     return None
+
+
+def _is_full_duration_run(
+    summary: dict[str, object] | None,
+    expected_duration_seconds: int,
+) -> bool:
+    if not summary:
+        return False
+    stop_reason = summary.get("stop_reason")
+    if stop_reason != "frame_budget":
+        return False
+    duration_seconds = summary.get("duration_seconds")
+    if duration_seconds is None:
+        return True
+    return int(duration_seconds) == expected_duration_seconds
 
 
 def _should_fallback_to_thinking(output: str, current_thinking: str) -> bool:
