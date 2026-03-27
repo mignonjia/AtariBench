@@ -7,6 +7,7 @@ import datetime as dt
 import html
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any, Callable
 
@@ -256,6 +257,13 @@ def _render_prompt_html(
     referenced_image_paths: list[str],
     html_path: Path,
 ) -> str:
+    if _looks_like_chat_transcript(prompt_text):
+        return _render_chat_prompt_html(
+            prompt_text=prompt_text,
+            referenced_image_paths=referenced_image_paths,
+            html_path=html_path,
+        )
+
     placeholder = "IMG_HOLDER"
     escaped_prompt = html.escape(prompt_text)
     parts = escaped_prompt.split(placeholder)
@@ -367,3 +375,187 @@ def _render_prompt_html(
 </body>
 </html>
 """
+
+
+def _looks_like_chat_transcript(prompt_text: str) -> bool:
+    return "<user>" in prompt_text or "<assistant>" in prompt_text
+
+
+def _render_chat_prompt_html(
+    prompt_text: str,
+    referenced_image_paths: list[str],
+    html_path: Path,
+) -> str:
+    image_index = 0
+    bubbles: list[str] = []
+
+    for role, body in _iter_chat_blocks(prompt_text):
+        bubble_html, image_index = _render_chat_bubble_html(
+            role=role,
+            body=body,
+            referenced_image_paths=referenced_image_paths,
+            html_path=html_path,
+            image_index=image_index,
+        )
+        bubbles.append(bubble_html)
+
+    if image_index < len(referenced_image_paths):
+        bubbles.append("<h2>Extra Referenced Images</h2>")
+        for extra_index, image_path in enumerate(referenced_image_paths[image_index:], start=image_index + 1):
+            relative_image_path = os.path.relpath(image_path, start=html_path.parent)
+            escaped_image_path = html.escape(relative_image_path)
+            bubbles.append(
+                (
+                    '<figure class="img-block extra-image">'
+                    f'<div class="img-label">Unmapped Image #{extra_index}</div>'
+                    f'<img src="{escaped_image_path}" alt="Unmapped Image #{extra_index}" />'
+                    f'<figcaption>{escaped_image_path}</figcaption>'
+                    "</figure>"
+                )
+            )
+
+    body = "\n".join(bubbles)
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Prompt Render</title>
+  <style>
+    body {{
+      background: #f4f1ea;
+      color: #111;
+      font-family: Menlo, Monaco, Consolas, monospace;
+      line-height: 1.35;
+      margin: 0;
+      padding: 16px;
+    }}
+    h1 {{
+      font-size: 16px;
+      margin: 0 0 12px 0;
+    }}
+    .chat {{
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }}
+    .row {{
+      display: flex;
+      width: 100%;
+    }}
+    .row.user {{
+      justify-content: flex-start;
+    }}
+    .row.assistant {{
+      justify-content: flex-end;
+    }}
+    .bubble {{
+      border: 1px solid #d8d1c4;
+      border-radius: 12px;
+      max-width: min(780px, 92%);
+      padding: 12px 14px;
+    }}
+    .row.user .bubble {{
+      background: #fffaf0;
+    }}
+    .row.assistant .bubble {{
+      background: #eef5ff;
+    }}
+    pre {{
+      margin: 0 0 10px 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }}
+    .img-block {{
+      background: rgba(255,255,255,0.8);
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      margin: 10px 0 0 0;
+      padding: 10px;
+    }}
+    .img-label {{
+      color: #666;
+      font-size: 11px;
+      margin-bottom: 6px;
+    }}
+    .img-missing {{
+      background: #fff4f4;
+      border: 1px solid #f0b8b8;
+      border-radius: 8px;
+      color: #900;
+      margin-top: 10px;
+      padding: 10px;
+    }}
+    img {{
+      border: 1px solid #ddd;
+      display: block;
+      image-rendering: pixelated;
+      margin-bottom: 8px;
+      max-width: min(680px, 100%);
+    }}
+    figcaption {{
+      color: #555;
+      font-size: 11px;
+      word-break: break-all;
+    }}
+    .extra-image {{
+      background: #fff;
+      margin-top: 12px;
+    }}
+  </style>
+</head>
+<body>
+  <h1>Prompt Render</h1>
+  <div class="chat">
+    {body}
+  </div>
+</body>
+</html>
+"""
+
+
+def _iter_chat_blocks(prompt_text: str) -> list[tuple[str, str]]:
+    pattern = re.compile(r"<(user|assistant)>\s*(.*?)\s*</\1>", re.DOTALL)
+    return [(match.group(1), match.group(2)) for match in pattern.finditer(prompt_text)]
+
+
+def _render_chat_bubble_html(
+    role: str,
+    body: str,
+    referenced_image_paths: list[str],
+    html_path: Path,
+    image_index: int,
+) -> tuple[str, int]:
+    placeholder = "IMG_HOLDER"
+    parts = body.split(placeholder)
+    rendered: list[str] = []
+
+    for index, part in enumerate(parts):
+        escaped_part = html.escape(part)
+        if escaped_part.strip():
+            rendered.append(f"<pre>{escaped_part}</pre>")
+        if index >= len(parts) - 1:
+            continue
+
+        image_path = referenced_image_paths[image_index] if image_index < len(referenced_image_paths) else None
+        image_index += 1
+        if image_path is None:
+            rendered.append('<div class="img-missing">IMG_HOLDER has no mapped image.</div>')
+            continue
+
+        relative_image_path = os.path.relpath(image_path, start=html_path.parent)
+        escaped_image_path = html.escape(relative_image_path)
+        rendered.append(
+            (
+                '<figure class="img-block">'
+                f'<div class="img-label">Image #{image_index}</div>'
+                f'<img src="{escaped_image_path}" alt="Image #{image_index}" />'
+                f'<figcaption>{escaped_image_path}</figcaption>'
+                "</figure>"
+            )
+        )
+
+    bubble = "\n".join(rendered)
+    return (
+        f'<div class="row {html.escape(role)}"><div class="bubble">{bubble}</div></div>',
+        image_index,
+    )

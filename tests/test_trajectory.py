@@ -119,6 +119,56 @@ class TrajectoryTests(unittest.TestCase):
             saved_turn = json.loads(trajectory.turns_path.read_text(encoding="utf-8").splitlines()[0])
             self.assertFalse(saved_turn["new_game_started"])
 
+    def test_prompt_html_renders_chat_transcript_without_raw_role_tags(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            trajectory = Trajectory(
+                base_output_dir=tmpdir,
+                game_key="breakout",
+                frame_writer=fake_frame_writer,
+            )
+            first_frame = trajectory.record_frame(
+                frame="frame0",
+                reward=0.0,
+                info={"lives": 5, "episode_frame_number": 0, "frame_number": 0},
+                local_frame_index=0,
+            )
+            second_frame = trajectory.record_frame(
+                frame="frame1",
+                reward=1.0,
+                info={"lives": 5, "episode_frame_number": 1, "frame_number": 1},
+                local_frame_index=1,
+            )
+            parsed = ParsedClipResponse(
+                raw_text="thought: go\nmove: [right]",
+                thought="go",
+                action_strings=["right"],
+                action_ids=[2],
+                errors=[],
+            )
+            trajectory.record_turn(
+                prompt_text=(
+                    "<user>\nstate\nIMG_HOLDER\n</user>\n\n"
+                    "<assistant>\nthought: go\nmove: [right]\n</assistant>\n\n"
+                    "<user>\noutcome\nIMG_HOLDER\n</user>"
+                ),
+                raw_response=parsed.raw_text,
+                parsed_response=parsed,
+                referenced_image_paths=[first_frame.frame_path, second_frame.frame_path],
+                start_frame_index=0,
+                start_frame_path=first_frame.frame_path,
+                executed_frame_end=1,
+                reward_delta=1.0,
+                action_records=[],
+            )
+
+            prompt_html = Path(trajectory.turn_records[0].prompt_html_path).read_text(encoding="utf-8")
+            self.assertIn('class="row user"', prompt_html)
+            self.assertIn('class="row assistant"', prompt_html)
+            self.assertNotIn("&lt;user&gt;", prompt_html)
+            self.assertNotIn("&lt;assistant&gt;", prompt_html)
+            self.assertIn("frame_000000.png", prompt_html)
+            self.assertIn("frame_000001.png", prompt_html)
+
 
 if __name__ == "__main__":
     unittest.main()
