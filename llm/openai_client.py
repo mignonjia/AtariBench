@@ -9,6 +9,11 @@ from pathlib import Path
 from .common import describe_thinking_mode
 from .retry import call_with_retries
 
+try:
+    from ..games.prompt_builder import PromptMessage
+except ImportError:  # Running from inside the AtariBench folder.
+    from games.prompt_builder import PromptMessage
+
 
 class OpenAIClient:
     """Thin wrapper around the official OpenAI SDK."""
@@ -31,6 +36,7 @@ class OpenAIClient:
         image_paths: list[str],
         model_name: str,
         thinking_mode: str = "default",
+        prompt_messages: list[PromptMessage] | None = None,
     ) -> str:
         """Send one multimodal request and return the raw model text."""
 
@@ -49,12 +55,11 @@ class OpenAIClient:
         response = call_with_retries(
             lambda: client.responses.create(
                 model=model_name,
-                input=[
-                    {
-                        "role": "user",
-                        "content": _build_input_content(prompt_text, image_paths),
-                    }
-                ],
+                input=_build_input_messages(
+                    prompt_text=prompt_text,
+                    image_paths=image_paths,
+                    prompt_messages=prompt_messages,
+                ),
                 **_build_request_kwargs(thinking_mode),
             )
         )
@@ -77,6 +82,24 @@ def _build_input_content(prompt_text: str, image_paths: list[str]) -> list[dict[
             }
         )
     return content
+
+
+def _build_input_messages(
+    prompt_text: str,
+    image_paths: list[str],
+    prompt_messages: list[PromptMessage] | None,
+) -> list[dict[str, object]]:
+    if not prompt_messages:
+        return [{"role": "user", "content": _build_input_content(prompt_text, image_paths)}]
+    payload: list[dict[str, object]] = []
+    for message in prompt_messages:
+        payload.append(
+            {
+                "role": message.role,
+                "content": _build_input_content(message.text, message.image_paths),
+            }
+        )
+    return payload
 
 
 def _build_request_kwargs(thinking_mode: str) -> dict[str, object]:

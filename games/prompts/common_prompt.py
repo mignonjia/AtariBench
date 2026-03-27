@@ -134,22 +134,8 @@ observed outcome uses the same action-by-action state format:
 Use the full transcript below as context for your next decision.
 """
 
-APPEND_ONLY_ASSISTANT_TURN_TEMPLATE: str = """
-<turn index="{TURN_INDEX}">
-<assistant>
-thought: {THOUGHT}
-move: {ACTIONS_STR}
-</assistant>
-<user>
-Updated states, rewards, and instructions after your actions:
-{CLIP_TEMPLATE}
-</user>
-</turn>
-"""
-
-APPEND_ONLY_CURRENT_STATE_TEMPLATE: str = """
-<user>
-Current state and updated instruction:
+APPEND_ONLY_INITIAL_USER_TEMPLATE: str = """
+Current state and initial instruction:
 time: {CURRENT_TIME}
 IMG_HOLDER
 
@@ -159,7 +145,18 @@ IMPORTANT: You MUST format your response using EXACTLY these lines:
 
 thought: [Your reasoning about the game state]
 move: [action_1, action_2, ..., action_n]
-</user>
+"""
+
+APPEND_ONLY_UPDATED_USER_TEMPLATE: str = """
+Updated states, rewards, and instruction after your actions:
+{CLIP_TEMPLATE}
+
+Now please predict the next actions.
+
+IMPORTANT: You MUST format your response using EXACTLY these lines:
+
+thought: [Your reasoning about the game state]
+move: [action_1, action_2, ..., action_n]
 """
 
 REWARD_CLIPS_TEMPLATE: str = """

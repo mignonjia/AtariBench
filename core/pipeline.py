@@ -106,6 +106,7 @@ class PipelineRunner:
                     image_paths=prompt_package.image_paths,
                     model_name=self.config.model_name,
                     thinking_mode=self.config.thinking_mode,
+                    prompt_messages=prompt_package.messages,
                 )
                 parsed_response = self._parse_response_or_fallback(raw_response)
 

@@ -30,6 +30,7 @@ class FakeGeminiClient:
         image_paths: list[str],
         model_name: str,
         thinking_mode: str = "default",
+        prompt_messages=None,
     ) -> str:
         self.calls.append(
             {
@@ -37,6 +38,7 @@ class FakeGeminiClient:
                 "image_paths": list(image_paths),
                 "model_name": model_name,
                 "thinking_mode": thinking_mode,
+                "prompt_messages": prompt_messages,
             }
         )
         if not self.responses:
@@ -286,13 +288,18 @@ class PipelineRunnerTests(unittest.TestCase):
         self.assertEqual(summary["prompt_mode"], "append_only")
         self.assertIn("<assistant>", prompt_text)
         self.assertIn("thought: serve now", prompt_text)
-        self.assertIn("move: ['start']", prompt_text)
+        self.assertIn("move: [start]", prompt_text)
         self.assertIn("<user>", prompt_text)
-        self.assertIn("Updated states, rewards, and instructions after your actions:", prompt_text)
+        self.assertIn("Updated states, rewards, and instruction after your actions:", prompt_text)
         self.assertIn("<clip start=\"0.00s\" to end=\"0.10s\">", prompt_text)
         self.assertIn("<states_and_rewards_after_actions>", prompt_text)
         self.assertNotIn("<recent_history>", prompt_text)
         self.assertNotIn("<non_zero_reward_history>", prompt_text)
+        prompt_messages = client.calls[1]["prompt_messages"]
+        self.assertIsNotNone(prompt_messages)
+        self.assertEqual(prompt_messages[0].role, "user")
+        self.assertEqual(prompt_messages[1].role, "assistant")
+        self.assertEqual(prompt_messages[2].role, "user")
 
     def test_parse_error_defaults_to_noop_and_persists_raw_response(self) -> None:
         spec = get_game_spec("breakout")

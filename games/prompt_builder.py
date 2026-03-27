@@ -14,11 +14,21 @@ except ImportError:  # Running from inside the AtariBench folder.
 
 
 @dataclasses.dataclass(frozen=True)
+class PromptMessage:
+    """One structured prompt message with ordered images."""
+
+    role: str
+    text: str
+    image_paths: list[str]
+
+
+@dataclasses.dataclass(frozen=True)
 class PromptPackage:
     """Prompt text plus the ordered images referenced by IMG_HOLDER."""
 
     text: str
     image_paths: list[str]
+    messages: list[PromptMessage] | None = None
 
 
 def format_time(frame_index: int, fps: int) -> str:
@@ -121,34 +131,57 @@ def _build_append_only_prompt(
     """Render the append-only chronological transcript prompt."""
 
     current_frame = trajectory.latest_frame()
-    image_paths: list[str] = []
-    turn_texts: list[str] = []
+    messages: list[PromptMessage] = []
     game_prompt = game_spec.game_prompt.format(FPS_SPECIFIC_PROMPT=game_spec.fps_prompt)
     game_over_prompt = termination.MAX_TIME_PROMPT.format(MAX_TIME=duration_seconds)
+    initial_frame = trajectory.frame_records[0]
+    messages.append(
+        PromptMessage(
+            role="user",
+            text=common_prompt.APPEND_ONLY_HEADER_TEMPLATE.format(
+                GAME_PROMPT=game_prompt,
+                GAME_OVER_PROMPT=game_over_prompt,
+            )
+            + common_prompt.APPEND_ONLY_INITIAL_USER_TEMPLATE.format(
+                CURRENT_TIME=format_time(initial_frame.local_frame_index, game_spec.fps)
+            ),
+            image_paths=[initial_frame.frame_path],
+        )
+    )
 
     for turn in trajectory.turn_records:
-        clip_text, clip_images = build_clip_prompt(turn, game_spec)
-        turn_texts.append(
-            common_prompt.APPEND_ONLY_ASSISTANT_TURN_TEMPLATE.format(
-                TURN_INDEX=turn.turn_index,
-                THOUGHT=turn.parsed_thought,
-                ACTIONS_STR=str(turn.planned_action_strings),
-                CLIP_TEMPLATE=clip_text,
+        messages.append(
+            PromptMessage(
+                role="assistant",
+                text=turn.raw_response,
+                image_paths=[],
             )
         )
-        image_paths.extend(clip_images)
+        clip_text, clip_images = build_clip_prompt(turn, game_spec)
+        messages.append(
+            PromptMessage(
+                role="user",
+                text=common_prompt.APPEND_ONLY_UPDATED_USER_TEMPLATE.format(
+                    CLIP_TEMPLATE=clip_text
+                ),
+                image_paths=clip_images,
+            )
+        )
 
-    image_paths.append(current_frame.frame_path)
-    prompt_text = common_prompt.APPEND_ONLY_HEADER_TEMPLATE.format(
-        GAME_PROMPT=game_prompt,
-        GAME_OVER_PROMPT=game_over_prompt,
-    )
-    if turn_texts:
-        prompt_text += "\n".join(turn_texts)
-    prompt_text += common_prompt.APPEND_ONLY_CURRENT_STATE_TEMPLATE.format(
-        CURRENT_TIME=format_time(current_frame.local_frame_index, game_spec.fps)
-    )
-    return PromptPackage(text=prompt_text, image_paths=image_paths)
+    prompt_text, image_paths = serialize_prompt_messages(messages)
+    return PromptPackage(text=prompt_text, image_paths=image_paths, messages=messages)
+
+
+def serialize_prompt_messages(messages: list[PromptMessage]) -> tuple[str, list[str]]:
+    """Serialize structured messages into a text transcript for saved artifacts."""
+
+    blocks: list[str] = []
+    image_paths: list[str] = []
+    for message in messages:
+        block = [f"<{message.role}>", message.text, f"</{message.role}>"]
+        blocks.append("\n".join(block))
+        image_paths.extend(message.image_paths)
+    return "\n\n".join(blocks), image_paths
 
 
 def _belongs_in_reward_history(turn: TurnRecord) -> bool:

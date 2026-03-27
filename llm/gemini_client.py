@@ -8,6 +8,11 @@ from pathlib import Path
 from .common import describe_thinking_mode
 from .retry import call_with_retries
 
+try:
+    from ..games.prompt_builder import PromptMessage
+except ImportError:  # Running from inside the AtariBench folder.
+    from games.prompt_builder import PromptMessage
+
 DEFAULT_GEMINI_TIMEOUT_MS = 60_000
 
 
@@ -25,6 +30,7 @@ class GeminiClient:
         image_paths: list[str],
         model_name: str,
         thinking_mode: str = "default",
+        prompt_messages: list[PromptMessage] | None = None,
     ) -> str:
         """Send one multimodal request and return the raw model text."""
 
@@ -40,22 +46,15 @@ class GeminiClient:
             api_key=self.api_key,
             http_options=_build_http_options(types),
         )
-        parts = [types.Part.from_text(text=prompt_text)]
-
-        for image_path in image_paths:
-            image_bytes = Path(image_path).read_bytes()
-            mime_type = _guess_mime_type(image_path)
-            parts.append(
-                types.Part.from_bytes(
-                    data=image_bytes,
-                    mime_type=mime_type,
-                )
-            )
-
         response = call_with_retries(
             lambda: client.models.generate_content(
                 model=model_name,
-                contents=[types.Content(role="user", parts=parts)],
+                contents=_build_contents(
+                    types=types,
+                    prompt_text=prompt_text,
+                    image_paths=image_paths,
+                    prompt_messages=prompt_messages,
+                ),
                 config=_build_generate_config(types, model_name, thinking_mode),
             )
         )
@@ -85,6 +84,30 @@ def _empty_response_fallback(response) -> str:
         f"Metadata: {summary}\n"
         "move: [noop]"
         )
+
+
+def _build_contents(types, prompt_text: str, image_paths: list[str], prompt_messages: list[PromptMessage] | None):
+    if not prompt_messages:
+        return [types.Content(role="user", parts=_build_parts(types, prompt_text, image_paths))]
+    contents = []
+    for message in prompt_messages:
+        role = "model" if message.role == "assistant" else "user"
+        contents.append(
+            types.Content(
+                role=role,
+                parts=_build_parts(types, message.text, message.image_paths),
+            )
+        )
+    return contents
+
+
+def _build_parts(types, prompt_text: str, image_paths: list[str]):
+    parts = [types.Part.from_text(text=prompt_text)]
+    for image_path in image_paths:
+        image_bytes = Path(image_path).read_bytes()
+        mime_type = _guess_mime_type(image_path)
+        parts.append(types.Part.from_bytes(data=image_bytes, mime_type=mime_type))
+    return parts
 
 
 def _build_generate_config(types, model_name: str, thinking_mode: str):

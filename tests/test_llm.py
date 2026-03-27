@@ -19,6 +19,7 @@ from llm.anthropic_client import _build_request_kwargs as _build_anthropic_reque
 from llm.gemini_client import _build_generate_config
 from llm.openai_client import OpenAIClient
 from llm.retry import is_retryable_error
+from games.prompt_builder import PromptMessage
 
 
 class LlmTests(unittest.TestCase):
@@ -98,6 +99,51 @@ class LlmTests(unittest.TestCase):
         self.assertEqual(content[0], {"type": "input_text", "text": "state"})
         self.assertEqual(content[1]["type"], "input_image")
         self.assertTrue(content[1]["image_url"].startswith("data:image/png;base64,"))
+
+    def test_openai_client_sends_structured_prompt_messages(self) -> None:
+        calls: list[dict[str, object]] = []
+
+        class FakeResponse:
+            def __init__(self):
+                self.output_text = "thought: wait\nmove: [noop]"
+
+        class FakeResponsesApi:
+            def create(self, **kwargs):
+                calls.append(kwargs)
+                return FakeResponse()
+
+        class FakeOpenAI:
+            def __init__(self, **kwargs):
+                self.responses = FakeResponsesApi()
+
+        fake_module = types.ModuleType("openai")
+        fake_module.OpenAI = FakeOpenAI
+
+        previous_module = sys.modules.get("openai")
+        sys.modules["openai"] = fake_module
+        try:
+            client = OpenAIClient(api_key="test-key")
+            response_text = client.generate_turn(
+                prompt_text="unused",
+                image_paths=[],
+                model_name="gpt-5.4-mini",
+                thinking_mode="off",
+                prompt_messages=[
+                    PromptMessage(role="user", text="state", image_paths=[]),
+                    PromptMessage(role="assistant", text="thought: go\nmove: [right]", image_paths=[]),
+                    PromptMessage(role="user", text="new state", image_paths=[]),
+                ],
+            )
+        finally:
+            if previous_module is None:
+                sys.modules.pop("openai", None)
+            else:
+                sys.modules["openai"] = previous_module
+
+        self.assertEqual(response_text, "thought: wait\nmove: [noop]")
+        self.assertEqual(calls[0]["input"][0]["role"], "user")
+        self.assertEqual(calls[0]["input"][1]["role"], "assistant")
+        self.assertEqual(calls[0]["input"][2]["role"], "user")
 
     def test_openai_client_maps_off_to_reasoning_none(self) -> None:
         calls: list[dict[str, object]] = []
