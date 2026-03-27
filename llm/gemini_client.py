@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from .common import describe_thinking_mode
+from .common import describe_effective_thinking_mode
 from .retry import call_with_retries
 
 try:
@@ -111,53 +111,38 @@ def _build_parts(types, prompt_text: str, image_paths: list[str]):
 
 
 def _build_generate_config(types, model_name: str, thinking_mode: str):
-    metadata = describe_thinking_mode(thinking_mode)
+    metadata = describe_effective_thinking_mode(model_name=model_name, thinking_mode=thinking_mode)
     if metadata["thinking_mode"] in {"default", "auto", "none"}:
         return None
-    if metadata["thinking_mode"] == "off":
+    if metadata["thinking_budget"] is not None:
         return types.GenerateContentConfig(
             thinking_config=types.ThinkingConfig(
                 thinking_budget=metadata["thinking_budget"],
                 include_thoughts=False,
             )
         )
-    if metadata["thinking_mode"] == "on":
-        normalized_model = model_name.strip().lower()
-        if normalized_model.startswith("gemini-2.5-flash"):
-            return types.GenerateContentConfig(
-                thinking_config=types.ThinkingConfig(
-                    thinking_budget=-1,
-                    include_thoughts=False,
-                )
-            )
-        return types.GenerateContentConfig(
-            thinking_config=types.ThinkingConfig(
-                thinking_level=types.ThinkingLevel.MEDIUM,
-                include_thoughts=False,
-            )
-        )
-    if metadata["thinking_mode"] == "low":
+    if metadata["thinking_level"] == "low":
         return types.GenerateContentConfig(
             thinking_config=types.ThinkingConfig(
                 thinking_level=types.ThinkingLevel.LOW,
                 include_thoughts=False,
             )
         )
-    if metadata["thinking_mode"] in {"on", "medium"}:
+    if metadata["thinking_level"] == "medium":
         return types.GenerateContentConfig(
             thinking_config=types.ThinkingConfig(
                 thinking_level=types.ThinkingLevel.MEDIUM,
                 include_thoughts=False,
             )
         )
-    if metadata["thinking_mode"] == "high":
+    if metadata["thinking_level"] == "high":
         return types.GenerateContentConfig(
             thinking_config=types.ThinkingConfig(
                 thinking_level=types.ThinkingLevel.HIGH,
                 include_thoughts=False,
             )
         )
-    if metadata["thinking_mode"] == "minimal":
+    if metadata["thinking_level"] == "minimal":
         return types.GenerateContentConfig(
             thinking_config=types.ThinkingConfig(
                 thinking_level=types.ThinkingLevel.MINIMAL,

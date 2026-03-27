@@ -14,7 +14,7 @@ if candidate not in sys.path:
     sys.path.insert(0, candidate)
 
 from llm import build_model_client
-from llm.common import describe_thinking_mode, infer_model_provider
+from llm.common import describe_effective_thinking_mode, describe_thinking_mode, infer_model_provider
 from llm.gemini_client import _build_generate_config
 from llm.anthropic_client import _build_request_kwargs as _build_anthropic_request_kwargs
 from llm.openai_client import _build_request_kwargs
@@ -72,7 +72,7 @@ class ModelThinkingOptionsTests(unittest.TestCase):
                                 expected_level,
                             )
                     elif provider == "openai":
-                        request_kwargs = _build_request_kwargs(option)
+                        request_kwargs = _build_request_kwargs(model_name, option)
                         if option in {"auto", "default"}:
                             self.assertEqual(request_kwargs, {})
                         elif option == "none":
@@ -116,6 +116,14 @@ class ModelThinkingOptionsTests(unittest.TestCase):
                     else:  # pragma: no cover
                         self.fail(f"Unexpected provider for {model_name}: {provider}")
 
+                    effective = describe_effective_thinking_mode(model_name=model_name, thinking_mode=option)
+                    if model_name == "gemini-2.5-flash" and option == "on":
+                        self.assertEqual(effective["thinking_budget"], -1)
+                        self.assertIsNone(effective["thinking_level"])
+                    if model_name == "claude-haiku-4-5" and option == "on":
+                        self.assertEqual(effective["thinking_budget"], 16000)
+                        self.assertIsNone(effective["thinking_level"])
+
     def test_model_thinking_json_options_support_live_requests(self) -> None:
         if os.getenv("ATARIBENCH_RUN_LIVE_MODEL_THINKING_TESTS") != "1":
             self.skipTest("Set ATARIBENCH_RUN_LIVE_MODEL_THINKING_TESTS=1 to run live API checks.")
@@ -125,17 +133,44 @@ class ModelThinkingOptionsTests(unittest.TestCase):
 
         config_path = PROJECT_DIR / "llm" / "model_thinking.json"
         payload = json.loads(config_path.read_text(encoding="utf-8"))
+        output_path = PROJECT_DIR / "tests" / "artifacts" / "model_thinking_live_results.json"
+        records: list[dict[str, object]] = []
+        prompt_text = "hello"
+        _write_live_results(output_path, records)
 
         for model_name, options in payload.items():
             client = build_model_client(model_name)
             for option in options:
                 with self.subTest(model=model_name, option=option):
-                    response_text = client.generate_turn(
-                        prompt_text="hello",
-                        image_paths=[],
-                        model_name=model_name,
-                        thinking_mode=option,
+                    try:
+                        response_text = client.generate_turn(
+                            prompt_text=prompt_text,
+                            image_paths=[],
+                            model_name=model_name,
+                            thinking_mode=option,
+                        )
+                    except Exception as exc:
+                        records.append(
+                            {
+                                "model": model_name,
+                                "thinking_mode": option,
+                                "prompt": prompt_text,
+                                "response": None,
+                                "error": str(exc),
+                            }
+                        )
+                        _write_live_results(output_path, records)
+                        raise
+                    records.append(
+                        {
+                            "model": model_name,
+                            "thinking_mode": option,
+                            "prompt": prompt_text,
+                            "response": response_text,
+                            "error": None,
+                        }
                     )
+                    _write_live_results(output_path, records)
                     self.assertIsInstance(response_text, str)
                     self.assertTrue(
                         response_text.strip(),
@@ -182,6 +217,12 @@ def _expected_anthropic_budget(option: str) -> int:
         "high": 12000,
         "max": 16000,
     }[option]
+
+
+def _write_live_results(path: Path, records: list[dict[str, object]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"records": records}
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 
 
 if __name__ == "__main__":

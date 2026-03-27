@@ -6,7 +6,7 @@ import base64
 import os
 from pathlib import Path
 
-from .common import describe_thinking_mode
+from .common import describe_effective_thinking_mode
 from .retry import call_with_retries
 
 try:
@@ -104,20 +104,17 @@ def _build_input_messages(
 
 
 def _build_request_kwargs(model_name: str, thinking_mode: str) -> dict[str, object]:
-    metadata = describe_thinking_mode(thinking_mode)
+    metadata = describe_effective_thinking_mode(model_name=model_name, thinking_mode=thinking_mode)
     if metadata["thinking_mode"] in {"default", "auto"}:
         return {}
     normalized_model = model_name.strip().lower()
     if normalized_model.startswith("claude-haiku"):
         if metadata["thinking_mode"] in {"off", "none"}:
             return {"thinking": {"type": "disabled"}}
-        budget_tokens = THINKING_BUDGET_TOKENS[metadata["thinking_mode"]]
-        return {"thinking": {"type": "enabled", "budget_tokens": budget_tokens}}
+        return {"thinking": {"type": "enabled", "budget_tokens": metadata["thinking_budget"]}}
     if metadata["thinking_mode"] in {"off", "none"}:
         return {}
     effort = metadata["thinking_level"]
-    if metadata["thinking_mode"] == "on":
-        effort = "medium"
     return {
         "thinking": {"type": "adaptive"},
         "output_config": {"effort": effort},

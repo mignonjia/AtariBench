@@ -19,13 +19,13 @@ if __package__ in {None, ""}:
     _bootstrap_local_paths()
     from core.pipeline import PipelineConfig, PipelineRunner
     from games import get_game_spec, list_game_keys
-    from llm import build_model_client
+    from llm import build_model_client, validate_model_thinking_mode
     from run_storage import resolve_output_layout, update_game_model_summary, uses_canonical_game_storage
     from viz import render_run_video
 else:
     from .core.pipeline import PipelineConfig, PipelineRunner
     from .games import get_game_spec, list_game_keys
-    from .llm import build_model_client
+    from .llm import build_model_client, validate_model_thinking_mode
     from .run_storage import resolve_output_layout, update_game_model_summary, uses_canonical_game_storage
     from .viz import render_run_video
 
@@ -67,6 +67,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     project_dir = Path(__file__).resolve().parent
+    validate_model_thinking_mode(args.model, args.thinking)
 
     game_spec = get_game_spec(args.game)
     output_dir, nest_output_by_game = resolve_output_layout(

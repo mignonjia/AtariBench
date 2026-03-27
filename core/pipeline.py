@@ -10,14 +10,14 @@ try:
     from ..games.env import capture_frame, create_env, detect_life_loss, extract_env_info
     from ..games.prompt_builder import build_prompt
     from ..games.registry import GameSpec
-    from ..llm import describe_thinking_mode
+    from ..llm import describe_effective_thinking_mode
     from .clip import ParsedClipResponse, parse_model_response
     from .trajectory import ActionRecord, Trajectory
 except ImportError:  # Running from inside the AtariBench folder.
     from games.env import capture_frame, create_env, detect_life_loss, extract_env_info
     from games.prompt_builder import build_prompt
     from games.registry import GameSpec
-    from llm import describe_thinking_mode
+    from llm import describe_effective_thinking_mode
     from core.clip import ParsedClipResponse, parse_model_response
     from core.trajectory import ActionRecord, Trajectory
 
@@ -67,7 +67,10 @@ class PipelineRunner:
         """Execute the pipeline and return the summary."""
 
         env = self.env_factory()
-        thinking_metadata = describe_thinking_mode(self.config.thinking_mode)
+        thinking_metadata = describe_effective_thinking_mode(
+            model_name=self.config.model_name,
+            thinking_mode=self.config.thinking_mode,
+        )
         trajectory = Trajectory(
             base_output_dir=self.config.output_dir,
             game_key=self.game_spec.game_key,

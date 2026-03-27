@@ -6,7 +6,7 @@ import base64
 import os
 from pathlib import Path
 
-from .common import describe_thinking_mode
+from .common import describe_effective_thinking_mode
 from .retry import call_with_retries
 
 try:
@@ -60,7 +60,7 @@ class OpenAIClient:
                     image_paths=image_paths,
                     prompt_messages=prompt_messages,
                 ),
-                **_build_request_kwargs(thinking_mode),
+                **_build_request_kwargs(model_name=model_name, thinking_mode=thinking_mode),
             )
         )
         text = _extract_response_text(response)
@@ -102,11 +102,11 @@ def _build_input_messages(
     return payload
 
 
-def _build_request_kwargs(thinking_mode: str) -> dict[str, object]:
-    metadata = describe_thinking_mode(thinking_mode)
+def _build_request_kwargs(model_name: str, thinking_mode: str) -> dict[str, object]:
+    metadata = describe_effective_thinking_mode(model_name=model_name, thinking_mode=thinking_mode)
     if metadata["thinking_mode"] in {"default", "auto"}:
         return {}
-    if metadata["thinking_mode"] in {"off", "none"}:
+    if metadata["thinking_level"] == "none":
         return {"reasoning": {"effort": "none"}}
     return {"reasoning": {"effort": metadata["thinking_level"]}}
 

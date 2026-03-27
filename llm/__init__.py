@@ -1,7 +1,13 @@
 """LLM client exports."""
 
 from .anthropic_client import AnthropicClient
-from .common import describe_thinking_mode, infer_model_provider, resolve_model_provider
+from .common import (
+    describe_effective_thinking_mode,
+    describe_thinking_mode,
+    infer_model_provider,
+    resolve_model_provider,
+    validate_model_thinking_mode,
+)
 from .gemini_client import GeminiClient
 from .openai_client import OpenAIClient
 
@@ -24,7 +30,9 @@ __all__ = [
     "GeminiClient",
     "OpenAIClient",
     "build_model_client",
+    "describe_effective_thinking_mode",
     "describe_thinking_mode",
     "infer_model_provider",
     "resolve_model_provider",
+    "validate_model_thinking_mode",
 ]

@@ -24,10 +24,12 @@ def _bootstrap_local_paths() -> None:
 if __package__ in {None, ""}:
     _bootstrap_local_paths()
     from games import list_game_keys
+    from llm import validate_model_thinking_mode
     from run_storage import game_batch_root, game_root, sanitize_model_label, uses_canonical_game_storage
     from viz import render_run_video
 else:
     from .games import list_game_keys
+    from .llm import validate_model_thinking_mode
     from .run_storage import game_batch_root, game_root, sanitize_model_label, uses_canonical_game_storage
     from .viz import render_run_video
 
@@ -145,6 +147,7 @@ def parse_job_spec(raw_spec: str) -> BatchJobSpec:
         raise ValueError(f"Invalid job spec '{raw_spec}': COUNT must be >= 1.")
 
     thinking_mode = parts[2] if len(parts) == 3 else "default"
+    validate_model_thinking_mode(model_name, thinking_mode)
     label = sanitize_model_label(model_name)
     return BatchJobSpec(
         model_name=model_name,

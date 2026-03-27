@@ -14,7 +14,15 @@ candidate = str(PROJECT_DIR)
 if candidate not in sys.path:
     sys.path.insert(0, candidate)
 
-from llm import AnthropicClient, GeminiClient, build_model_client, infer_model_provider, resolve_model_provider
+from llm import (
+    AnthropicClient,
+    GeminiClient,
+    build_model_client,
+    describe_effective_thinking_mode,
+    infer_model_provider,
+    resolve_model_provider,
+    validate_model_thinking_mode,
+)
 from llm.anthropic_client import _build_request_kwargs as _build_anthropic_request_kwargs
 from llm.gemini_client import _build_generate_config
 from llm.openai_client import OpenAIClient
@@ -41,6 +49,24 @@ class LlmTests(unittest.TestCase):
         with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}, clear=False):
             client = build_model_client("claude-sonnet-4-6", provider="anthropic")
         self.assertIsInstance(client, AnthropicClient)
+
+    def test_describe_effective_thinking_mode_matches_provider_specific_request_shape(self) -> None:
+        self.assertEqual(
+            describe_effective_thinking_mode("gemini-2.5-flash", "on"),
+            {"thinking_mode": "on", "thinking_budget": -1, "thinking_level": None},
+        )
+        self.assertEqual(
+            describe_effective_thinking_mode("claude-haiku-4-5", "on"),
+            {"thinking_mode": "on", "thinking_budget": 16000, "thinking_level": None},
+        )
+        self.assertEqual(
+            describe_effective_thinking_mode("gpt-5.4", "none"),
+            {"thinking_mode": "none", "thinking_budget": None, "thinking_level": "none"},
+        )
+
+    def test_validate_model_thinking_mode_rejects_unsupported_pair(self) -> None:
+        with self.assertRaisesRegex(ValueError, "not supported for model 'gemini-2.5-flash'"):
+            validate_model_thinking_mode("gemini-2.5-flash", "minimal")
 
     def test_openai_client_builds_multimodal_request(self) -> None:
         calls: list[dict[str, object]] = []
