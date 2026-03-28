@@ -57,6 +57,7 @@ class RunStorageTests(unittest.TestCase):
                         "duration_seconds": 30,
                         "model_name": "gpt-5.4-mini",
                         "prompt_mode": "append_only",
+                        "frames_per_action": 3,
                         "thinking_mode": "low",
                         "thinking_level": "low",
                         "thinking_budget": None,
@@ -77,6 +78,7 @@ class RunStorageTests(unittest.TestCase):
                         "duration_seconds": 30,
                         "model_name": "gpt-5.4-mini",
                         "prompt_mode": "append_only",
+                        "frames_per_action": 3,
                         "thinking_mode": "low",
                         "thinking_level": "low",
                         "thinking_budget": None,
@@ -97,6 +99,7 @@ class RunStorageTests(unittest.TestCase):
                         "duration_seconds": 30,
                         "model_name": "gpt-5.4-mini",
                         "prompt_mode": "structured_history",
+                        "frames_per_action": 3,
                         "thinking_mode": "off",
                         "thinking_level": None,
                         "thinking_budget": 0,
@@ -132,6 +135,7 @@ class RunStorageTests(unittest.TestCase):
         self.assertEqual(append_only_summary["latest_timestamp"], "20260324_110000")
         self.assertEqual(append_only_summary["thinking_mode"], "low")
         self.assertEqual(append_only_summary["prompt_mode"], "append_only")
+        self.assertEqual(append_only_summary["frames_per_action"], 3)
         self.assertEqual(append_only_summary["thinking_level"], "low")
         self.assertIsNone(append_only_summary["thinking_budget"])
         self.assertEqual(append_only_summary["history_clips"], -1)
@@ -139,6 +143,7 @@ class RunStorageTests(unittest.TestCase):
         self.assertEqual(structured_history_summary["run_count"], 1)
         self.assertEqual(structured_history_summary["avg_total_reward"], 9.0)
         self.assertEqual(structured_history_summary["prompt_mode"], "structured_history")
+        self.assertEqual(structured_history_summary["frames_per_action"], 3)
         self.assertEqual(structured_history_summary["thinking_mode"], "off")
         self.assertEqual(structured_history_summary["thinking_budget"], 0)
         self.assertEqual(structured_history_summary["history_clips"], 1)
@@ -155,6 +160,7 @@ class RunStorageTests(unittest.TestCase):
                         "duration_seconds": 30,
                         "model_name": "gpt-5.4-mini",
                         "prompt_mode": "structured_history",
+                        "frames_per_action": 3,
                         "thinking_mode": "off",
                         "thinking_level": None,
                         "thinking_budget": 0,
@@ -191,6 +197,7 @@ class RunStorageTests(unittest.TestCase):
                         "duration_seconds": 30,
                         "model_name": "gemini-2.5-flash",
                         "prompt_mode": "structured_history",
+                        "frames_per_action": 3,
                         "thinking_mode": "off",
                         "thinking_level": None,
                         "thinking_budget": 0,
@@ -211,6 +218,7 @@ class RunStorageTests(unittest.TestCase):
                         "duration_seconds": 30,
                         "model_name": "gpt-5.4-mini",
                         "prompt_mode": "append_only",
+                        "frames_per_action": 3,
                         "thinking_mode": "low",
                         "thinking_level": "low",
                         "thinking_budget": None,
@@ -231,6 +239,7 @@ class RunStorageTests(unittest.TestCase):
                         "duration_seconds": 30,
                         "model_name": "gpt-5.4-mini",
                         "prompt_mode": "structured_history",
+                        "frames_per_action": 3,
                         "thinking_mode": "off",
                         "thinking_level": None,
                         "thinking_budget": 0,
@@ -255,17 +264,20 @@ class RunStorageTests(unittest.TestCase):
         self.assertEqual(payload["entries"][0]["game"], "assault")
         self.assertEqual(payload["entries"][0]["model_name"], "gemini-2.5-flash")
         self.assertEqual(payload["entries"][0]["prompt_mode"], "structured_history")
+        self.assertEqual(payload["entries"][0]["frames_per_action"], 3)
         self.assertEqual(payload["entries"][0]["thinking_mode"], "off")
         self.assertEqual(payload["entries"][0]["history_clips"], 3)
         self.assertEqual(payload["entries"][1]["game"], "breakout")
         self.assertEqual(payload["entries"][1]["model_name"], "gpt-5.4-mini")
         self.assertEqual(payload["entries"][1]["prompt_mode"], "append_only")
+        self.assertEqual(payload["entries"][1]["frames_per_action"], 3)
         self.assertEqual(payload["entries"][1]["thinking_mode"], "low")
         self.assertEqual(payload["entries"][1]["history_clips"], -1)
         self.assertEqual(payload["entries"][1]["non_zero_reward_clips"], -1)
         self.assertEqual(payload["entries"][2]["game"], "breakout")
         self.assertEqual(payload["entries"][2]["model_name"], "gpt-5.4-mini")
         self.assertEqual(payload["entries"][2]["prompt_mode"], "structured_history")
+        self.assertEqual(payload["entries"][2]["frames_per_action"], 3)
         self.assertEqual(payload["entries"][2]["thinking_mode"], "off")
         self.assertEqual(payload["entries"][2]["history_clips"], 2)
         self.assertEqual(payload["entries"][2]["non_zero_reward_clips"], 1)

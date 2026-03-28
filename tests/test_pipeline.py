@@ -100,6 +100,7 @@ class PipelineRunnerTests(unittest.TestCase):
             config=PipelineConfig(
                 duration_seconds=1,
                 max_actions_per_turn=10,
+                frames_per_action=3,
                 history_clips=2,
                 output_dir=tempfile.mkdtemp(),
             ),
@@ -112,6 +113,7 @@ class PipelineRunnerTests(unittest.TestCase):
         self.assertEqual(summary["stop_reason"], "frame_budget")
         self.assertEqual(summary["frame_count"], 31)
         self.assertEqual(summary["duration_seconds"], 1)
+        self.assertEqual(summary["frames_per_action"], 3)
         self.assertEqual(env.step_count, 30)
         self.assertEqual(summary["model_name"], "gemini-2.5-flash")
         self.assertIsNone(summary["thinking_budget"])
@@ -355,6 +357,7 @@ class PipelineRunnerTests(unittest.TestCase):
             config=PipelineConfig(
                 duration_seconds=1,
                 max_actions_per_turn=10,
+                frames_per_action=2,
                 history_clips=1,
                 output_dir=tempfile.mkdtemp(),
                 thinking_mode="off",
@@ -368,6 +371,7 @@ class PipelineRunnerTests(unittest.TestCase):
         self.assertEqual(summary["thinking_mode"], "off")
         self.assertEqual(summary["thinking_budget"], 0)
         self.assertIsNone(summary["thinking_level"])
+        self.assertEqual(summary["frames_per_action"], 2)
         self.assertEqual(client.calls[0]["thinking_mode"], "off")
         self.assertEqual(summary["history_clips"], 1)
         self.assertEqual(summary["non_zero_reward_clips"], 3)

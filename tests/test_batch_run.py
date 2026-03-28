@@ -61,6 +61,7 @@ class BatchRunTests(unittest.TestCase):
                 "retry_backoff_seconds": 12,
                 "duration_seconds": 30,
                 "max_actions_per_turn": 10,
+                "frames_per_action": 3,
             },
             setting_entries=[
                 {
@@ -106,6 +107,7 @@ class BatchRunTests(unittest.TestCase):
         self.assertEqual(jobs[0].games, ["assault"])
         self.assertEqual(jobs[0].run_count, 2)
         self.assertEqual(jobs[0].seed_start, 0)
+        self.assertEqual(jobs[0].frames_per_action, 3)
         self.assertEqual(jobs[0].history_clips, 3)
         self.assertEqual(jobs[1].games, ["assault", "breakout"])
         self.assertEqual(jobs[1].history_clips, 10)
@@ -156,6 +158,7 @@ class BatchRunTests(unittest.TestCase):
                 games_label="selected",
                 duration_seconds=30,
                 max_actions_per_turn=10,
+                frames_per_action=3,
                 history_clips=3,
                 non_zero_reward_clips=3,
                 prompt_mode="structured_history",
@@ -174,6 +177,7 @@ class BatchRunTests(unittest.TestCase):
                 games_label="selected",
                 duration_seconds=30,
                 max_actions_per_turn=10,
+                frames_per_action=3,
                 history_clips=3,
                 non_zero_reward_clips=3,
                 prompt_mode="structured_history",
@@ -204,6 +208,7 @@ class BatchRunTests(unittest.TestCase):
                 games_label="selected",
                 duration_seconds=30,
                 max_actions_per_turn=10,
+                frames_per_action=3,
                 history_clips=3,
                 non_zero_reward_clips=3,
                 prompt_mode="structured_history",
@@ -396,6 +401,8 @@ class BatchRunTests(unittest.TestCase):
         self.assertTrue(command[1].endswith("main.py"))
         self.assertIn("--model", command)
         self.assertEqual(command[command.index("--model") + 1], "gpt-5.4")
+        self.assertIn("--frames-per-action", command)
+        self.assertEqual(command[command.index("--frames-per-action") + 1], "3")
         self.assertEqual(command[command.index("--history-clips") + 1], "3")
         self.assertEqual(command[command.index("--non-zero-reward-clips") + 1], "3")
         self.assertEqual(command[command.index("--prompt-mode") + 1], "append_only")

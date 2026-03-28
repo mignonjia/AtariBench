@@ -90,6 +90,7 @@ python batch_run.py \
 - `render_video_fps`
 - `retry_backoff_seconds`
 - `max_actions_per_turn`
+- `frames_per_action`
 - `duration_seconds`
 - `games`
 
