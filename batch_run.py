@@ -155,12 +155,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--max-concurrency", type=int, default=2)
     parser.add_argument(
-        "--fallback-thinking",
-        choices=["minimal", "default", "on"],
-        default="minimal",
-        help="Fallback thinking mode when a model rejects budget 0.",
-    )
-    parser.add_argument(
         "--max-retries",
         type=int,
         default=1,
@@ -268,7 +262,6 @@ def build_jobs_from_config(
             )
         ),
         "max_concurrency_by_company": max_concurrency_by_company,
-        "fallback_thinking": str(_require_config_key(common, "fallback_thinking", context="common")),
         "max_retries": int(_require_config_key(common, "max_retries", context="common")),
         "retry_backoff_seconds": float(
             _require_config_key(common, "retry_backoff_seconds", context="common")
@@ -551,7 +544,6 @@ def main(argv: list[str] | None = None) -> int:
         batch_options = {
             "output_dir": args.output_dir,
             "max_concurrency": args.max_concurrency,
-            "fallback_thinking": args.fallback_thinking,
             "max_retries": args.max_retries,
             "retry_backoff_seconds": args.retry_backoff_seconds,
             "render_video_fps": args.render_video_fps,
@@ -595,7 +587,6 @@ def main(argv: list[str] | None = None) -> int:
 
     results = execute_requests(
         requests=requests,
-        fallback_thinking=str(batch_options["fallback_thinking"]),
         max_retries=int(batch_options["max_retries"]),
         retry_backoff_seconds=float(batch_options["retry_backoff_seconds"]),
         render_video_fps=int(batch_options["render_video_fps"]),
@@ -637,7 +628,6 @@ def main(argv: list[str] | None = None) -> int:
 
 def execute_run(
     request: RunRequest,
-    fallback_thinking: str,
     max_retries: int,
     retry_backoff_seconds: float,
     render_video_fps: int,
@@ -711,10 +701,6 @@ def execute_run(
                 error_type=None if is_full_duration_run else "incomplete_run",
             )
 
-        if _should_fallback_to_thinking(combined_output, current_thinking):
-            current_thinking = fallback_thinking
-            continue
-
         error_type = classify_error_output(combined_output)
         if (error_type == "transient" or error_type is None) and attempts <= max_retries:
             sleep_seconds = compute_retry_sleep_seconds(
@@ -747,7 +733,6 @@ def execute_run(
 def execute_requests(
     requests: list[RunRequest],
     *,
-    fallback_thinking: str,
     max_retries: int,
     retry_backoff_seconds: float,
     render_video_fps: int,
@@ -782,7 +767,6 @@ def execute_requests(
                 future = executor.submit(
                     execute_run,
                     request,
-                    fallback_thinking,
                     max_retries,
                     retry_backoff_seconds,
                     render_video_fps,
@@ -1013,12 +997,6 @@ def _is_full_duration_run(
     if duration_seconds is None:
         return True
     return int(duration_seconds) == expected_duration_seconds
-
-
-def _should_fallback_to_thinking(output: str, current_thinking: str) -> bool:
-    if current_thinking != "off":
-        return False
-    return classify_error_output(output) == "thinking_required"
 
 
 def _write_log(path: str | Path, header: str, content: str) -> None:

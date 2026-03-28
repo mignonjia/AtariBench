@@ -86,7 +86,6 @@ python batch_run.py \
 `common.yaml` should explicitly define the shared batch settings used in config mode, including:
 
 - `max_concurrency_by_company`
-- `fallback_thinking`
 - `max_retries`
 - `render_video_fps`
 - `retry_backoff_seconds`

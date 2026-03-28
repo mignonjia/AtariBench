@@ -2,15 +2,14 @@ max_concurrency_by_company:
   gemini: 2
   openai: 2
   anthropic: 1
-fallback_thinking: minimal
 max_retries: 10
-render_video_fps: 30
 retry_backoff_seconds: 10
-max_actions_per_turn: 10
-duration_seconds: 10
-frames_per_action: 3 # shouldn't change, as it's also hardcoded in the game prompt
+render_video_fps: 30 # constant, shouldn't change
+max_actions_per_turn: 10 # constant, shouldn't change
+duration_seconds: 10 # constant, shouldn't change; you can change it to a smaller value for debug
+frames_per_action: 3 # constant, shouldn't change
 games:
   full:
-    - all
+    - all # constant, shouldn't change
   selected:
     - assault

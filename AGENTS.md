@@ -24,12 +24,20 @@ Main source areas:
 - `core/`: pipeline loop, parsing, trajectory persistence
 - `games/`: registry, env helpers, prompt assembly, per-game prompts
 - `llm/`: provider adapters and thinking-mode logic
+- `runs/`: persisted run artifacts and aggregated summary files
 - `viz/`: whiteboard-style video rendering
 - `tests/`: unit coverage for runner paths
 - `computer_use/`: separate experiments, not part of the main runner path
 
+Summary files:
+- Per-run `summary.json` stores the final metrics and config metadata for one completed run.
+- Per-game `model_summary.json` groups successful full-length runs by setting under one game and reports averages plus the latest run pointer.
+- Top-level `runs/model_summary.json` flattens those per-game summaries into one cross-game list of entries.
+- Aggregation is per setting key, so prompt mode, thinking fields, and clip settings are not mixed into one average.
+
 Working guidance:
 - Keep `main.py`, `batch_run.py`, `core/pipeline.py`, persisted `summary.json` fields, `run_storage.py`, and docs aligned when changing runtime config.
+- Keep per-game and top-level `model_summary.json` schemas aligned with `run_storage.py`, `README.md`, and `tests/test_run_storage.py`.
 - Keep `config/common.yaml`, `config/runs.yaml`, CLI flags, and `tests/test_batch_run.py` aligned when changing batch config behavior.
 - Keep `llm/common.py`, `llm/model_thinking.json`, provider adapters, and tests aligned when changing provider behavior.
 - Keep `games/registry.py`, `games/prompts/`, and `tests/test_games.py` aligned when adding or removing supported games.
@@ -46,6 +54,7 @@ Directory notes:
 - [core/AGENTS.md](/Users/mingjiahuo/Desktop/ataribench/AtariBench/core/AGENTS.md)
 - [games/AGENTS.md](/Users/mingjiahuo/Desktop/ataribench/AtariBench/games/AGENTS.md)
 - [llm/AGENTS.md](/Users/mingjiahuo/Desktop/ataribench/AtariBench/llm/AGENTS.md)
+- [runs/AGENTS.md](/Users/mingjiahuo/Desktop/ataribench/AtariBench/runs/AGENTS.md)
 - [computer_use/AGENTS.md](/Users/mingjiahuo/Desktop/ataribench/AtariBench/computer_use/AGENTS.md)
 - [viz/AGENTS.md](/Users/mingjiahuo/Desktop/ataribench/AtariBench/viz/AGENTS.md)
 - [tests/AGENTS.md](/Users/mingjiahuo/Desktop/ataribench/AtariBench/tests/AGENTS.md)

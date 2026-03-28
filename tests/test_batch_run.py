@@ -51,7 +51,6 @@ class BatchRunTests(unittest.TestCase):
                     "openai": 2,
                     "anthropic": 1,
                 },
-                "fallback_thinking": "minimal",
                 "games": {
                     "selected": ["assault"],
                     "full": ["all"],
@@ -407,7 +406,7 @@ class BatchRunTests(unittest.TestCase):
         self.assertTrue(normalized.endswith("/runs/example/breakout/20260324_000000"))
         self.assertTrue(normalized.startswith("/"))
 
-    def test_execute_run_falls_back_from_off_to_minimal(self) -> None:
+    def test_execute_run_reports_thinking_required_without_fallback(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             request = expand_run_requests(
                 jobs=[
@@ -430,39 +429,25 @@ class BatchRunTests(unittest.TestCase):
                     returncode=1,
                     stdout="Budget 0 is invalid. This model only works in thinking mode.",
                 ),
-                subprocess.CompletedProcess(
-                    args=[],
-                    returncode=0,
-                    stdout="runs/example/breakout/20260316_000000\nframe_budget\n",
-                ),
             ]
 
             with mock.patch(
                 "batch_run._run_subprocess",
                 side_effect=responses,
             ) as run_mock:
-                with mock.patch(
-                    "batch_run.load_run_summary",
-                    return_value={"stop_reason": "frame_budget"},
-                ):
-                    with mock.patch(
-                        "batch_run.render_run_video",
-                        return_value=Path("runs/example/breakout/20260316_000000/visualization.mp4"),
-                    ):
-                        result = execute_run(
-                            request=request,
-                            fallback_thinking="minimal",
-                            max_retries=1,
-                            retry_backoff_seconds=0.0,
-                            render_video_fps=30,
-                        )
+                result = execute_run(
+                    request=request,
+                    max_retries=1,
+                    retry_backoff_seconds=0.0,
+                    render_video_fps=30,
+                )
 
-        self.assertTrue(result.success)
+        self.assertFalse(result.success)
         self.assertEqual(result.game, "breakout")
-        self.assertEqual(result.final_thinking_mode, "minimal")
-        self.assertEqual(result.attempts, 2)
-        self.assertEqual(run_mock.call_count, 2)
-        self.assertTrue(str(result.video_path).endswith("visualization.mp4"))
+        self.assertEqual(result.final_thinking_mode, "off")
+        self.assertEqual(result.attempts, 1)
+        self.assertEqual(result.error_type, "thinking_required")
+        self.assertEqual(run_mock.call_count, 1)
 
     def test_execute_run_retries_incomplete_clean_exit(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -508,7 +493,6 @@ class BatchRunTests(unittest.TestCase):
                     ):
                         result = execute_run(
                             request=request,
-                            fallback_thinking="minimal",
                             max_retries=1,
                             retry_backoff_seconds=0.0,
                             render_video_fps=30,
@@ -560,7 +544,6 @@ class BatchRunTests(unittest.TestCase):
                     ):
                         result = execute_run(
                             request=request,
-                            fallback_thinking="minimal",
                             max_retries=1,
                             retry_backoff_seconds=0.0,
                             render_video_fps=30,
@@ -605,7 +588,6 @@ class BatchRunTests(unittest.TestCase):
                     ):
                         result = execute_run(
                             request=request,
-                            fallback_thinking="minimal",
                             max_retries=1,
                             retry_backoff_seconds=0.0,
                             render_video_fps=30,
