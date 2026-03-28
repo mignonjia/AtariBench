@@ -48,6 +48,12 @@ def runs_root(project_dir: str | Path) -> Path:
     return Path(project_dir).resolve() / "runs"
 
 
+def runs_batch_root(project_dir: str | Path) -> Path:
+    """Return the root for shared batch metadata across games."""
+
+    return runs_root(project_dir) / "_batches"
+
+
 def game_model_dir(project_dir: str | Path, game: str, model_name: str) -> Path:
     """Return the canonical directory for one model under a game."""
 

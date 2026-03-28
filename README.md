@@ -126,7 +126,7 @@ For `append_only`, those clip fields are ignored and stored as `-1`.
 - `max_concurrency_by_company.anthropic`
 
 These limits apply in config-driven batch mode and are enforced per provider company. `max_concurrency` remains the fallback limit for any company not explicitly listed.
-These limits apply in config-driven batch mode and are enforced per provider company. If a company is omitted from the map, it defaults to `1`.
+If a company is omitted from the map, it defaults to `1`.
 
 ## Prompt Modes
 
@@ -165,8 +165,14 @@ Thinking support is model-specific.
 Successful runs are stored under canonical per-game roots:
 
 ```text
-runs/<game>/<model-or-config-label>/<timestamp>/
+runs/<game>/<model>/
 ```
+
+Each final canonical run directory is created under that model root.
+
+- Single runs use `MMDD_HHMMSS`
+- Config-driven batch runs use `{batch_timestamp}_cfg_xxx_run_xxx`
+- If a name already exists, a numeric suffix is appended such as `_2`
 
 Each completed run writes:
 
@@ -187,6 +193,34 @@ Cross-game flat summaries live at:
 - `runs/model_summary.json`
 
 These summaries are aggregated per setting, not by mixing different prompt/thinking/clip configurations into one average.
+
+## Batch Logging
+
+Shared cross-game batch metadata is stored under:
+
+- `runs/_batches/<runs_config_stem>_<batch_timestamp>/`
+
+Example:
+
+- `config/sample_runs.yaml` -> `runs/_batches/sample_runs_0328_111856/`
+
+Single-game batch metadata is stored under:
+
+- `runs/<game>/_batches/<batch_timestamp>/`
+
+Each started run prints one flat log line with the key config fields, including:
+
+- `model_name`
+- `thinking_mode`
+- `prompt_mode`
+- `history_clips`
+- `non_zero_reward_clips`
+- `games`
+- `selected_game`
+- `seed`
+- `current_num_run`
+- `total_num_runs`
+- `output_dir`
 
 ## Notes
 

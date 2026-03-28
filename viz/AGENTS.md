@@ -9,7 +9,7 @@ Key files:
 Edit guidance:
 - Treat `turns.jsonl` and stored frame filenames as external contracts from `core/trajectory.py`.
 - If you change panel layout or metadata fields, verify the renderer still handles missing or partial turn data gracefully.
-- Avoid changing output filenames unless the caller path in `batch_run.py` and `visualize.py` changes with it.
+- Avoid changing output filenames unless the caller path in `main.py`, `batch_run.py`, and `visualize.py` changes with it.
 
 Important invariants:
 - Rendering expects `frames/frame_*.png`.

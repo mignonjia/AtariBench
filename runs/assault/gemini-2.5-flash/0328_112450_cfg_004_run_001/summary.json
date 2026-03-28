@@ -1,0 +1,26 @@
+{
+  "duration_seconds": 10,
+  "frame_count": 301,
+  "history_clips": -1,
+  "last_frame": {
+    "episode_frame_number": 300,
+    "frame_number": 300,
+    "frame_path": "/Users/mingjiahuo/Desktop/ataribench/AtariBench/runs/assault/gemini-2.5-flash/0328_112450_cfg_004_run_001/frames/frame_000300.png",
+    "lives": 4,
+    "local_frame_index": 300,
+    "reward": 0.0
+  },
+  "model_name": "gemini-2.5-flash",
+  "non_zero_reward_clips": -1,
+  "prompt_mode": "append_only",
+  "run_dir": "/Users/mingjiahuo/Desktop/ataribench/AtariBench/runs/assault/gemini-2.5-flash/0328_112450_cfg_004_run_001",
+  "stop_reason": "frame_budget",
+  "thinking_budget": 0,
+  "thinking_level": null,
+  "thinking_mode": "off",
+  "total_lost_lives": 0,
+  "total_reward": 105.0,
+  "turn_count": 73,
+  "video_error": null,
+  "video_path": "/Users/mingjiahuo/Desktop/ataribench/AtariBench/runs/assault/gemini-2.5-flash/0328_112450_cfg_004_run_001/visualization.mp4"
+}

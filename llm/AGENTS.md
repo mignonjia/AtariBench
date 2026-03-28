@@ -14,7 +14,7 @@ Key files:
 Edit guidance:
 - Keep provider inference in `common.py` synchronized with `build_model_client()`.
 - Keep provider adapters aligned on the `generate_turn(..., prompt_messages=None)` interface.
-- If request-shape or reasoning config changes, update tests in `tests/test_llm.py` and any batch fallback logic in `batch_run.py`.
+- If request-shape or reasoning config changes, update `model_thinking.json`, tests in `tests/test_llm.py` / `tests/test_model_thinking_options.py`, and any batch fallback logic in `batch_run.py`.
 
 Important invariants:
 - `thinking_mode="off"` maps to no reasoning / zero-budget behavior.
@@ -23,6 +23,7 @@ Important invariants:
 - Runtime validation of supported model/mode pairs comes from `model_thinking.json`.
 - Append-only prompt mode may send structured user/assistant messages instead of one flat text prompt.
 - OpenAI requests inline images as base64 data URLs.
+- Gemini `on` for `gemini-2.5-flash` resolves to budget `-1`, while OpenAI and Anthropic expose provider-specific effort/budget mappings.
 
 Usual follow-up tests:
 - `python -m unittest tests.test_llm tests.test_batch_run tests.test_pipeline`

@@ -26,12 +26,24 @@ if __package__ in {None, ""}:
     _bootstrap_local_paths()
     from games import list_game_keys, list_game_selection_keys, resolve_game_selection
     from llm import infer_model_provider, validate_model_thinking_mode
-    from run_storage import game_batch_root, game_root, sanitize_model_label, uses_canonical_game_storage
+    from run_storage import (
+        game_batch_root,
+        game_root,
+        runs_batch_root,
+        sanitize_model_label,
+        uses_canonical_game_storage,
+    )
     from viz import render_run_video
 else:
     from .games import list_game_keys, list_game_selection_keys, resolve_game_selection
     from .llm import infer_model_provider, validate_model_thinking_mode
-    from .run_storage import game_batch_root, game_root, sanitize_model_label, uses_canonical_game_storage
+    from .run_storage import (
+        game_batch_root,
+        game_root,
+        runs_batch_root,
+        sanitize_model_label,
+        uses_canonical_game_storage,
+    )
     from .viz import render_run_video
 
 _SUPPORTED_COMPANIES = ("gemini", "openai", "anthropic")
@@ -130,7 +142,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--duration-seconds", type=int, default=30)
     parser.add_argument(
         "--output-dir",
-        default=str(Path(__file__).resolve().parent / "runs" / "batches"),
+        default=str(runs_batch_root(Path(__file__).resolve().parent)),
     )
     parser.add_argument("--max-actions-per-turn", type=int, default=10)
     parser.add_argument("--history-clips", type=int, default=3)
@@ -249,7 +261,12 @@ def build_jobs_from_config(
     )
     game_selections = _normalize_config_game_selections(common.get("games"))
     batch_options = {
-        "output_dir": str(common.get("output_dir", str(Path(__file__).resolve().parent / "runs" / "batches"))),
+        "output_dir": str(
+            common.get(
+                "output_dir",
+                str(runs_batch_root(Path(__file__).resolve().parent)),
+            )
+        ),
         "max_concurrency_by_company": max_concurrency_by_company,
         "fallback_thinking": str(_require_config_key(common, "fallback_thinking", context="common")),
         "max_retries": int(_require_config_key(common, "max_retries", context="common")),
@@ -1013,7 +1030,7 @@ def _write_log(path: str | Path, header: str, content: str) -> None:
 def _format_run_start_line(request: RunRequest) -> str:
     seed_value = "null" if request.seed is None else str(request.seed)
     return (
-        "START "
+        "[START] "
         f"model_name={request.model_name} "
         f"thinking_mode={request.thinking_mode} "
         f"prompt_mode={request.prompt_mode} "

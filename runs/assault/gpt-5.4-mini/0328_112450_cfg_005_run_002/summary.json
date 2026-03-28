@@ -1,0 +1,26 @@
+{
+  "duration_seconds": 10,
+  "frame_count": 301,
+  "history_clips": 3,
+  "last_frame": {
+    "episode_frame_number": 300,
+    "frame_number": 300,
+    "frame_path": "/Users/mingjiahuo/Desktop/ataribench/AtariBench/runs/assault/gpt-5.4-mini/0328_112450_cfg_005_run_002/frames/frame_000300.png",
+    "lives": 4,
+    "local_frame_index": 300,
+    "reward": 0.0
+  },
+  "model_name": "gpt-5.4-mini",
+  "non_zero_reward_clips": 3,
+  "prompt_mode": "structured_history",
+  "run_dir": "/Users/mingjiahuo/Desktop/ataribench/AtariBench/runs/assault/gpt-5.4-mini/0328_112450_cfg_005_run_002",
+  "stop_reason": "frame_budget",
+  "thinking_budget": null,
+  "thinking_level": "none",
+  "thinking_mode": "none",
+  "total_lost_lives": 0,
+  "total_reward": 21.0,
+  "turn_count": 34,
+  "video_error": null,
+  "video_path": "/Users/mingjiahuo/Desktop/ataribench/AtariBench/runs/assault/gpt-5.4-mini/0328_112450_cfg_005_run_002/visualization.mp4"
+}
