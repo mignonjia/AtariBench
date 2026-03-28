@@ -4,7 +4,7 @@ Compact Atari runner for multimodal LLM experiments.
 
 ## Setup
 
-Create or update the `ale` conda environment from [`environment.yaml`](/mnt/home/mhuo/AtariBench/environment.yaml), then export the provider keys you need:
+Create or update the `ale` conda environment from [`environment.yaml`](environment.yaml), then export the provider keys you need:
 
 ```bash
 conda env create -f environment.yaml
@@ -22,13 +22,15 @@ export ANTHROPIC_API_KEY="YOUR_ANTHROPIC_KEY"
 
 ## Main Command
 
-Config-driven batch mode uses:
+The main workflow is config-driven batch mode.
 
-- [`config/common.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/common.yaml): shared defaults
-- [`config/runs.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/runs.yaml): all needed runs
-- [`config/sample_runs.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/sample_runs.yaml): sample runs for debug. Also change common.yaml: duration_seconds to a smaller value to faster debug runs.
+- [`config/common.yaml`](config/common.yaml): shared defaults such as game selections, retries, concurrency caps, duration, and rendering settings
+- [`config/runs.yaml`](config/runs.yaml): the full set of batch run definitions
+- [`config/sample_runs.yaml`](config/sample_runs.yaml): a smaller debug batch
 
-Run it with:
+For a quick debug run, use `sample_runs.yaml`. If you want even faster debug cycles, lower `duration_seconds` in [`config/common.yaml`](config/common.yaml).
+
+Run the debug batch with:
 
 ```bash
 python batch_run.py \
@@ -36,7 +38,9 @@ python batch_run.py \
   --runs-config config/sample_runs.yaml
 ```
 
-Optional minimal logging that only keeps the run summary, textual log, and per-run video:
+Use [`config/runs.yaml`](config/runs.yaml) instead of `sample_runs.yaml` when you want the full batch.
+
+Optional minimal logging:
 
 ```bash
 python batch_run.py \
@@ -47,50 +51,9 @@ python batch_run.py \
 
 This keeps only `summary.json`, `turns.jsonl`, and `visualization.mp4` in each run directory after rendering. In config-driven mode, you can also set `minimal_logging: true` in `common.yaml` or per-run entries.
 
-`common.yaml` should explicitly define the shared batch settings used in config mode, including:
-
-- `max_concurrency_by_company`
-- `max_retries`
-- `render_video_fps`
-- `retry_backoff_seconds`
-- `max_actions_per_turn`
-- `frames_per_action`
-- `duration_seconds`
-- `games`
-
-Per-setting entries in `runs.yaml` or `sample_runs.yaml` should explicitly specify:
-
-- `model_name`
-- `thinking_mode`
-- `prompt_mode`
-- `games`
-- `seed_start`
-- `num_runs`
-
-For `structured_history`, also provide:
-
-- `history_clips`
-- `non_zero_reward_clips`
-
-For `append_only`, those clip fields are ignored and stored as `-1`.
-
-`games` can be:
-
-- one game key
-- `selected`
-- `full`
-- a list mixing those values
-
-`seed_start: 0` with `num_runs: 3` expands to seeds `0`, `1`, and `2`.
-
-`common.yaml` can also set company-level concurrency caps with:
-
-- `max_concurrency_by_company.gemini`
-- `max_concurrency_by_company.openai`
-- `max_concurrency_by_company.anthropic`
-
-These limits apply in config-driven batch mode and are enforced per provider company.
-If a company is omitted from the map, it defaults to `1`.
+- `games` can be a single game key, `selected`, `full`, or a list mixing those values.
+- `seed_start: 0` with `num_runs: 3` expands to seeds `0`, `1`, and `2`.
+- Allowed `thinking_mode` values are model-specific; see [`llm/model_thinking.json`](llm/model_thinking.json).
 
 ## Other Commands
 
@@ -120,8 +83,8 @@ Supported values:
 
 Thinking support is model-specific.
 
-- The allowed modes per model live in [`llm/model_thinking.json`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/llm/model_thinking.json).
-- The effective resolved request settings come from [`llm/common.py`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/llm/common.py) via `describe_effective_thinking_mode()`.
+- The allowed modes per model live in [`llm/model_thinking.json`](llm/model_thinking.json).
+- The effective resolved request settings come from [`llm/common.py`](llm/common.py) via `describe_effective_thinking_mode()`.
 - `thinking_mode` is the requested user-facing knob.
 - `thinking_level` and `thinking_budget` are the resolved provider-specific settings recorded in summaries.
 
@@ -216,7 +179,7 @@ Each started run prints one flat log line with the key config fields, including:
 
 ## Notes
 
-- The main runtime entrypoint is [`main.py`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/main.py).
-- Batch orchestration lives in [`batch_run.py`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/batch_run.py).
-- Video rendering lives in [`visualize.py`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/visualize.py) and [`viz/render.py`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/viz/render.py).
+- The main runtime entrypoint is [`main.py`](main.py).
+- Batch orchestration lives in [`batch_run.py`](batch_run.py).
+- Video rendering lives in [`visualize.py`](visualize.py) and [`viz/render.py`](viz/render.py).
 - Gameplay is always time-budgeted now; life loss consumes time but is not a separate runner termination rule.

@@ -7,19 +7,19 @@ Scope:
 - Treat `llm/api.sh` as local environment glue, not a source-of-truth interface.
 
 Start here:
-- [REPO_INDEX.md](/Users/mingjiahuo/Desktop/ataribench/AtariBench/REPO_INDEX.md)
+- [REPO_INDEX.md](REPO_INDEX.md)
 
 Primary entrypoints:
-- [`main.py`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/main.py): single-run CLI
-- [`batch_run.py`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/batch_run.py): batch orchestration
-- [`visualize.py`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/visualize.py): video rendering
+- [`main.py`](main.py): single-run CLI
+- [`batch_run.py`](batch_run.py): batch orchestration
+- [`visualize.py`](visualize.py): video rendering
 
 Config files:
-- [`environment.yaml`](/mnt/home/mhuo/AtariBench/environment.yaml): single source of truth for the Conda environment and `ffmpeg`
-- [`config/common.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/common.yaml): shared batch defaults
+- [`environment.yaml`](environment.yaml): single source of truth for the Conda environment and `ffmpeg`
+- [`config/common.yaml`](config/common.yaml): shared batch defaults
 - `common.yaml` also defines named game selections and provider-level concurrency caps via `max_concurrency_by_company`.
-- [`config/runs.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/runs.yaml): per-setting batch entries
-- [`config/sample_runs.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/sample_runs.yaml) is a smaller example config.
+- [`config/runs.yaml`](config/runs.yaml): per-setting batch entries
+- [`config/sample_runs.yaml`](config/sample_runs.yaml) is a smaller example config.
 
 Main source areas:
 - `core/`: pipeline loop, parsing, trajectory persistence
@@ -54,10 +54,10 @@ Useful commands:
 - `python -m unittest`
 
 Directory notes:
-- [core/AGENTS.md](/Users/mingjiahuo/Desktop/ataribench/AtariBench/core/AGENTS.md)
-- [games/AGENTS.md](/Users/mingjiahuo/Desktop/ataribench/AtariBench/games/AGENTS.md)
-- [llm/AGENTS.md](/Users/mingjiahuo/Desktop/ataribench/AtariBench/llm/AGENTS.md)
-- [runs/AGENTS.md](/Users/mingjiahuo/Desktop/ataribench/AtariBench/runs/AGENTS.md)
-- [computer_use/AGENTS.md](/Users/mingjiahuo/Desktop/ataribench/AtariBench/computer_use/AGENTS.md)
-- [viz/AGENTS.md](/Users/mingjiahuo/Desktop/ataribench/AtariBench/viz/AGENTS.md)
-- [tests/AGENTS.md](/Users/mingjiahuo/Desktop/ataribench/AtariBench/tests/AGENTS.md)
+- [core/AGENTS.md](core/AGENTS.md)
+- [games/AGENTS.md](games/AGENTS.md)
+- [llm/AGENTS.md](llm/AGENTS.md)
+- [runs/AGENTS.md](runs/AGENTS.md)
+- [computer_use/AGENTS.md](computer_use/AGENTS.md)
+- [viz/AGENTS.md](viz/AGENTS.md)
+- [tests/AGENTS.md](tests/AGENTS.md)
