@@ -276,6 +276,7 @@ def _build_setting_summary(
             latest_summary.get("prompt_mode"),
             default="structured_history",
         ),
+        "frames_per_action": _extract_frames_per_action(latest_summary),
         "thinking_level": latest_summary.get("thinking_level"),
         "thinking_budget": latest_summary.get("thinking_budget"),
         "history_clips": _extract_history_clips(latest_summary),
@@ -288,6 +289,7 @@ def _build_setting_key(summary: dict[str, object]) -> str:
         (
             f"prompt_mode={_coerce_string(summary.get('prompt_mode'), default='structured_history')}",
             f"thinking_mode={_coerce_string(summary.get('thinking_mode'), default='default')}",
+            f"frames_per_action={_extract_frames_per_action(summary)}",
             f"thinking_level={_stringify_setting_value(summary.get('thinking_level'))}",
             f"thinking_budget={_stringify_setting_value(summary.get('thinking_budget'))}",
             f"history_clips={_extract_history_clips(summary)}",
@@ -321,3 +323,10 @@ def _extract_non_zero_reward_clips(summary: dict[str, object]) -> int:
     if history_clips is not None:
         return int(history_clips)
     return 3
+
+
+def _extract_frames_per_action(summary: dict[str, object]) -> int:
+    value = summary.get("frames_per_action")
+    if value is None:
+        return 3
+    return int(value)

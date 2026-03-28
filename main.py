@@ -53,6 +53,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--max-actions-per-turn", type=int, default=10)
+    parser.add_argument(
+        "--frames-per-action",
+        type=int,
+        default=3,
+        help="Frames to execute per planned action. Keep aligned with the prompt template.",
+    )
     parser.add_argument("--history-clips", type=int, default=3)
     parser.add_argument("--non-zero-reward-clips", type=int, default=3)
     parser.add_argument(
@@ -89,6 +95,7 @@ def main(argv: list[str] | None = None) -> int:
     config = PipelineConfig(
         duration_seconds=args.duration_seconds,
         max_actions_per_turn=args.max_actions_per_turn,
+        frames_per_action=args.frames_per_action,
         history_clips=history_clips,
         non_zero_reward_clips=non_zero_reward_clips,
         prompt_mode=args.prompt_mode,

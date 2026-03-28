@@ -63,6 +63,7 @@ class BatchJobSpec:
     games: list[str] = dataclasses.field(default_factory=list)
     duration_seconds: int = 30
     max_actions_per_turn: int = 10
+    frames_per_action: int = 3
     history_clips: int = 3
     non_zero_reward_clips: int = 3
     prompt_mode: str = "structured_history"
@@ -84,6 +85,7 @@ class RunRequest:
     games_label: str
     duration_seconds: int
     max_actions_per_turn: int
+    frames_per_action: int
     history_clips: int
     non_zero_reward_clips: int
     prompt_mode: str
@@ -147,6 +149,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=str(runs_batch_root(Path(__file__).resolve().parent)),
     )
     parser.add_argument("--max-actions-per-turn", type=int, default=10)
+    parser.add_argument(
+        "--frames-per-action",
+        type=int,
+        default=3,
+        help="Frames to execute per planned action. Keep aligned with the prompt template.",
+    )
     parser.add_argument("--history-clips", type=int, default=3)
     parser.add_argument("--non-zero-reward-clips", type=int, default=3)
     parser.add_argument(
@@ -178,6 +186,7 @@ def parse_job_spec(
     games: list[str] | None = None,
     duration_seconds: int = 30,
     max_actions_per_turn: int = 10,
+    frames_per_action: int = 3,
     history_clips: int = 3,
     non_zero_reward_clips: int = 3,
     prompt_mode: str = "structured_history",
@@ -217,6 +226,7 @@ def parse_job_spec(
         games=resolved_games,
         duration_seconds=duration_seconds,
         max_actions_per_turn=max_actions_per_turn,
+        frames_per_action=frames_per_action,
         history_clips=history_clips,
         non_zero_reward_clips=non_zero_reward_clips,
         prompt_mode=prompt_mode,
@@ -274,6 +284,7 @@ def build_jobs_from_config(
     common_max_actions_per_turn = int(
         _require_config_key(common, "max_actions_per_turn", context="common")
     )
+    common_frames_per_action = int(common.get("frames_per_action", 3))
 
     jobs: list[BatchJobSpec] = []
     for index, entry in enumerate(setting_entries, start=1):
@@ -305,6 +316,7 @@ def build_jobs_from_config(
                 games=games,
                 duration_seconds=common_duration_seconds,
                 max_actions_per_turn=common_max_actions_per_turn,
+                frames_per_action=common_frames_per_action,
                 history_clips=history_clips,
                 non_zero_reward_clips=non_zero_reward_clips,
                 prompt_mode=prompt_mode,
@@ -456,6 +468,7 @@ def expand_run_requests(
                         games_label=job.games_label,
                         duration_seconds=job.duration_seconds,
                         max_actions_per_turn=job.max_actions_per_turn,
+                        frames_per_action=job.frames_per_action,
                         history_clips=job.history_clips,
                         non_zero_reward_clips=job.non_zero_reward_clips,
                         prompt_mode=job.prompt_mode,
@@ -536,6 +549,7 @@ def main(argv: list[str] | None = None) -> int:
                 games_label=args.game,
                 duration_seconds=args.duration_seconds,
                 max_actions_per_turn=args.max_actions_per_turn,
+                frames_per_action=args.frames_per_action,
                 history_clips=args.history_clips,
                 non_zero_reward_clips=args.non_zero_reward_clips,
                 prompt_mode=args.prompt_mode,
@@ -670,6 +684,7 @@ def execute_run(
                 f"final_thinking_mode={current_thinking}\n"
                 f"prompt_mode={request.prompt_mode}\n"
                 f"duration_seconds={request.duration_seconds}\n"
+                f"frames_per_action={request.frames_per_action}\n"
                 f"history_clips={request.history_clips}\n"
                 f"non_zero_reward_clips={request.non_zero_reward_clips}\n"
                 f"attempt={attempts}\n"
@@ -876,6 +891,8 @@ def _run_subprocess(
         request.output_dir,
         "--max-actions-per-turn",
         str(request.max_actions_per_turn),
+        "--frames-per-action",
+        str(request.frames_per_action),
         "--history-clips",
         str(request.history_clips),
         "--non-zero-reward-clips",
@@ -1029,6 +1046,7 @@ def _format_run_start_line(request: RunRequest) -> str:
         f"model_name={request.model_name} "
         f"thinking_mode={request.thinking_mode} "
         f"prompt_mode={request.prompt_mode} "
+        f"frames_per_action={request.frames_per_action} "
         f"history_clips={request.history_clips} "
         f"non_zero_reward_clips={request.non_zero_reward_clips} "
         f"games={request.games_label} "
