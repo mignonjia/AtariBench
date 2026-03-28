@@ -349,6 +349,7 @@ class PipelineRunnerTests(unittest.TestCase):
             responses=[
                 "thought: drift\nmove: [noop, noop, noop, noop, noop, noop, noop, noop, noop, noop]",
             ]
+            * 20
         )
         env = FakeEnv()
         runner = PipelineRunner(
