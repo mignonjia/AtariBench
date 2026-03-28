@@ -10,6 +10,8 @@ import re
 from pathlib import Path
 
 _HELPER_PROMPT_MODULES = frozenset({"__init__", "common_prompt", "game_clip", "termination"})
+MODEL_SUMMARY_FILENAME = "model_summary.json"
+FULL_RUN_MODEL_SUMMARY_FILENAME = "model_summary_30s.json"
 
 
 def _discover_canonical_game_keys() -> frozenset[str]:
@@ -80,18 +82,40 @@ def resolve_output_layout(
 
 
 def update_game_model_summary(project_dir: str | Path, game: str) -> Path:
-    """Recompute one game's per-model summary from stored successful runs."""
+    """Recompute one game's per-model summaries for all-success and 30-second runs."""
 
     root = game_root(project_dir, game)
     root.mkdir(parents=True, exist_ok=True)
-    summary_path = root / "model_summary.json"
+    summary_path = root / MODEL_SUMMARY_FILENAME
+    full_run_summary_path = root / FULL_RUN_MODEL_SUMMARY_FILENAME
     lock_path = root / ".model_summary.lock"
 
     with lock_path.open("w", encoding="utf-8") as lock_handle:
         fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
-        payload = _build_game_summary_payload(root=root, game=game)
         summary_path.write_text(
-            json.dumps(payload, indent=2, sort_keys=True),
+            json.dumps(
+                _build_game_summary_payload(
+                    root=root,
+                    game=game,
+                    include_run=_is_successful_run,
+                    run_filter="all_successful",
+                ),
+                indent=2,
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
+        full_run_summary_path.write_text(
+            json.dumps(
+                _build_game_summary_payload(
+                    root=root,
+                    game=game,
+                    include_run=_is_full_canonical_run,
+                    run_filter="full_30s",
+                ),
+                indent=2,
+                sort_keys=True,
+            ),
             encoding="utf-8",
         )
         fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
@@ -100,25 +124,51 @@ def update_game_model_summary(project_dir: str | Path, game: str) -> Path:
 
 
 def update_runs_model_summary(project_dir: str | Path) -> Path:
-    """Recompute the flat cross-game model summary for all canonical games."""
+    """Recompute the flat cross-game summaries for all-success and 30-second runs."""
 
     root = runs_root(project_dir)
     root.mkdir(parents=True, exist_ok=True)
-    summary_path = root / "model_summary.json"
+    summary_path = root / MODEL_SUMMARY_FILENAME
+    full_run_summary_path = root / FULL_RUN_MODEL_SUMMARY_FILENAME
     lock_path = root / ".model_summary.lock"
 
     with lock_path.open("w", encoding="utf-8") as lock_handle:
         fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
-        payload = _build_runs_summary_payload(root=root)
         summary_path.write_text(
-            json.dumps(payload, indent=2, sort_keys=True),
+            json.dumps(
+                _build_runs_summary_payload(
+                    root=root,
+                    per_game_summary_filename=MODEL_SUMMARY_FILENAME,
+                    run_filter="all_successful",
+                ),
+                indent=2,
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
+        full_run_summary_path.write_text(
+            json.dumps(
+                _build_runs_summary_payload(
+                    root=root,
+                    per_game_summary_filename=FULL_RUN_MODEL_SUMMARY_FILENAME,
+                    run_filter="full_30s",
+                ),
+                indent=2,
+                sort_keys=True,
+            ),
             encoding="utf-8",
         )
         fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
     return summary_path
 
 
-def _build_game_summary_payload(root: Path, game: str) -> dict[str, object]:
+def _build_game_summary_payload(
+    root: Path,
+    game: str,
+    *,
+    include_run,
+    run_filter: str,
+) -> dict[str, object]:
     models: dict[str, list[dict[str, object]]] = {}
 
     for model_dir in sorted(root.iterdir()):
@@ -143,7 +193,7 @@ def _build_game_summary_payload(root: Path, game: str) -> dict[str, object]:
         eligible_runs = [
             (run_dir, summary)
             for run_dir, summary in run_summaries
-            if _is_full_canonical_run(summary)
+            if include_run(summary)
         ]
         if not eligible_runs:
             continue
@@ -169,17 +219,23 @@ def _build_game_summary_payload(root: Path, game: str) -> dict[str, object]:
     return {
         "updated_at": dt.datetime.now().isoformat(timespec="seconds"),
         "game": game,
+        "run_filter": run_filter,
         "models": models,
     }
 
 
-def _build_runs_summary_payload(root: Path) -> dict[str, object]:
+def _build_runs_summary_payload(
+    root: Path,
+    *,
+    per_game_summary_filename: str,
+    run_filter: str,
+) -> dict[str, object]:
     entries: list[dict[str, object]] = []
 
     for game_dir in sorted(root.iterdir()):
         if not game_dir.is_dir() or game_dir.name.startswith("_"):
             continue
-        per_game_summary_path = game_dir / "model_summary.json"
+        per_game_summary_path = game_dir / per_game_summary_filename
         if not per_game_summary_path.exists():
             continue
         with contextlib.suppress(json.JSONDecodeError):
@@ -217,13 +273,18 @@ def _build_runs_summary_payload(root: Path) -> dict[str, object]:
 
     return {
         "updated_at": dt.datetime.now().isoformat(timespec="seconds"),
+        "run_filter": run_filter,
         "entries": entries,
     }
 
 
+def _is_successful_run(summary: dict[str, object]) -> bool:
+    return _coerce_string(summary.get("stop_reason"), default="") == "frame_budget"
+
+
 def _is_full_canonical_run(summary: dict[str, object]) -> bool:
     duration_seconds = summary.get("duration_seconds")
-    stop_reason = summary.get("stop_reason")
+    stop_reason = _coerce_string(summary.get("stop_reason"), default="")
     frame_count = _coerce_float(summary.get("frame_count"))
 
     if duration_seconds is not None:

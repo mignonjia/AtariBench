@@ -7,6 +7,7 @@ import concurrent.futures
 import dataclasses
 import datetime as dt
 import json
+import os
 import random
 import re
 import subprocess
@@ -24,7 +25,8 @@ def _bootstrap_local_paths() -> None:
 
 if __package__ in {None, ""}:
     _bootstrap_local_paths()
-    from games import list_game_keys, list_game_selection_keys, resolve_game_selection
+    from core.trajectory import apply_minimal_logging_policy
+    from games import list_game_keys, resolve_game_selection
     from llm import infer_model_provider, validate_model_thinking_mode
     from run_storage import (
         game_batch_root,
@@ -36,7 +38,8 @@ if __package__ in {None, ""}:
     )
     from viz import render_run_video
 else:
-    from .games import list_game_keys, list_game_selection_keys, resolve_game_selection
+    from .core.trajectory import apply_minimal_logging_policy
+    from .games import list_game_keys, resolve_game_selection
     from .llm import infer_model_provider, validate_model_thinking_mode
     from .run_storage import (
         game_batch_root,
@@ -49,6 +52,7 @@ else:
     from .viz import render_run_video
 
 _SUPPORTED_COMPANIES = ("gemini", "openai", "anthropic")
+_INTERNAL_REQUEST_ENV = "ATARIBENCH_INTERNAL_RUN_REQUEST"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -69,6 +73,7 @@ class BatchJobSpec:
     prompt_mode: str = "structured_history"
     seed: int | None = None
     seed_start: int | None = None
+    minimal_logging: bool = False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -92,6 +97,7 @@ class RunRequest:
     seed: int | None
     output_dir: str
     log_path: str
+    minimal_logging: bool = False
     run_label: str | None = None
 
 
@@ -119,64 +125,26 @@ class RunResult:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run multiple AtariBench jobs.")
-    valid_game_values = sorted(set(list_game_keys()) | set(list_game_selection_keys()))
-    parser.add_argument(
-        "--game",
-        choices=valid_game_values,
-        help="Single game key or preset. Presets: selected, full.",
-    )
-    parser.add_argument(
-        "--job",
-        action="append",
-        help=(
-            "Batch job spec in the form MODEL:COUNT[:THINKING]. "
-            "Example: gemini-2.5-flash:5:off"
-        ),
-    )
     parser.add_argument(
         "--common-config",
+        required=True,
         help="Path to a YAML file with shared batch/run settings.",
     )
     parser.add_argument(
         "--runs-config",
         "--config",
         dest="runs_config",
+        required=True,
         help="Path to a YAML file listing run settings.",
     )
-    parser.add_argument("--duration-seconds", type=int, default=30)
     parser.add_argument(
-        "--output-dir",
-        default=str(runs_batch_root(Path(__file__).resolve().parent)),
+        "--minimal-logging",
+        action="store_true",
+        help=(
+            "After rendering completes, keep only summary.json, turns.jsonl, and "
+            "visualization.mp4 in each run directory."
+        ),
     )
-    parser.add_argument("--max-actions-per-turn", type=int, default=10)
-    parser.add_argument(
-        "--frames-per-action",
-        type=int,
-        default=3,
-        help="Frames to execute per planned action. Keep aligned with the prompt template.",
-    )
-    parser.add_argument("--history-clips", type=int, default=3)
-    parser.add_argument("--non-zero-reward-clips", type=int, default=3)
-    parser.add_argument(
-        "--prompt-mode",
-        default="structured_history",
-        choices=["structured_history", "append_only"],
-    )
-    parser.add_argument("--seed", type=int, default=None)
-    parser.add_argument("--max-concurrency", type=int, default=2)
-    parser.add_argument(
-        "--max-retries",
-        type=int,
-        default=1,
-        help="Retry count for transient provider errors such as 429/503.",
-    )
-    parser.add_argument(
-        "--retry-backoff-seconds",
-        type=float,
-        default=5.0,
-        help="Base backoff in seconds between transient retries.",
-    )
-    parser.add_argument("--render-video-fps", type=int, default=30)
     return parser
 
 
@@ -191,6 +159,7 @@ def parse_job_spec(
     non_zero_reward_clips: int = 3,
     prompt_mode: str = "structured_history",
     seed: int | None = None,
+    minimal_logging: bool = False,
     label: str | None = None,
     games_label: str | None = None,
 ) -> BatchJobSpec:
@@ -231,6 +200,7 @@ def parse_job_spec(
         non_zero_reward_clips=non_zero_reward_clips,
         prompt_mode=prompt_mode,
         seed=seed,
+        minimal_logging=minimal_logging,
     )
 
 
@@ -285,6 +255,11 @@ def build_jobs_from_config(
         _require_config_key(common, "max_actions_per_turn", context="common")
     )
     common_frames_per_action = int(common.get("frames_per_action", 3))
+    common_minimal_logging = _coerce_config_bool(
+        common.get("minimal_logging", False),
+        key="minimal_logging",
+        context="common",
+    )
 
     jobs: list[BatchJobSpec] = []
     for index, entry in enumerate(setting_entries, start=1):
@@ -325,6 +300,11 @@ def build_jobs_from_config(
                     None
                     if entry.get("seed_start") is None
                     else int(entry["seed_start"])
+                ),
+                minimal_logging=_coerce_config_bool(
+                    entry.get("minimal_logging", common_minimal_logging),
+                    key="minimal_logging",
+                    context=f"setting #{index}",
                 ),
             )
         )
@@ -383,6 +363,20 @@ def _normalize_config_game_selections(raw_value: object) -> dict[str, list[str]]
             )
         normalized[normalized_name] = values
     return normalized
+
+
+def _coerce_config_bool(value: object, *, key: str, context: str) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int) and value in {0, 1}:
+        return bool(value)
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "yes", "y", "on"}:
+            return True
+        if normalized in {"false", "0", "no", "n", "off"}:
+            return False
+    raise ValueError(f"Invalid boolean value for '{key}' in {context}: {value!r}.")
 
 
 def _resolve_games_token(
@@ -481,6 +475,7 @@ def expand_run_requests(
                                 else job.seed_start + run_index - 1
                             )
                         ),
+                        minimal_logging=job.minimal_logging,
                         output_dir=str(output_dir),
                         log_path=str(log_dir / f"{game}_{job.label}_{run_slug}.log"),
                         run_label=_build_run_label(
@@ -523,57 +518,27 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     project_dir = Path(__file__).resolve().parent
-
-    using_config = bool(args.common_config or args.runs_config)
-    if using_config:
-        if not args.common_config or not args.runs_config:
-            parser.error("--common-config and --runs-config must be passed together.")
-        common_settings = load_yaml_config(args.common_config)
-        setting_entries = load_yaml_config(args.runs_config)
-        if not isinstance(common_settings, dict):
-            parser.error("--common-config must contain a mapping.")
-        if not isinstance(setting_entries, list):
-            parser.error("--runs-config must contain a list of settings.")
-        batch_options, jobs = build_jobs_from_config(
-            common_settings=common_settings,
-            setting_entries=setting_entries,
-        )
-    else:
-        if not args.game or not args.job:
-            parser.error("--game and at least one --job are required when config files are not used.")
-        game_keys = resolve_game_selection(args.game)
+    common_settings = load_yaml_config(args.common_config)
+    setting_entries = load_yaml_config(args.runs_config)
+    if not isinstance(common_settings, dict):
+        parser.error("--common-config must contain a mapping.")
+    if not isinstance(setting_entries, list):
+        parser.error("--runs-config must contain a list of settings.")
+    batch_options, jobs = build_jobs_from_config(
+        common_settings=common_settings,
+        setting_entries=setting_entries,
+    )
+    if args.minimal_logging:
         jobs = [
-            parse_job_spec(
-                raw_spec,
-                games=game_keys,
-                games_label=args.game,
-                duration_seconds=args.duration_seconds,
-                max_actions_per_turn=args.max_actions_per_turn,
-                frames_per_action=args.frames_per_action,
-                history_clips=args.history_clips,
-                non_zero_reward_clips=args.non_zero_reward_clips,
-                prompt_mode=args.prompt_mode,
-                seed=args.seed,
-            )
-            for raw_spec in args.job
+            dataclasses.replace(job, minimal_logging=True)
+            for job in jobs
         ]
-        batch_options = {
-            "output_dir": args.output_dir,
-            "max_concurrency": args.max_concurrency,
-            "max_retries": args.max_retries,
-            "retry_backoff_seconds": args.retry_backoff_seconds,
-            "render_video_fps": args.render_video_fps,
-        }
 
     selected_games = list(dict.fromkeys(game for job in jobs for game in job.games))
     all_games = list_game_keys()
 
     timestamp = dt.datetime.now().strftime("%m%d_%H%M%S")
-    batch_label = (
-        args.game
-        if args.game
-        else Path(str(args.runs_config)).stem
-    )
+    batch_label = Path(str(args.runs_config)).stem
     if len(selected_games) == 1 and uses_canonical_game_storage(selected_games[0]):
         batch_root = game_batch_root(project_dir, selected_games[0]) / timestamp
         base_output_dir = game_root(project_dir, selected_games[0])
@@ -592,13 +557,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"batch_root={batch_root}")
     print(f"all_games={','.join(all_games)}")
     print(f"selected_games={','.join(selected_games)}")
-    if batch_options.get("max_concurrency_by_company"):
-        print(
-            "max_concurrency_by_company="
-            f"{json.dumps(batch_options['max_concurrency_by_company'], sort_keys=True)}"
-        )
-    else:
-        print(f"max_concurrency={batch_options['max_concurrency']}")
+    print(
+        "max_concurrency_by_company="
+        f"{json.dumps(batch_options['max_concurrency_by_company'], sort_keys=True)}"
+    )
     print(f"total_runs={len(requests)}")
 
     results = execute_requests(
@@ -607,21 +569,16 @@ def main(argv: list[str] | None = None) -> int:
         retry_backoff_seconds=float(batch_options["retry_backoff_seconds"]),
         render_video_fps=int(batch_options["render_video_fps"]),
         max_concurrency_by_company=batch_options.get("max_concurrency_by_company"),
-        default_max_concurrency=int(batch_options.get("max_concurrency", 1)),
+        default_max_concurrency=1,
     )
     refresh_model_summaries(project_dir, results)
 
     batch_summary = {
         "batch_root": str(batch_root),
-        "game_selection": args.game,
+        "game_selection": None,
         "selected_games": selected_games,
         "all_games": all_games,
-        "max_concurrency": (
-            int(batch_options["max_concurrency"])
-            if "max_concurrency" in batch_options
-            else None
-        ),
-        "max_concurrency_by_company": company_limits,
+        "max_concurrency_by_company": batch_options.get("max_concurrency_by_company"),
         "common_config_path": str(Path(args.common_config).resolve()) if args.common_config else None,
         "runs_config_path": (
             str(Path(args.runs_config).resolve())
@@ -687,6 +644,7 @@ def execute_run(
                 f"frames_per_action={request.frames_per_action}\n"
                 f"history_clips={request.history_clips}\n"
                 f"non_zero_reward_clips={request.non_zero_reward_clips}\n"
+                f"minimal_logging={str(request.minimal_logging).lower()}\n"
                 f"attempt={attempts}\n"
                 f"return_code={completed.returncode}\n\n"
             ),
@@ -714,6 +672,8 @@ def execute_run(
                 except Exception as exc:  # pragma: no cover
                     video_error = str(exc)
                     summary = _attach_video_metadata(summary, None, video_error, run_dir)
+                if request.minimal_logging:
+                    apply_minimal_logging_policy(run_dir)
             return RunResult(
                 game=request.game,
                 job_label=request.job_label,
@@ -876,38 +836,34 @@ def _run_subprocess(
     thinking_mode: str,
 ) -> subprocess.CompletedProcess[str]:
     script_path = Path(__file__).resolve().with_name("main.py")
+    env = os.environ.copy()
+    env[_INTERNAL_REQUEST_ENV] = json.dumps(
+        {
+            "game": request.game,
+            "model": request.model_name,
+            "thinking": thinking_mode,
+            "duration_seconds": request.duration_seconds,
+            "output_dir": request.output_dir,
+            "seed": request.seed,
+            "max_actions_per_turn": request.max_actions_per_turn,
+            "frames_per_action": request.frames_per_action,
+            "history_clips": request.history_clips,
+            "non_zero_reward_clips": request.non_zero_reward_clips,
+            "prompt_mode": request.prompt_mode,
+            "run_label": request.run_label,
+            "minimal_logging": request.minimal_logging,
+        },
+        sort_keys=True,
+    )
     command = [
         sys.executable,
         str(script_path),
-        "--game",
-        request.game,
-        "--model",
-        request.model_name,
-        "--thinking",
-        thinking_mode,
-        "--duration-seconds",
-        str(request.duration_seconds),
-        "--output-dir",
-        request.output_dir,
-        "--max-actions-per-turn",
-        str(request.max_actions_per_turn),
-        "--frames-per-action",
-        str(request.frames_per_action),
-        "--history-clips",
-        str(request.history_clips),
-        "--non-zero-reward-clips",
-        str(request.non_zero_reward_clips),
-        "--prompt-mode",
-        request.prompt_mode,
     ]
-    if request.seed is not None:
-        command.extend(["--seed", str(request.seed)])
-    if request.run_label:
-        command.extend(["--run-label", request.run_label])
 
     return subprocess.run(
         command,
         cwd=_subprocess_cwd(),
+        env=env,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -1049,6 +1005,7 @@ def _format_run_start_line(request: RunRequest) -> str:
         f"frames_per_action={request.frames_per_action} "
         f"history_clips={request.history_clips} "
         f"non_zero_reward_clips={request.non_zero_reward_clips} "
+        f"minimal_logging={str(request.minimal_logging).lower()} "
         f"games={request.games_label} "
         f"selected_game={request.game} "
         f"seed={seed_value} "

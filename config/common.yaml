@@ -1,4 +1,4 @@
-max_concurrency_by_company:
+max_concurrency_by_company: # change it based on your quota
   gemini: 2
   openai: 2
   anthropic: 1
@@ -6,10 +6,12 @@ max_retries: 10
 retry_backoff_seconds: 10
 render_video_fps: 30 # constant, shouldn't change
 max_actions_per_turn: 10 # constant, shouldn't change
-duration_seconds: 10 # constant, shouldn't change; you can change it to a smaller value for debug
+duration_seconds: 30 # constant, shouldn't change; but you can change it to a smaller value for debug
 frames_per_action: 3 # constant, shouldn't change
+minimal_logging: false # optional; if true, keep only summary.json, turns.jsonl, and visualization.mp4 for each run
 games:
   full:
-    - all # constant, shouldn't change
+    - all
   selected:
     - assault
+    - breakout

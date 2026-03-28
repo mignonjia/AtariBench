@@ -4,7 +4,13 @@ Compact Atari runner for multimodal LLM experiments.
 
 ## Setup
 
-Use the `ale` conda environment and export the provider keys you need:
+Create or update the `ale` conda environment from [`environment.yaml`](/mnt/home/mhuo/AtariBench/environment.yaml), then export the provider keys you need:
+
+```bash
+conda env create -f environment.yaml
+```
+
+This installs the Python dependencies plus the `ffmpeg` binary used for video rendering.
 
 ```bash
 source ~/.zshrc
@@ -14,60 +20,7 @@ export OPENAI_API_KEY="YOUR_OPENAI_KEY"
 export ANTHROPIC_API_KEY="YOUR_ANTHROPIC_KEY"
 ```
 
-## Single Run
-
-```bash
-python main.py \
-  --game breakout \
-  --model gemini-2.5-flash \
-  --thinking off \
-  --prompt-mode structured_history \
-  --duration-seconds 30
-```
-
-Append-only prompt mode:
-
-```bash
-python main.py \
-  --game breakout \
-  --model gemini-2.5-flash \
-  --thinking off \
-  --prompt-mode append_only \
-  --duration-seconds 5
-```
-
-## Batch Run
-
-Job-driven batch mode:
-
-```bash
-python batch_run.py \
-  --game selected \
-  --job gemini-2.5-flash:3:off \
-  --max-concurrency 1
-```
-
-`--game` accepts:
-
-- one game key such as `breakout`
-- `selected` = `breakout`, `assault`
-- `full` = all registered prompt-backed games
-
-Each `--job` is:
-
-```text
-MODEL:COUNT[:THINKING]
-```
-
-Examples:
-
-```text
-gemini-2.5-flash:3:off
-gpt-5.4-mini:1:none
-claude-sonnet-4-6:2:medium
-```
-
-## Config Batch Run
+## Main Command
 
 Config-driven batch mode uses:
 
@@ -82,6 +35,17 @@ python batch_run.py \
   --common-config config/common.yaml \
   --runs-config config/sample_runs.yaml
 ```
+
+Optional minimal logging that only keeps the run summary, textual log, and per-run video:
+
+```bash
+python batch_run.py \
+  --common-config config/common.yaml \
+  --runs-config config/sample_runs.yaml \
+  --minimal-logging
+```
+
+This keeps only `summary.json`, `turns.jsonl`, and `visualization.mp4` in each run directory after rendering. In config-driven mode, you can also set `minimal_logging: true` in `common.yaml` or per-run entries.
 
 `common.yaml` should explicitly define the shared batch settings used in config mode, including:
 
@@ -125,8 +89,21 @@ For `append_only`, those clip fields are ignored and stored as `-1`.
 - `max_concurrency_by_company.openai`
 - `max_concurrency_by_company.anthropic`
 
-These limits apply in config-driven batch mode and are enforced per provider company. `max_concurrency` remains the fallback limit for any company not explicitly listed.
+These limits apply in config-driven batch mode and are enforced per provider company.
 If a company is omitted from the map, it defaults to `1`.
+
+## Other Commands
+
+Single run:
+
+```bash
+python main.py \
+  --game breakout \
+  --model gemini-2.5-flash \
+  --thinking off \
+  --prompt-mode structured_history \
+  --duration-seconds 30
+```
 
 ## Prompt Modes
 
@@ -148,17 +125,15 @@ Thinking support is model-specific.
 - `thinking_mode` is the requested user-facing knob.
 - `thinking_level` and `thinking_budget` are the resolved provider-specific settings recorded in summaries.
 
-## Important Flags
+## Important Options
 
 - `--duration-seconds`: total game budget
-- `--history-clips`: recent clips for `structured_history`
-- `--non-zero-reward-clips`: reward-bearing clips for `structured_history`
 - `--prompt-mode`: `structured_history` or `append_only`
-- `--max-concurrency`: batch parallelism
-- `max_concurrency_by_company`: config-only per-company concurrency caps
-- `--max-retries`: transient retry count
-- `--retry-backoff-seconds`: transient retry backoff base
-- `--render-video-fps`: visualization FPS
+- `--minimal-logging`: after rendering, keep only `summary.json`, `turns.jsonl`, and `visualization.mp4`
+- `max_concurrency_by_company`: config-driven per-company concurrency caps in `common.yaml`
+- `max_retries`: config-driven transient retry count in `common.yaml`
+- `retry_backoff_seconds`: config-driven transient retry backoff base in `common.yaml`
+- `render_video_fps`: config-driven visualization FPS in `common.yaml`
 
 ## Output
 
@@ -184,15 +159,26 @@ Each completed run writes:
 - `summary.json`
 - `visualization.mp4`
 
+If `--minimal-logging` is enabled, or `minimal_logging: true` is set in batch config, the run is pruned after video rendering and only these remain:
+
+- `turns.jsonl`
+- `summary.json`
+- `visualization.mp4`
+
 Per-game summaries live at:
 
 - `runs/<game>/model_summary.json`
+- `runs/<game>/model_summary_30s.json`
 
 Cross-game flat summaries live at:
 
 - `runs/model_summary.json`
+- `runs/model_summary_30s.json`
 
-These summaries are aggregated per setting, not by mixing different prompt/thinking/clip configurations into one average.
+`model_summary.json` includes all successful runs for that setting, including shorter debug runs that still finished with `stop_reason=frame_budget`.
+`model_summary_30s.json` keeps the previous benchmark view and only includes full 30-second canonical runs.
+Both summaries are aggregated per setting, not by mixing different prompt/thinking/clip configurations into one average.
+They are rebuilt from stored run `summary.json` files on disk, not limited to the runs from the most recent batch.
 
 ## Batch Logging
 
@@ -207,6 +193,12 @@ Example:
 Single-game batch metadata is stored under:
 
 - `runs/<game>/_batches/<batch_timestamp>/`
+
+Each batch writes its own `batch_summary.json`, and that file only describes the runs from that batch.
+
+After a batch finishes, the runner refreshes both `model_summary.json` and `model_summary_30s.json` for each canonical game that had at least one successful run in that batch.
+This refresh still happens if the batch had some failures; it is not limited to all-success batches.
+The refreshed per-game summary files aggregate across stored eligible runs on disk for that game and then rebuild the matching top-level files in `runs/`.
 
 Each started run prints one flat log line with the key config fields, including:
 

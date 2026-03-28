@@ -15,7 +15,7 @@ This index covers the maintained source tree and intentionally excludes stored r
 
 [`run_storage.py`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/run_storage.py)
 - Canonical storage helpers for maintained games.
-- Resolves per-game/per-model output roots and rebuilds per-game plus cross-game `model_summary.json` files.
+- Resolves per-game/per-model output roots and rebuilds per-game plus cross-game summary files for both all-success runs and 30-second-only runs.
 - Groups summary averages by full setting key, including prompt and thinking metadata.
 
 [`cleanup_invalid_runs.py`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/cleanup_invalid_runs.py)

@@ -40,6 +40,7 @@ class PipelineConfig:
     output_dir: str | Path = "runs"
     nest_output_by_game: bool = True
     run_label: str | None = None
+    minimal_logging: bool = False
 
 
 class PipelineRunner:
@@ -262,6 +263,7 @@ class PipelineRunner:
                 history_clips=self.effective_history_clips,
                 non_zero_reward_clips=self.effective_non_zero_reward_clips,
                 prompt_mode=self.config.prompt_mode,
+                minimal_logging=self.config.minimal_logging,
             )
         finally:
             close = getattr(env, "close", None)

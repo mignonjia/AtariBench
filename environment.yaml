@@ -1,0 +1,16 @@
+name: ale
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - ffmpeg
+  - pip
+  - pip:
+      - gymnasium
+      - ale-py
+      - Pillow
+      - PyYAML
+      - google-genai
+      - openai
+      - anthropic

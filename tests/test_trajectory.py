@@ -13,7 +13,7 @@ if candidate not in sys.path:
     sys.path.insert(0, candidate)
 
 from core.clip import ParsedClipResponse
-from core.trajectory import ActionRecord, Trajectory
+from core.trajectory import ActionRecord, Trajectory, apply_minimal_logging_policy
 
 
 def fake_frame_writer(frame, path: Path) -> None:
@@ -121,6 +121,7 @@ class TrajectoryTests(unittest.TestCase):
             self.assertEqual(summary["history_clips"], -1)
             self.assertEqual(summary["non_zero_reward_clips"], -1)
             self.assertEqual(summary["prompt_mode"], "append_only")
+            self.assertFalse(summary["minimal_logging"])
             prompt_html_path = Path(trajectory.turn_records[0].prompt_html_path)
             self.assertTrue(prompt_html_path.exists())
             prompt_html = prompt_html_path.read_text(encoding="utf-8")
@@ -137,6 +138,29 @@ class TrajectoryTests(unittest.TestCase):
             self.assertEqual(saved_summary["prompt_mode"], "append_only")
             saved_turn = json.loads(trajectory.turns_path.read_text(encoding="utf-8").splitlines()[0])
             self.assertFalse(saved_turn["new_game_started"])
+
+    def test_apply_minimal_logging_policy_keeps_only_compact_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            run_dir = Path(tmpdir) / "breakout" / "0328_104742"
+            (run_dir / "frames").mkdir(parents=True)
+            (run_dir / "prompts").mkdir()
+            (run_dir / "responses").mkdir()
+            (run_dir / "visualization_frames").mkdir()
+            (run_dir / "frames" / "frame_000000.png").write_bytes(b"frame")
+            (run_dir / "prompts" / "turn_0001.txt").write_text("prompt", encoding="utf-8")
+            (run_dir / "responses" / "turn_0001.txt").write_text("response", encoding="utf-8")
+            (run_dir / "visualization_frames" / "viz_000000.png").write_bytes(b"viz")
+            (run_dir / "summary.json").write_text("{}", encoding="utf-8")
+            (run_dir / "turns.jsonl").write_text("{}", encoding="utf-8")
+            (run_dir / "visualization.mp4").write_bytes(b"video")
+            (run_dir / "extra.txt").write_text("extra", encoding="utf-8")
+
+            apply_minimal_logging_policy(run_dir)
+
+            self.assertEqual(
+                sorted(path.name for path in run_dir.iterdir()),
+                ["summary.json", "turns.jsonl", "visualization.mp4"],
+            )
 
     def test_prompt_html_renders_chat_transcript_without_raw_role_tags(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

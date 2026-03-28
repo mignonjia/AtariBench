@@ -62,6 +62,7 @@ class BatchRunTests(unittest.TestCase):
                 "duration_seconds": 30,
                 "max_actions_per_turn": 10,
                 "frames_per_action": 3,
+                "minimal_logging": "true",
             },
             setting_entries=[
                 {
@@ -108,6 +109,7 @@ class BatchRunTests(unittest.TestCase):
         self.assertEqual(jobs[0].run_count, 2)
         self.assertEqual(jobs[0].seed_start, 0)
         self.assertEqual(jobs[0].frames_per_action, 3)
+        self.assertTrue(jobs[0].minimal_logging)
         self.assertEqual(jobs[0].history_clips, 3)
         self.assertEqual(jobs[1].games, ["assault", "breakout"])
         self.assertEqual(jobs[1].history_clips, 10)
@@ -212,6 +214,7 @@ class BatchRunTests(unittest.TestCase):
                 history_clips=3,
                 non_zero_reward_clips=3,
                 prompt_mode="structured_history",
+                minimal_logging=False,
                 seed=1,
                 output_dir="runs/breakout/gemini-2.5-flash_cfg_001",
                 log_path="logs/breakout_gemini-2.5-flash_cfg_001_run_002.log",
@@ -225,6 +228,7 @@ class BatchRunTests(unittest.TestCase):
         self.assertIn("seed=1", line)
         self.assertIn("current_num_run=2", line)
         self.assertIn("total_num_runs=3", line)
+        self.assertIn("minimal_logging=false", line)
         self.assertIn("output_dir=runs/breakout/gemini-2.5-flash_cfg_001", line)
 
     def test_expand_run_requests_uses_seed_start_for_each_run(self) -> None:
@@ -380,6 +384,7 @@ class BatchRunTests(unittest.TestCase):
             label="gpt-5.4",
             games=["breakout"],
             prompt_mode="append_only",
+            minimal_logging=True,
         )
         run_request = expand_run_requests(
             jobs=[request],
@@ -398,15 +403,17 @@ class BatchRunTests(unittest.TestCase):
 
         command = run_mock.call_args.kwargs["args"] if "args" in run_mock.call_args.kwargs else run_mock.call_args.args[0]
         cwd = run_mock.call_args.kwargs["cwd"]
+        env = run_mock.call_args.kwargs["env"]
         self.assertTrue(command[1].endswith("main.py"))
-        self.assertIn("--model", command)
-        self.assertEqual(command[command.index("--model") + 1], "gpt-5.4")
-        self.assertIn("--frames-per-action", command)
-        self.assertEqual(command[command.index("--frames-per-action") + 1], "3")
-        self.assertEqual(command[command.index("--history-clips") + 1], "3")
-        self.assertEqual(command[command.index("--non-zero-reward-clips") + 1], "3")
-        self.assertEqual(command[command.index("--prompt-mode") + 1], "append_only")
-        self.assertEqual(command[command.index("--run-label") + 1], "0328_104742_run_001")
+        self.assertEqual(len(command), 2)
+        payload = env["ATARIBENCH_INTERNAL_RUN_REQUEST"]
+        self.assertIn('"model": "gpt-5.4"', payload)
+        self.assertIn('"frames_per_action": 3', payload)
+        self.assertIn('"history_clips": 3', payload)
+        self.assertIn('"non_zero_reward_clips": 3', payload)
+        self.assertIn('"prompt_mode": "append_only"', payload)
+        self.assertIn('"minimal_logging": true', payload)
+        self.assertIn('"run_label": "0328_104742_run_001"', payload)
         self.assertEqual(Path(cwd).resolve(), PROJECT_DIR.resolve())
 
     def test_normalize_run_dir_resolves_subprocess_relative_paths(self) -> None:

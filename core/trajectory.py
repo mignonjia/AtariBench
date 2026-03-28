@@ -8,6 +8,7 @@ import html
 import json
 import os
 import re
+import shutil
 from pathlib import Path
 from typing import Any, Callable
 
@@ -19,6 +20,7 @@ except ImportError:  # Running from inside the AtariBench folder.
     from core.clip import ParsedClipResponse
 
 FrameWriter = Callable[[Any, Path], None]
+_MINIMAL_LOGGING_ALLOWED_FILES = frozenset({"summary.json", "turns.jsonl", "visualization.mp4"})
 
 
 @dataclasses.dataclass(frozen=True)
@@ -202,6 +204,7 @@ class Trajectory:
         history_clips: int | None = None,
         non_zero_reward_clips: int | None = None,
         prompt_mode: str | None = None,
+        minimal_logging: bool = False,
     ) -> dict[str, Any]:
         """Write and return the run summary."""
 
@@ -225,6 +228,7 @@ class Trajectory:
             "history_clips": history_clips,
             "non_zero_reward_clips": non_zero_reward_clips,
             "prompt_mode": prompt_mode,
+            "minimal_logging": bool(minimal_logging),
             "last_frame": dataclasses.asdict(self.frame_records[-1])
             if self.frame_records
             else None,
@@ -249,6 +253,22 @@ class Trajectory:
 def _turn_to_dict(turn: TurnRecord) -> dict[str, Any]:
     payload = dataclasses.asdict(turn)
     return payload
+
+
+def apply_minimal_logging_policy(run_dir: str | Path) -> None:
+    """Keep only the compact run artifacts after rendering completes."""
+
+    run_path = Path(run_dir)
+    if not run_path.exists():
+        return
+
+    for child in run_path.iterdir():
+        if child.name in _MINIMAL_LOGGING_ALLOWED_FILES and child.is_file():
+            continue
+        if child.is_dir():
+            shutil.rmtree(child)
+            continue
+        child.unlink()
 
 
 def _default_frame_writer(frame: Any, path: Path) -> None:
