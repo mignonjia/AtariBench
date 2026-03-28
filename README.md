@@ -25,8 +25,8 @@ export ANTHROPIC_API_KEY="YOUR_ANTHROPIC_KEY"
 Config-driven batch mode uses:
 
 - [`config/common.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/common.yaml): shared defaults
-- [`config/runs.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/runs.yaml): per-setting entries
-- [`config/sample_runs.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/sample_runs.yaml): sample runs for debug
+- [`config/runs.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/runs.yaml): all needed runs
+- [`config/sample_runs.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/sample_runs.yaml): sample runs for debug. Also change common.yaml: duration_seconds to a smaller value to faster debug runs.
 
 Run it with:
 

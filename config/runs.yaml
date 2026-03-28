@@ -1,33 +1,69 @@
-- model_name: gemini-2.5-flash
-  thinking_mode: off
+- model_name: gemini-3-flash-preview
+  thinking_mode: medium
   prompt_mode: structured_history
   history_clips: 3
   non_zero_reward_clips: 3
   games: full
   seed_start: 0
-  num_runs: 3
+  num_runs: 10
 
-- model_name: gemini-2.5-flash
-  thinking_mode: off
+- model_name: gemini-3-flash-preview
+  thinking_mode: minimal
+  prompt_mode: structured_history
+  history_clips: 3
+  non_zero_reward_clips: 3
+  games: full
+  seed_start: 0
+  num_runs: 10
+
+- model_name: gemini-3-flash-preview
+  thinking_mode: medium
   prompt_mode: structured_history
   history_clips: 30
   non_zero_reward_clips: 3
   games: selected
   seed_start: 0
-  num_runs: 3
+  num_runs: 10
 
-- model_name: gemini-2.5-flash
-  thinking_mode: off
+- model_name: gemini-3-flash-preview
+  thinking_mode: medium
   prompt_mode: append_only
   games: selected
   seed_start: 0
-  num_runs: 3
+  num_runs: 10
 
-- model_name: gpt-5.4-mini
+- model_name: gemini-3.1-pro-preview
+  thinking_mode: medium
+  prompt_mode: structured_history
+  history_clips: 3
+  non_zero_reward_clips: 3
+  games: full
+  seed_start: 0
+  num_runs: 10
+
+- model_name: gpt-5.4
   thinking_mode: none
   prompt_mode: structured_history
   history_clips: 3
   non_zero_reward_clips: 3
   games: full
   seed_start: 0
-  num_runs: 3
+  num_runs: 10
+
+- model_name: gpt-5.4
+  thinking_mode: medium
+  prompt_mode: structured_history
+  history_clips: 3
+  non_zero_reward_clips: 3
+  games: full
+  seed_start: 0
+  num_runs: 10
+
+- model_name: claude-sonnet-4-6
+  thinking_mode: medium
+  prompt_mode: structured_history
+  history_clips: 3
+  non_zero_reward_clips: 3
+  games: full
+  seed_start: 0
+  num_runs: 10
