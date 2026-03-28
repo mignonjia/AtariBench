@@ -1,6 +1,15 @@
-max_concurrency: 2
+max_concurrency_by_company:
+  gemini: 2
+  openai: 2
+  anthropic: 1
+fallback_thinking: minimal
 max_retries: 10
 render_video_fps: 30
 retry_backoff_seconds: 10
 max_actions_per_turn: 10
 duration_seconds: 30
+games:
+  full:
+    - all
+  selected:
+    - assault

@@ -1,0 +1,42 @@
+- model_name: gemini-2.5-flash
+  thinking_mode: off
+  prompt_mode: structured_history
+  history_clips: 3
+  non_zero_reward_clips: 3
+  games: selected
+  seed_start: 0
+  num_runs: 2
+
+- model_name: gemini-2.5-flash
+  thinking_mode: on
+  prompt_mode: structured_history
+  history_clips: 3
+  non_zero_reward_clips: 3
+  games: selected
+  seed_start: 0
+  num_runs: 1
+
+- model_name: gemini-2.5-flash
+  thinking_mode: off
+  prompt_mode: structured_history
+  history_clips: 30
+  non_zero_reward_clips: 3
+  games: selected
+  seed_start: 0
+  num_runs: 1
+
+- model_name: gemini-2.5-flash
+  thinking_mode: off
+  prompt_mode: append_only
+  games: selected
+  seed_start: 0
+  num_runs: 1
+
+- model_name: gpt-5.4-mini
+  thinking_mode: none
+  prompt_mode: structured_history
+  history_clips: 3
+  non_zero_reward_clips: 3
+  games: full
+  seed_start: 0
+  num_runs: 2

@@ -72,26 +72,43 @@ claude-sonnet-4-6:2:medium
 Config-driven batch mode uses:
 
 - [`config/common.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/common.yaml): shared defaults
-- [`config/model_game_specific.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/model_game_specific.yaml): per-setting entries
+- [`config/runs.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/runs.yaml): per-setting entries
+- [`config/sample_runs.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/sample_runs.yaml): sample runs for debug
 
 Run it with:
 
 ```bash
 python batch_run.py \
   --common-config config/common.yaml \
-  --model-game-specific-config config/model_game_specific.yaml
+  --runs-config config/sample_runs.yaml
 ```
 
-Per-setting entries can specify:
+`common.yaml` should explicitly define the shared batch settings used in config mode, including:
+
+- `max_concurrency_by_company`
+- `fallback_thinking`
+- `max_retries`
+- `render_video_fps`
+- `retry_backoff_seconds`
+- `max_actions_per_turn`
+- `duration_seconds`
+- `games`
+
+Per-setting entries in `runs.yaml` or `sample_runs.yaml` should explicitly specify:
 
 - `model_name`
 - `thinking_mode`
 - `prompt_mode`
-- `history_clips`
-- `non_zero_reward_clips`
 - `games`
 - `seed_start`
 - `num_runs`
+
+For `structured_history`, also provide:
+
+- `history_clips`
+- `non_zero_reward_clips`
+
+For `append_only`, those clip fields are ignored and stored as `-1`.
 
 `games` can be:
 
@@ -101,6 +118,15 @@ Per-setting entries can specify:
 - a list mixing those values
 
 `seed_start: 0` with `num_runs: 3` expands to seeds `0`, `1`, and `2`.
+
+`common.yaml` can also set company-level concurrency caps with:
+
+- `max_concurrency_by_company.gemini`
+- `max_concurrency_by_company.openai`
+- `max_concurrency_by_company.anthropic`
+
+These limits apply in config-driven batch mode and are enforced per provider company. `max_concurrency` remains the fallback limit for any company not explicitly listed.
+These limits apply in config-driven batch mode and are enforced per provider company. If a company is omitted from the map, it defaults to `1`.
 
 ## Prompt Modes
 
@@ -129,6 +155,7 @@ Thinking support is model-specific.
 - `--non-zero-reward-clips`: reward-bearing clips for `structured_history`
 - `--prompt-mode`: `structured_history` or `append_only`
 - `--max-concurrency`: batch parallelism
+- `max_concurrency_by_company`: config-only per-company concurrency caps
 - `--max-retries`: transient retry count
 - `--retry-backoff-seconds`: transient retry backoff base
 - `--render-video-fps`: visualization FPS

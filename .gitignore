@@ -1,5 +1,5 @@
 computer_use/
-runs/
+runs*/
 _pycache_/
 runs/
 llm/api.sh

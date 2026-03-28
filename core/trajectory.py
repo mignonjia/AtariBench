@@ -79,13 +79,15 @@ class Trajectory:
         game_key: str,
         frame_writer: FrameWriter | None = None,
         include_game_key: bool = True,
+        run_label: str | None = None,
     ):
         base_dir = Path(base_output_dir)
-        timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+        run_dir_stem = run_label or dt.datetime.now().strftime("%m%d_%H%M%S")
         if include_game_key:
-            self.run_dir = base_dir / game_key / timestamp
+            run_root = base_dir / game_key
         else:
-            self.run_dir = base_dir / timestamp
+            run_root = base_dir
+        self.run_dir = _allocate_run_dir(run_root, run_dir_stem)
         self.frames_dir = self.run_dir / "frames"
         self.prompts_dir = self.run_dir / "prompts"
         self.responses_dir = self.run_dir / "responses"
@@ -93,6 +95,7 @@ class Trajectory:
         self.summary_path = self.run_dir / "summary.json"
 
         for directory in (
+            self.run_dir,
             self.frames_dir,
             self.prompts_dir,
             self.responses_dir,
@@ -201,6 +204,10 @@ class Trajectory:
     ) -> dict[str, Any]:
         """Write and return the run summary."""
 
+        if prompt_mode == "append_only":
+            history_clips = -1
+            non_zero_reward_clips = -1
+
         summary = {
             "run_dir": str(self.run_dir),
             "stop_reason": stop_reason,
@@ -250,6 +257,19 @@ def _default_frame_writer(frame: Any, path: Path) -> None:
 
     image = Image.fromarray(frame)
     image.save(path)
+
+
+def _allocate_run_dir(run_root: Path, run_dir_stem: str) -> Path:
+    run_root.mkdir(parents=True, exist_ok=True)
+    attempt = 0
+    while True:
+        suffix = "" if attempt == 0 else f"_{attempt + 1}"
+        candidate = run_root / f"{run_dir_stem}{suffix}"
+        try:
+            candidate.mkdir(parents=False, exist_ok=False)
+            return candidate
+        except FileExistsError:
+            attempt += 1
 
 
 def _render_prompt_html(

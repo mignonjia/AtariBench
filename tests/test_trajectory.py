@@ -21,6 +21,25 @@ def fake_frame_writer(frame, path: Path) -> None:
 
 
 class TrajectoryTests(unittest.TestCase):
+    def test_run_dir_uses_label_and_collision_suffix_without_microseconds(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            first = Trajectory(
+                base_output_dir=tmpdir,
+                game_key="breakout",
+                frame_writer=fake_frame_writer,
+                run_label="0328_104742_cfg_005_run_001",
+            )
+            second = Trajectory(
+                base_output_dir=tmpdir,
+                game_key="breakout",
+                frame_writer=fake_frame_writer,
+                run_label="0328_104742_cfg_005_run_001",
+            )
+
+            self.assertEqual(first.run_dir.name, "0328_104742_cfg_005_run_001")
+            self.assertEqual(second.run_dir.name, "0328_104742_cfg_005_run_001_2")
+            self.assertNotEqual(first.run_dir, second.run_dir)
+
     def test_persists_frames_turns_and_summary(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             trajectory = Trajectory(
@@ -99,8 +118,8 @@ class TrajectoryTests(unittest.TestCase):
             self.assertEqual(summary["duration_seconds"], 30)
             self.assertEqual(summary["model_name"], "gemini-2.5-flash")
             self.assertEqual(summary["thinking_budget"], 0)
-            self.assertEqual(summary["history_clips"], 3)
-            self.assertEqual(summary["non_zero_reward_clips"], 3)
+            self.assertEqual(summary["history_clips"], -1)
+            self.assertEqual(summary["non_zero_reward_clips"], -1)
             self.assertEqual(summary["prompt_mode"], "append_only")
             prompt_html_path = Path(trajectory.turn_records[0].prompt_html_path)
             self.assertTrue(prompt_html_path.exists())
@@ -113,8 +132,8 @@ class TrajectoryTests(unittest.TestCase):
             self.assertEqual(saved_summary["total_reward"], 1.0)
             self.assertEqual(saved_summary["last_frame"]["frame_number"], 3)
             self.assertEqual(saved_summary["thinking_mode"], "off")
-            self.assertEqual(saved_summary["history_clips"], 3)
-            self.assertEqual(saved_summary["non_zero_reward_clips"], 3)
+            self.assertEqual(saved_summary["history_clips"], -1)
+            self.assertEqual(saved_summary["non_zero_reward_clips"], -1)
             self.assertEqual(saved_summary["prompt_mode"], "append_only")
             saved_turn = json.loads(trajectory.turns_path.read_text(encoding="utf-8").splitlines()[0])
             self.assertFalse(saved_turn["new_game_started"])

@@ -8,6 +8,7 @@ import dataclasses
 import datetime as dt
 import json
 import random
+import re
 import subprocess
 import sys
 import time
@@ -24,14 +25,16 @@ def _bootstrap_local_paths() -> None:
 if __package__ in {None, ""}:
     _bootstrap_local_paths()
     from games import list_game_keys, list_game_selection_keys, resolve_game_selection
-    from llm import validate_model_thinking_mode
+    from llm import infer_model_provider, validate_model_thinking_mode
     from run_storage import game_batch_root, game_root, sanitize_model_label, uses_canonical_game_storage
     from viz import render_run_video
 else:
     from .games import list_game_keys, list_game_selection_keys, resolve_game_selection
-    from .llm import validate_model_thinking_mode
+    from .llm import infer_model_provider, validate_model_thinking_mode
     from .run_storage import game_batch_root, game_root, sanitize_model_label, uses_canonical_game_storage
     from .viz import render_run_video
+
+_SUPPORTED_COMPANIES = ("gemini", "openai", "anthropic")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -42,6 +45,7 @@ class BatchJobSpec:
     run_count: int
     thinking_mode: str
     label: str
+    games_label: str = ""
     games: list[str] = dataclasses.field(default_factory=list)
     duration_seconds: int = 30
     max_actions_per_turn: int = 10
@@ -59,8 +63,11 @@ class RunRequest:
     game: str
     job_label: str
     run_index: int
+    total_num_runs: int
     model_name: str
+    company: str
     thinking_mode: str
+    games_label: str
     duration_seconds: int
     max_actions_per_turn: int
     history_clips: int
@@ -69,6 +76,7 @@ class RunRequest:
     seed: int | None
     output_dir: str
     log_path: str
+    run_label: str | None = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -114,10 +122,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to a YAML file with shared batch/run settings.",
     )
     parser.add_argument(
-        "--model-game-specific-config",
+        "--runs-config",
         "--config",
-        dest="model_game_specific_config",
-        help="Path to a YAML file listing model/game-specific run settings.",
+        dest="runs_config",
+        help="Path to a YAML file listing run settings.",
     )
     parser.add_argument("--duration-seconds", type=int, default=30)
     parser.add_argument(
@@ -167,6 +175,7 @@ def parse_job_spec(
     prompt_mode: str = "structured_history",
     seed: int | None = None,
     label: str | None = None,
+    games_label: str | None = None,
 ) -> BatchJobSpec:
     parts = [part.strip() for part in raw_spec.split(":")]
     if len(parts) not in {2, 3}:
@@ -196,6 +205,7 @@ def parse_job_spec(
         run_count=run_count,
         thinking_mode=thinking_mode,
         label=label,
+        games_label=games_label or ",".join(resolved_games),
         games=resolved_games,
         duration_seconds=duration_seconds,
         max_actions_per_turn=max_actions_per_turn,
@@ -214,88 +224,93 @@ def load_yaml_config(path: str | Path) -> object:
             "PyYAML is required to load YAML config files. Install it in the active environment."
         ) from exc
 
+    class _ConfigLoader(yaml.SafeLoader):
+        pass
+
+    for first_char, resolvers in list(_ConfigLoader.yaml_implicit_resolvers.items()):
+        _ConfigLoader.yaml_implicit_resolvers[first_char] = [
+            (tag, regexp)
+            for tag, regexp in resolvers
+            if tag != "tag:yaml.org,2002:bool"
+        ]
+
     config_path = Path(path)
     with config_path.open("r", encoding="utf-8") as handle:
-        return yaml.safe_load(handle)
+        return yaml.load(handle, Loader=_ConfigLoader)
 
 
 def build_jobs_from_config(
     common_settings: dict[str, object] | None,
     setting_entries: list[dict[str, object]],
-    *,
-    default_output_dir: str | Path,
-    default_duration_seconds: int,
-    default_max_actions_per_turn: int,
-    default_history_clips: int,
-    default_non_zero_reward_clips: int,
-    default_prompt_mode: str,
-    default_seed: int | None,
-    default_max_concurrency: int,
-    default_fallback_thinking: str,
-    default_max_retries: int,
-    default_retry_backoff_seconds: float,
-    default_render_video_fps: int,
 ) -> tuple[dict[str, object], list[BatchJobSpec]]:
     common = dict(common_settings or {})
+    max_concurrency_by_company = _normalize_company_concurrency_map(
+        _require_config_key(common, "max_concurrency_by_company", context="common")
+    )
+    game_selections = _normalize_config_game_selections(common.get("games"))
     batch_options = {
-        "output_dir": str(common.get("output_dir", default_output_dir)),
-        "max_concurrency": int(common.get("max_concurrency", default_max_concurrency)),
-        "fallback_thinking": str(common.get("fallback_thinking", default_fallback_thinking)),
-        "max_retries": int(common.get("max_retries", default_max_retries)),
+        "output_dir": str(common.get("output_dir", str(Path(__file__).resolve().parent / "runs" / "batches"))),
+        "max_concurrency_by_company": max_concurrency_by_company,
+        "fallback_thinking": str(_require_config_key(common, "fallback_thinking", context="common")),
+        "max_retries": int(_require_config_key(common, "max_retries", context="common")),
         "retry_backoff_seconds": float(
-            common.get("retry_backoff_seconds", default_retry_backoff_seconds)
+            _require_config_key(common, "retry_backoff_seconds", context="common")
         ),
-        "render_video_fps": int(common.get("render_video_fps", default_render_video_fps)),
+        "render_video_fps": int(_require_config_key(common, "render_video_fps", context="common")),
     }
-    run_defaults = {
-        "duration_seconds": int(common.get("duration_seconds", default_duration_seconds)),
-        "max_actions_per_turn": int(
-            common.get("max_actions_per_turn", default_max_actions_per_turn)
-        ),
-        "history_clips": int(common.get("history_clips", default_history_clips)),
-        "non_zero_reward_clips": int(
-            common.get("non_zero_reward_clips", default_non_zero_reward_clips)
-        ),
-        "prompt_mode": str(common.get("prompt_mode", default_prompt_mode)),
-        "seed": common.get("seed", default_seed),
-    }
+    common_duration_seconds = int(_require_config_key(common, "duration_seconds", context="common"))
+    common_max_actions_per_turn = int(
+        _require_config_key(common, "max_actions_per_turn", context="common")
+    )
 
     jobs: list[BatchJobSpec] = []
     for index, entry in enumerate(setting_entries, start=1):
-        merged = dict(run_defaults)
-        merged.update(entry)
-        model_name = str(merged["model_name"])
-        thinking_mode = str(merged["thinking_mode"])
+        model_name = str(_require_config_key(entry, "model_name", context=f"setting #{index}"))
+        thinking_mode = str(_require_config_key(entry, "thinking_mode", context=f"setting #{index}"))
         validate_model_thinking_mode(model_name, thinking_mode)
-        prompt_mode = str(merged["prompt_mode"])
+        prompt_mode = str(_require_config_key(entry, "prompt_mode", context=f"setting #{index}"))
         if prompt_mode not in {"structured_history", "append_only"}:
             raise ValueError(f"Unsupported prompt_mode '{prompt_mode}'.")
-        games = resolve_games_value(merged["games"])
+        games_value = _require_config_key(entry, "games", context=f"setting #{index}")
+        games = resolve_games_value(games_value, game_selections)
+        history_clips = -1
+        non_zero_reward_clips = -1
+        if prompt_mode == "structured_history":
+            history_clips = int(
+                _require_config_key(entry, "history_clips", context=f"setting #{index}")
+            )
+            non_zero_reward_clips = int(
+                _require_config_key(entry, "non_zero_reward_clips", context=f"setting #{index}")
+            )
         label = f"{sanitize_model_label(model_name)}_cfg_{index:03d}"
         jobs.append(
             BatchJobSpec(
                 model_name=model_name,
-                run_count=int(merged["num_runs"]),
+                run_count=int(_require_config_key(entry, "num_runs", context=f"setting #{index}")),
                 thinking_mode=thinking_mode,
                 label=label,
+                games_label=_stringify_games_label(games_value),
                 games=games,
-                duration_seconds=int(merged["duration_seconds"]),
-                max_actions_per_turn=int(merged["max_actions_per_turn"]),
-                history_clips=int(merged["history_clips"]),
-                non_zero_reward_clips=int(merged["non_zero_reward_clips"]),
+                duration_seconds=common_duration_seconds,
+                max_actions_per_turn=common_max_actions_per_turn,
+                history_clips=history_clips,
+                non_zero_reward_clips=non_zero_reward_clips,
                 prompt_mode=prompt_mode,
-                seed=None if merged["seed"] is None else int(merged["seed"]),
+                seed=None if entry.get("seed") is None else int(entry["seed"]),
                 seed_start=(
                     None
-                    if merged.get("seed_start") is None
-                    else int(merged["seed_start"])
+                    if entry.get("seed_start") is None
+                    else int(entry["seed_start"])
                 ),
             )
         )
     return batch_options, jobs
 
 
-def resolve_games_value(raw_games: object) -> list[str]:
+def resolve_games_value(
+    raw_games: object,
+    config_game_selections: dict[str, list[str]] | None = None,
+) -> list[str]:
     if isinstance(raw_games, str):
         raw_values = [raw_games]
     elif isinstance(raw_games, list):
@@ -305,10 +320,95 @@ def resolve_games_value(raw_games: object) -> list[str]:
 
     resolved: list[str] = []
     for value in raw_values:
-        for game in resolve_game_selection(value):
+        for game in _resolve_games_token(value, config_game_selections):
             if game not in resolved:
                 resolved.append(game)
     return resolved
+
+
+def _stringify_games_label(raw_games: object) -> str:
+    if isinstance(raw_games, str):
+        return raw_games
+    if isinstance(raw_games, list):
+        return ",".join(str(value) for value in raw_games)
+    return str(raw_games)
+
+
+def _require_config_key(mapping: dict[str, object], key: str, *, context: str) -> object:
+    if key not in mapping:
+        raise ValueError(f"Missing required key '{key}' in {context}.")
+    return mapping[key]
+
+
+def _normalize_config_game_selections(raw_value: object) -> dict[str, list[str]] | None:
+    if raw_value is None:
+        return None
+    if not isinstance(raw_value, dict):
+        raise ValueError("games in common.yaml must be a mapping of selection -> game list.")
+
+    normalized: dict[str, list[str]] = {}
+    for selection_name, selection_values in raw_value.items():
+        normalized_name = str(selection_name).strip().lower()
+        if isinstance(selection_values, str):
+            values = [selection_values]
+        elif isinstance(selection_values, list):
+            values = [str(value) for value in selection_values]
+        else:
+            raise ValueError(
+                f"games.{selection_name} must be a string or list of strings."
+            )
+        normalized[normalized_name] = values
+    return normalized
+
+
+def _resolve_games_token(
+    token: str,
+    config_game_selections: dict[str, list[str]] | None,
+    _seen: set[str] | None = None,
+) -> list[str]:
+    normalized_token = token.strip().lower()
+    if normalized_token == "all":
+        return list_game_keys()
+
+    if _seen is None:
+        _seen = set()
+    if normalized_token in _seen:
+        raise ValueError(f"Cyclic game selection detected for '{token}'.")
+
+    if config_game_selections and normalized_token in config_game_selections:
+        _seen.add(normalized_token)
+        resolved: list[str] = []
+        for value in config_game_selections[normalized_token]:
+            for game in _resolve_games_token(value, config_game_selections, _seen):
+                if game not in resolved:
+                    resolved.append(game)
+        _seen.remove(normalized_token)
+        return resolved
+
+    return resolve_game_selection(normalized_token)
+
+
+def _normalize_company_concurrency_map(raw_value: object) -> dict[str, int] | None:
+    if raw_value is None:
+        return None
+    if not isinstance(raw_value, dict):
+        raise ValueError("max_concurrency_by_company must be a mapping of company -> limit.")
+
+    normalized: dict[str, int] = {}
+    for company, limit in raw_value.items():
+        normalized_company = str(company).strip().lower()
+        if normalized_company not in _SUPPORTED_COMPANIES:
+            raise ValueError(
+                f"Unsupported company '{company}' in max_concurrency_by_company. "
+                "Use gemini, openai, or anthropic."
+            )
+        limit_value = int(limit)
+        if limit_value < 1:
+            raise ValueError(
+                f"Concurrency limit for company '{company}' must be >= 1."
+            )
+        normalized[normalized_company] = limit_value
+    return normalized
 
 
 def expand_run_requests(
@@ -316,6 +416,7 @@ def expand_run_requests(
     project_dir: str | Path,
     base_output_dir: str | Path,
     log_dir: str | Path,
+    batch_timestamp: str | None = None,
 ) -> list[RunRequest]:
     requests: list[RunRequest] = []
     project_dir = Path(project_dir)
@@ -328,7 +429,7 @@ def expand_run_requests(
             for run_index in range(1, job.run_count + 1):
                 run_slug = f"run_{run_index:03d}"
                 if uses_canonical_game_storage(game):
-                    output_dir = game_root(project_dir, game) / job.label
+                    output_dir = game_root(project_dir, game) / sanitize_model_label(job.model_name)
                 else:
                     output_dir = base_output_dir / game / job.label / run_slug
                 requests.append(
@@ -336,8 +437,11 @@ def expand_run_requests(
                         game=game,
                         job_label=job.label,
                         run_index=run_index,
+                        total_num_runs=job.run_count,
                         model_name=job.model_name,
+                        company=infer_model_provider(job.model_name),
                         thinking_mode=job.thinking_mode,
+                        games_label=job.games_label,
                         duration_seconds=job.duration_seconds,
                         max_actions_per_turn=job.max_actions_per_turn,
                         history_clips=job.history_clips,
@@ -354,9 +458,40 @@ def expand_run_requests(
                         ),
                         output_dir=str(output_dir),
                         log_path=str(log_dir / f"{game}_{job.label}_{run_slug}.log"),
+                        run_label=_build_run_label(
+                            batch_timestamp=batch_timestamp,
+                            job_label=job.label,
+                            run_index=run_index,
+                        ),
                     )
                 )
     return requests
+
+
+def _extract_cfg_run_label(job_label: str) -> str | None:
+    match = re.search(r"(cfg_\d+)$", job_label)
+    if match:
+        return match.group(1)
+    return None
+
+
+def _build_run_label(
+    *,
+    batch_timestamp: str | None,
+    job_label: str,
+    run_index: int,
+) -> str | None:
+    cfg_label = _extract_cfg_run_label(job_label)
+    if not cfg_label and batch_timestamp is None:
+        return None
+
+    parts: list[str] = []
+    if batch_timestamp:
+        parts.append(batch_timestamp)
+    if cfg_label:
+        parts.append(cfg_label)
+    parts.append(f"run_{run_index:03d}")
+    return "_".join(parts)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -364,31 +499,19 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     project_dir = Path(__file__).resolve().parent
 
-    using_config = bool(args.common_config or args.model_game_specific_config)
+    using_config = bool(args.common_config or args.runs_config)
     if using_config:
-        if not args.common_config or not args.model_game_specific_config:
-            parser.error("--common-config and --model-game-specific-config must be passed together.")
+        if not args.common_config or not args.runs_config:
+            parser.error("--common-config and --runs-config must be passed together.")
         common_settings = load_yaml_config(args.common_config)
-        setting_entries = load_yaml_config(args.model_game_specific_config)
+        setting_entries = load_yaml_config(args.runs_config)
         if not isinstance(common_settings, dict):
             parser.error("--common-config must contain a mapping.")
         if not isinstance(setting_entries, list):
-            parser.error("--model-game-specific-config must contain a list of settings.")
+            parser.error("--runs-config must contain a list of settings.")
         batch_options, jobs = build_jobs_from_config(
             common_settings=common_settings,
             setting_entries=setting_entries,
-            default_output_dir=args.output_dir,
-            default_duration_seconds=args.duration_seconds,
-            default_max_actions_per_turn=args.max_actions_per_turn,
-            default_history_clips=args.history_clips,
-            default_non_zero_reward_clips=args.non_zero_reward_clips,
-            default_prompt_mode=args.prompt_mode,
-            default_seed=args.seed,
-            default_max_concurrency=args.max_concurrency,
-            default_fallback_thinking=args.fallback_thinking,
-            default_max_retries=args.max_retries,
-            default_retry_backoff_seconds=args.retry_backoff_seconds,
-            default_render_video_fps=args.render_video_fps,
         )
     else:
         if not args.game or not args.job:
@@ -398,6 +521,7 @@ def main(argv: list[str] | None = None) -> int:
             parse_job_spec(
                 raw_spec,
                 games=game_keys,
+                games_label=args.game,
                 duration_seconds=args.duration_seconds,
                 max_actions_per_turn=args.max_actions_per_turn,
                 history_clips=args.history_clips,
@@ -416,17 +540,18 @@ def main(argv: list[str] | None = None) -> int:
             "render_video_fps": args.render_video_fps,
         }
 
-    all_games = list(dict.fromkeys(game for job in jobs for game in job.games))
+    selected_games = list(dict.fromkeys(game for job in jobs for game in job.games))
+    all_games = list_game_keys()
 
-    timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = dt.datetime.now().strftime("%m%d_%H%M%S")
     batch_label = (
         args.game
         if args.game
-        else Path(str(args.model_game_specific_config)).stem
+        else Path(str(args.runs_config)).stem
     )
-    if len(all_games) == 1 and uses_canonical_game_storage(all_games[0]):
-        batch_root = game_batch_root(project_dir, all_games[0]) / timestamp
-        base_output_dir = game_root(project_dir, all_games[0])
+    if len(selected_games) == 1 and uses_canonical_game_storage(selected_games[0]):
+        batch_root = game_batch_root(project_dir, selected_games[0]) / timestamp
+        base_output_dir = game_root(project_dir, selected_games[0])
     else:
         batch_root = Path(str(batch_options["output_dir"])) / f"{batch_label}_{timestamp}"
         base_output_dir = batch_root / "runs"
@@ -436,48 +561,46 @@ def main(argv: list[str] | None = None) -> int:
         project_dir=project_dir,
         base_output_dir=base_output_dir,
         log_dir=logs_dir,
+        batch_timestamp=timestamp,
     )
 
     print(f"batch_root={batch_root}")
-    print(f"games={','.join(all_games)}")
-    print(f"max_concurrency={batch_options['max_concurrency']}")
+    print(f"all_games={','.join(all_games)}")
+    print(f"selected_games={','.join(selected_games)}")
+    if batch_options.get("max_concurrency_by_company"):
+        print(
+            "max_concurrency_by_company="
+            f"{json.dumps(batch_options['max_concurrency_by_company'], sort_keys=True)}"
+        )
+    else:
+        print(f"max_concurrency={batch_options['max_concurrency']}")
     print(f"total_runs={len(requests)}")
 
-    results: list[RunResult] = []
-    with concurrent.futures.ThreadPoolExecutor(
-        max_workers=int(batch_options["max_concurrency"])
-    ) as executor:
-        future_map = {
-            executor.submit(
-                execute_run,
-                request,
-                str(batch_options["fallback_thinking"]),
-                int(batch_options["max_retries"]),
-                float(batch_options["retry_backoff_seconds"]),
-                int(batch_options["render_video_fps"]),
-            ): request
-            for request in requests
-        }
-        for future in concurrent.futures.as_completed(future_map):
-            result = future.result()
-            results.append(result)
-            status = "OK" if result.success else "FAIL"
-            suffix = f" stop_reason={result.stop_reason}" if result.stop_reason else ""
-            print(
-                f"[{status}] {result.game} {result.job_label} run={result.run_index} "
-                f"thinking={result.final_thinking_mode} attempts={result.attempts}"
-                f"{suffix}"
-            )
+    results = execute_requests(
+        requests=requests,
+        fallback_thinking=str(batch_options["fallback_thinking"]),
+        max_retries=int(batch_options["max_retries"]),
+        retry_backoff_seconds=float(batch_options["retry_backoff_seconds"]),
+        render_video_fps=int(batch_options["render_video_fps"]),
+        max_concurrency_by_company=batch_options.get("max_concurrency_by_company"),
+        default_max_concurrency=int(batch_options.get("max_concurrency", 1)),
+    )
 
     batch_summary = {
         "batch_root": str(batch_root),
         "game_selection": args.game,
-        "games": all_games,
-        "max_concurrency": int(batch_options["max_concurrency"]),
+        "selected_games": selected_games,
+        "all_games": all_games,
+        "max_concurrency": (
+            int(batch_options["max_concurrency"])
+            if "max_concurrency" in batch_options
+            else None
+        ),
+        "max_concurrency_by_company": company_limits,
         "common_config_path": str(Path(args.common_config).resolve()) if args.common_config else None,
-        "model_game_specific_config_path": (
-            str(Path(args.model_game_specific_config).resolve())
-            if args.model_game_specific_config
+        "runs_config_path": (
+            str(Path(args.runs_config).resolve())
+            if args.runs_config
             else None
         ),
         "total_runs": len(results),
@@ -502,6 +625,7 @@ def execute_run(
     retry_backoff_seconds: float,
     render_video_fps: int,
 ) -> RunResult:
+    print(_format_run_start_line(request), flush=True)
     current_thinking = request.thinking_mode
     attempts = 0
     combined_output = ""
@@ -517,6 +641,7 @@ def execute_run(
             header=(
                 f"game={request.game}\n"
                 f"model={request.model_name}\n"
+                f"company={request.company}\n"
                 f"requested_thinking_mode={request.thinking_mode}\n"
                 f"final_thinking_mode={current_thinking}\n"
                 f"prompt_mode={request.prompt_mode}\n"
@@ -602,6 +727,117 @@ def execute_run(
         )
 
 
+def execute_requests(
+    requests: list[RunRequest],
+    *,
+    fallback_thinking: str,
+    max_retries: int,
+    retry_backoff_seconds: float,
+    render_video_fps: int,
+    max_concurrency_by_company: dict[str, int] | None,
+    default_max_concurrency: int,
+) -> list[RunResult]:
+    max_workers = _resolve_executor_worker_count(
+        max_concurrency=default_max_concurrency,
+        max_concurrency_by_company=max_concurrency_by_company,
+    )
+    company_limits = _resolve_company_limits(
+        max_concurrency_by_company=max_concurrency_by_company,
+        default_limit=default_max_concurrency,
+    )
+    active_counts = {company: 0 for company in _SUPPORTED_COMPANIES}
+    pending_requests = list(requests)
+    results: list[RunResult] = []
+    in_flight: dict[concurrent.futures.Future[RunResult], RunRequest] = {}
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        while pending_requests or in_flight:
+            made_progress = False
+            while len(in_flight) < max_workers:
+                next_index = _find_next_schedulable_request_index(
+                    pending_requests=pending_requests,
+                    active_counts=active_counts,
+                    company_limits=company_limits,
+                )
+                if next_index is None:
+                    break
+                request = pending_requests.pop(next_index)
+                future = executor.submit(
+                    execute_run,
+                    request,
+                    fallback_thinking,
+                    max_retries,
+                    retry_backoff_seconds,
+                    render_video_fps,
+                )
+                in_flight[future] = request
+                active_counts[request.company] += 1
+                made_progress = True
+
+            if not in_flight:
+                if pending_requests:
+                    raise RuntimeError("No schedulable requests remain, but pending requests still exist.")
+                break
+
+            done, _ = concurrent.futures.wait(
+                in_flight.keys(),
+                return_when=concurrent.futures.FIRST_COMPLETED,
+            )
+            for future in done:
+                request = in_flight.pop(future)
+                active_counts[request.company] -= 1
+                result = future.result()
+                results.append(result)
+                status = "OK" if result.success else "FAIL"
+                suffix = f" stop_reason={result.stop_reason}" if result.stop_reason else ""
+                print(
+                    f"[{status}] {result.game} {result.job_label} run={result.run_index} "
+                    f"thinking={result.final_thinking_mode} attempts={result.attempts}"
+                    f"{suffix}"
+                )
+                made_progress = True
+
+            if not made_progress and pending_requests:
+                raise RuntimeError("Scheduler made no progress while requests were pending.")
+
+    return results
+
+
+def _resolve_company_limits(
+    *,
+    max_concurrency_by_company: dict[str, int] | None,
+    default_limit: int,
+) -> dict[str, int]:
+    if not max_concurrency_by_company:
+        return {company: default_limit for company in _SUPPORTED_COMPANIES}
+    return {
+        company: max_concurrency_by_company.get(company, default_limit)
+        for company in _SUPPORTED_COMPANIES
+    }
+
+
+def _find_next_schedulable_request_index(
+    *,
+    pending_requests: list[RunRequest],
+    active_counts: dict[str, int],
+    company_limits: dict[str, int],
+) -> int | None:
+    for index, request in enumerate(pending_requests):
+        if active_counts[request.company] < company_limits[request.company]:
+            return index
+    return None
+
+
+def _resolve_executor_worker_count(
+    *,
+    max_concurrency: int,
+    max_concurrency_by_company: dict[str, int] | None,
+) -> int:
+    if not max_concurrency_by_company:
+        return max_concurrency
+    return sum(max_concurrency_by_company.get(company, max_concurrency) for company in _SUPPORTED_COMPANIES)
+
+
 def _run_subprocess(
     request: RunRequest,
     thinking_mode: str,
@@ -631,6 +867,8 @@ def _run_subprocess(
     ]
     if request.seed is not None:
         command.extend(["--seed", str(request.seed)])
+    if request.run_label:
+        command.extend(["--run-label", request.run_label])
 
     return subprocess.run(
         command,
@@ -770,6 +1008,24 @@ def _write_log(path: str | Path, header: str, content: str) -> None:
     log_path = Path(path)
     log_path.parent.mkdir(parents=True, exist_ok=True)
     log_path.write_text(header + content, encoding="utf-8")
+
+
+def _format_run_start_line(request: RunRequest) -> str:
+    seed_value = "null" if request.seed is None else str(request.seed)
+    return (
+        "START "
+        f"model_name={request.model_name} "
+        f"thinking_mode={request.thinking_mode} "
+        f"prompt_mode={request.prompt_mode} "
+        f"history_clips={request.history_clips} "
+        f"non_zero_reward_clips={request.non_zero_reward_clips} "
+        f"games={request.games_label} "
+        f"selected_game={request.game} "
+        f"seed={seed_value} "
+        f"current_num_run={request.run_index} "
+        f"total_num_runs={request.total_num_runs} "
+        f"output_dir={request.output_dir}"
+    )
 
 
 def _sort_key(result: RunResult) -> tuple[str, int]:

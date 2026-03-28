@@ -30,14 +30,15 @@ class PipelineConfig:
 
     duration_seconds: int = 30
     max_actions_per_turn: int = 10
-    history_clips: int = 3
-    non_zero_reward_clips: int = 3
+    history_clips: int | None = 3
+    non_zero_reward_clips: int | None = 3
     prompt_mode: str = "structured_history"
     model_name: str = "gemini-2.5-flash"
     thinking_mode: str = "default"
     seed: int | None = None
     output_dir: str | Path = "runs"
     nest_output_by_game: bool = True
+    run_label: str | None = None
 
 
 class PipelineRunner:
@@ -63,6 +64,20 @@ class PipelineRunner:
     def frame_budget(self) -> int:
         return self.config.duration_seconds * self.game_spec.fps
 
+    @property
+    def effective_history_clips(self) -> int:
+        if self.config.prompt_mode == "append_only":
+            return -1
+        assert self.config.history_clips is not None
+        return int(self.config.history_clips)
+
+    @property
+    def effective_non_zero_reward_clips(self) -> int:
+        if self.config.prompt_mode == "append_only":
+            return -1
+        assert self.config.non_zero_reward_clips is not None
+        return int(self.config.non_zero_reward_clips)
+
     def run(self) -> dict[str, Any]:
         """Execute the pipeline and return the summary."""
 
@@ -76,6 +91,7 @@ class PipelineRunner:
             game_key=self.game_spec.game_key,
             frame_writer=self.frame_writer,
             include_game_key=self.config.nest_output_by_game,
+            run_label=self.config.run_label,
         )
         total_reward = 0.0
         total_lost_lives = 0
@@ -99,8 +115,8 @@ class PipelineRunner:
                 prompt_package = build_prompt(
                     game_spec=self.game_spec,
                     trajectory=trajectory,
-                    history_clips=self.config.history_clips,
-                    non_zero_reward_clips=self.config.non_zero_reward_clips,
+                    history_clips=self.effective_history_clips,
+                    non_zero_reward_clips=self.effective_non_zero_reward_clips,
                     duration_seconds=self.config.duration_seconds,
                     prompt_mode=self.config.prompt_mode,
                 )
@@ -241,8 +257,8 @@ class PipelineRunner:
                 thinking_mode=thinking_metadata["thinking_mode"],
                 thinking_budget=thinking_metadata["thinking_budget"],
                 thinking_level=thinking_metadata["thinking_level"],
-                history_clips=self.config.history_clips,
-                non_zero_reward_clips=self.config.non_zero_reward_clips,
+                history_clips=self.effective_history_clips,
+                non_zero_reward_clips=self.effective_non_zero_reward_clips,
                 prompt_mode=self.config.prompt_mode,
             )
         finally:

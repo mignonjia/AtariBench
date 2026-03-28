@@ -10,7 +10,7 @@ This index covers the source tree and intentionally excludes `runs/`.
 
 [`batch_run.py`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/batch_run.py)
 - Batch CLI.
-- Supports job-driven runs and config-driven runs via `config/common.yaml` plus `config/model_game_specific.yaml`.
+- Supports job-driven runs and config-driven runs via `config/common.yaml` plus `config/runs.yaml`.
 - Expands game selections, retries transient failures, and renders video for successful runs.
 
 [`run_storage.py`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/run_storage.py)
@@ -27,8 +27,11 @@ This index covers the source tree and intentionally excludes `runs/`.
 [`config/common.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/common.yaml)
 - Shared batch defaults.
 
-[`config/model_game_specific.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/model_game_specific.yaml)
+[`config/runs.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/runs.yaml)
 - Per-setting batch entries such as model, thinking mode, prompt mode, games, and run count.
+
+[`config/sample_runs.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/sample_runs.yaml)
+- Smaller debug/example batch config.
 
 ## Core Runtime
 

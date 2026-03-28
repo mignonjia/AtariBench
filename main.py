@@ -60,6 +60,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="structured_history",
         choices=["structured_history", "append_only"],
     )
+    parser.add_argument(
+        "--run-label",
+        default=None,
+        help="Optional prefix for the final timestamped run directory.",
+    )
     return parser
 
 
@@ -68,6 +73,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     project_dir = Path(__file__).resolve().parent
     validate_model_thinking_mode(args.model, args.thinking)
+    history_clips = args.history_clips
+    non_zero_reward_clips = args.non_zero_reward_clips
+    if args.prompt_mode == "append_only":
+        history_clips = -1
+        non_zero_reward_clips = -1
 
     game_spec = get_game_spec(args.game)
     output_dir, nest_output_by_game = resolve_output_layout(
@@ -79,14 +89,15 @@ def main(argv: list[str] | None = None) -> int:
     config = PipelineConfig(
         duration_seconds=args.duration_seconds,
         max_actions_per_turn=args.max_actions_per_turn,
-        history_clips=args.history_clips,
-        non_zero_reward_clips=args.non_zero_reward_clips,
+        history_clips=history_clips,
+        non_zero_reward_clips=non_zero_reward_clips,
         prompt_mode=args.prompt_mode,
         model_name=args.model,
         thinking_mode=args.thinking,
         seed=args.seed,
         output_dir=output_dir,
         nest_output_by_game=nest_output_by_game,
+        run_label=args.run_label,
     )
     client = build_model_client(model_name=args.model, provider=args.provider)
     runner = PipelineRunner(

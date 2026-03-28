@@ -17,7 +17,9 @@ Primary entrypoints:
 
 Config files:
 - [`config/common.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/common.yaml): shared batch defaults
-- [`config/model_game_specific.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/model_game_specific.yaml): per-setting batch entries
+- [`config/runs.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/runs.yaml): per-setting batch entries
+  [`config/sample_runs.yaml`](/Users/mingjiahuo/Desktop/ataribench/AtariBench/config/sample_runs.yaml) is a smaller example config.
+  `common.yaml` may include `max_concurrency_by_company` for provider-level caps.
 
 Main source areas:
 - `core/`: pipeline loop, parsing, trajectory persistence
@@ -36,7 +38,7 @@ Useful commands:
 - `python main.py --game breakout --model gemini-2.5-flash --thinking off --prompt-mode structured_history --duration-seconds 30`
 - `python main.py --game breakout --model gemini-2.5-flash --thinking off --prompt-mode append_only --duration-seconds 5`
 - `python batch_run.py --game selected --job gemini-2.5-flash:1:off --max-concurrency 1`
-- `python batch_run.py --common-config config/common.yaml --model-game-specific-config config/model_game_specific.yaml`
+- `python batch_run.py --common-config config/common.yaml --model-game-specific-config config/runs.yaml`
 - `python -m unittest`
 
 Directory notes:

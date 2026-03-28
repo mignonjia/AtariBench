@@ -297,6 +297,8 @@ def _stringify_setting_value(value: object) -> str:
 
 
 def _extract_history_clips(summary: dict[str, object]) -> int:
+    if _coerce_string(summary.get("prompt_mode"), default="structured_history") == "append_only":
+        return -1
     value = summary.get("history_clips")
     if value is None:
         return 3
@@ -304,6 +306,8 @@ def _extract_history_clips(summary: dict[str, object]) -> int:
 
 
 def _extract_non_zero_reward_clips(summary: dict[str, object]) -> int:
+    if _coerce_string(summary.get("prompt_mode"), default="structured_history") == "append_only":
+        return -1
     value = summary.get("non_zero_reward_clips")
     if value is not None:
         return int(value)

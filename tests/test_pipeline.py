@@ -286,6 +286,8 @@ class PipelineRunnerTests(unittest.TestCase):
 
         prompt_text = str(client.calls[1]["prompt_text"])
         self.assertEqual(summary["prompt_mode"], "append_only")
+        self.assertEqual(summary["history_clips"], -1)
+        self.assertEqual(summary["non_zero_reward_clips"], -1)
         self.assertIn("<assistant>", prompt_text)
         self.assertIn("thought: serve now", prompt_text)
         self.assertIn("move: [start]", prompt_text)
