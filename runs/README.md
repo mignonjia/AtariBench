@@ -53,7 +53,7 @@ runs/
 
 ## Minimal Logging
 
-With `--minimal-logging` or `minimal_logging: true`, the per-run directory is pruned after rendering and keeps only, which is sufficient for generate model_summary.json and model_summary_30s.json:
+With `--minimal-logging` or `minimal_logging: true`, the per-run directory is pruned after rendering and keeps only the files needed to rebuild `model_summary.json` and `model_summary_30s.json`:
 
 - `summary.json`
 - `turns.jsonl`
