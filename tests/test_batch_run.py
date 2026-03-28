@@ -27,6 +27,7 @@ from batch_run import (
     load_yaml_config,
     normalize_run_dir,
     parse_job_spec,
+    refresh_model_summaries,
     _run_subprocess,
 )
 
@@ -597,6 +598,26 @@ class BatchRunTests(unittest.TestCase):
         self.assertEqual(result.error_type, "incomplete_run")
         self.assertEqual(result.attempts, 2)
         self.assertEqual(run_mock.call_count, 2)
+
+    def test_refresh_model_summaries_rebuilds_unique_canonical_games_only(self) -> None:
+        results = [
+            mock.Mock(game="breakout", success=True),
+            mock.Mock(game="assault", success=True),
+            mock.Mock(game="breakout", success=True),
+            mock.Mock(game="termination", success=True),
+            mock.Mock(game="seaquest", success=False),
+        ]
+
+        with mock.patch("batch_run.update_game_model_summary") as update_mock:
+            refresh_model_summaries("/tmp/project", results)  # type: ignore[arg-type]
+
+        self.assertEqual(
+            [call.args for call in update_mock.call_args_list],
+            [
+                ("/tmp/project", "assault"),
+                ("/tmp/project", "breakout"),
+            ],
+        )
 
 
 if __name__ == "__main__":

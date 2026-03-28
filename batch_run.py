@@ -31,6 +31,7 @@ if __package__ in {None, ""}:
         game_root,
         runs_batch_root,
         sanitize_model_label,
+        update_game_model_summary,
         uses_canonical_game_storage,
     )
     from viz import render_run_video
@@ -42,6 +43,7 @@ else:
         game_root,
         runs_batch_root,
         sanitize_model_label,
+        update_game_model_summary,
         uses_canonical_game_storage,
     )
     from .viz import render_run_video
@@ -593,6 +595,7 @@ def main(argv: list[str] | None = None) -> int:
         max_concurrency_by_company=batch_options.get("max_concurrency_by_company"),
         default_max_concurrency=int(batch_options.get("max_concurrency", 1)),
     )
+    refresh_model_summaries(project_dir, results)
 
     batch_summary = {
         "batch_root": str(batch_root),
@@ -624,6 +627,20 @@ def main(argv: list[str] | None = None) -> int:
     )
     print(f"batch_summary={summary_path}")
     return 0 if batch_summary["failed_runs"] == 0 else 1
+
+
+def refresh_model_summaries(project_dir: str | Path, results: list[RunResult]) -> None:
+    """Rebuild per-game and cross-game summaries after a batch finishes."""
+
+    refreshed_games = sorted(
+        {
+            result.game
+            for result in results
+            if result.success and uses_canonical_game_storage(result.game)
+        }
+    )
+    for game in refreshed_games:
+        update_game_model_summary(project_dir, game)
 
 
 def execute_run(

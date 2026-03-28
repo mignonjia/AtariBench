@@ -30,6 +30,7 @@ class PipelineConfig:
 
     duration_seconds: int = 30
     max_actions_per_turn: int = 10
+    frames_per_action: int = 3
     history_clips: int | None = 3
     non_zero_reward_clips: int | None = 3
     prompt_mode: str = "structured_history"
@@ -145,7 +146,7 @@ class PipelineRunner:
                     action_lost_life = False
                     end_info_payload: dict[str, Any] = {}
 
-                    for _ in range(self.game_spec.frames_per_action):
+                    for _ in range(self.config.frames_per_action):
                         observation, reward, terminated, truncated, info = env.step(
                             action_id
                         )
@@ -257,6 +258,7 @@ class PipelineRunner:
                 thinking_mode=thinking_metadata["thinking_mode"],
                 thinking_budget=thinking_metadata["thinking_budget"],
                 thinking_level=thinking_metadata["thinking_level"],
+                frames_per_action=self.config.frames_per_action,
                 history_clips=self.effective_history_clips,
                 non_zero_reward_clips=self.effective_non_zero_reward_clips,
                 prompt_mode=self.config.prompt_mode,
