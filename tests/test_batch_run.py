@@ -63,6 +63,7 @@ class BatchRunTests(unittest.TestCase):
                 "max_actions_per_turn": 10,
                 "frames_per_action": 3,
                 "minimal_logging": "true",
+                "context_cache": "true",
             },
             setting_entries=[
                 {
@@ -115,6 +116,7 @@ class BatchRunTests(unittest.TestCase):
         self.assertEqual(jobs[1].history_clips, 10)
         self.assertEqual(jobs[2].history_clips, -1)
         self.assertEqual(jobs[2].non_zero_reward_clips, -1)
+        self.assertTrue(jobs[2].context_cache)
 
     def test_load_yaml_config_keeps_on_off_as_strings(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -164,6 +166,7 @@ class BatchRunTests(unittest.TestCase):
                 history_clips=3,
                 non_zero_reward_clips=3,
                 prompt_mode="structured_history",
+                context_cache=False,
                 seed=2,
                 output_dir="runs/assault/gemini-2.5-flash_cfg_001",
                 log_path="logs/assault_gemini.log",
@@ -183,6 +186,7 @@ class BatchRunTests(unittest.TestCase):
                 history_clips=3,
                 non_zero_reward_clips=3,
                 prompt_mode="structured_history",
+                context_cache=False,
                 seed=0,
                 output_dir="runs/assault/gpt-5.4-mini_cfg_002",
                 log_path="logs/assault_gpt.log",
@@ -215,6 +219,7 @@ class BatchRunTests(unittest.TestCase):
                 non_zero_reward_clips=3,
                 prompt_mode="structured_history",
                 minimal_logging=False,
+                context_cache=False,
                 seed=1,
                 output_dir="runs/breakout/gemini-2.5-flash_cfg_001",
                 log_path="logs/breakout_gemini-2.5-flash_cfg_001_run_002.log",
@@ -229,6 +234,7 @@ class BatchRunTests(unittest.TestCase):
         self.assertIn("current_num_run=2", line)
         self.assertIn("total_num_runs=3", line)
         self.assertIn("minimal_logging=false", line)
+        self.assertIn("context_cache=false", line)
         self.assertIn("output_dir=runs/breakout/gemini-2.5-flash_cfg_001", line)
 
     def test_expand_run_requests_uses_seed_start_for_each_run(self) -> None:
@@ -384,6 +390,7 @@ class BatchRunTests(unittest.TestCase):
             label="gpt-5.4",
             games=["breakout"],
             prompt_mode="append_only",
+            context_cache=True,
             minimal_logging=True,
         )
         run_request = expand_run_requests(
@@ -412,6 +419,7 @@ class BatchRunTests(unittest.TestCase):
         self.assertIn('"history_clips": 3', payload)
         self.assertIn('"non_zero_reward_clips": 3', payload)
         self.assertIn('"prompt_mode": "append_only"', payload)
+        self.assertIn('"context_cache": true', payload)
         self.assertIn('"minimal_logging": true', payload)
         self.assertIn('"run_label": "0328_104742_run_001"', payload)
         self.assertEqual(Path(cwd).resolve(), PROJECT_DIR.resolve())

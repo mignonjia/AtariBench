@@ -143,7 +143,7 @@ class ModelThinkingOptionsTests(unittest.TestCase):
             for option in options:
                 with self.subTest(model=model_name, option=option):
                     try:
-                        response_text = client.generate_turn(
+                        response = client.generate_turn(
                             prompt_text=prompt_text,
                             image_paths=[],
                             model_name=model_name,
@@ -163,17 +163,17 @@ class ModelThinkingOptionsTests(unittest.TestCase):
                         raise
                     records.append(
                         {
-                            "model": model_name,
-                            "thinking_mode": option,
-                            "prompt": prompt_text,
-                            "response": response_text,
-                            "error": None,
-                        }
-                    )
+                                "model": model_name,
+                                "thinking_mode": option,
+                                "prompt": prompt_text,
+                                "response": response.text,
+                                "error": None,
+                            }
+                        )
                     _write_live_results(output_path, records)
-                    self.assertIsInstance(response_text, str)
+                    self.assertIsInstance(response.text, str)
                     self.assertTrue(
-                        response_text.strip(),
+                        response.text.strip(),
                         f"Expected non-empty response for {model_name} with {option}",
                     )
 

@@ -13,6 +13,7 @@ if candidate not in sys.path:
 
 from games import get_game_spec
 from core.pipeline import PipelineConfig, PipelineRunner
+from llm import LlmTurnResponse, build_token_usage
 
 
 def fake_frame_writer(frame, path: Path) -> None:
@@ -20,7 +21,7 @@ def fake_frame_writer(frame, path: Path) -> None:
 
 
 class FakeGeminiClient:
-    def __init__(self, responses: list[str]):
+    def __init__(self, responses: list[str | LlmTurnResponse]):
         self.responses = list(responses)
         self.calls: list[dict[str, object]] = []
 
@@ -31,7 +32,8 @@ class FakeGeminiClient:
         model_name: str,
         thinking_mode: str = "default",
         prompt_messages=None,
-    ) -> str:
+        context_cache: bool = False,
+    ) -> LlmTurnResponse:
         self.calls.append(
             {
                 "prompt_text": prompt_text,
@@ -39,11 +41,24 @@ class FakeGeminiClient:
                 "model_name": model_name,
                 "thinking_mode": thinking_mode,
                 "prompt_messages": prompt_messages,
+                "context_cache": context_cache,
             }
         )
         if not self.responses:
             raise AssertionError("No more fake Gemini responses configured.")
-        return self.responses.pop(0)
+        response = self.responses.pop(0)
+        if isinstance(response, LlmTurnResponse):
+            return response
+        return LlmTurnResponse(
+            text=response,
+            token_usage=build_token_usage(
+                input_tokens=11,
+                output_tokens=7,
+                total_tokens=18,
+                thinking_tokens=3,
+                cached_input_tokens=9,
+            ),
+        )
 
 
 class FakeEnv:
@@ -103,6 +118,7 @@ class PipelineRunnerTests(unittest.TestCase):
                 frames_per_action=3,
                 history_clips=2,
                 output_dir=tempfile.mkdtemp(),
+                context_cache=True,
             ),
             env_factory=lambda: env,
             frame_writer=fake_frame_writer,
@@ -121,6 +137,15 @@ class PipelineRunnerTests(unittest.TestCase):
         self.assertEqual(summary["history_clips"], 2)
         self.assertEqual(summary["non_zero_reward_clips"], 3)
         self.assertEqual(summary["prompt_mode"], "structured_history")
+        self.assertFalse(summary["context_cache"])
+        self.assertEqual(summary["input_tokens"], 11)
+        self.assertEqual(summary["output_tokens"], 7)
+        self.assertEqual(summary["total_tokens"], 18)
+        self.assertEqual(summary["thinking_tokens"], 3)
+        self.assertEqual(summary["cached_input_tokens"], 9)
+        self.assertEqual(summary["token_usage_reported_turns"], 1)
+        self.assertEqual(summary["token_usage_missing_turns"], 0)
+        self.assertFalse(client.calls[0]["context_cache"])
 
     def test_life_loss_does_not_stop_the_run(self) -> None:
         spec = get_game_spec("breakout")

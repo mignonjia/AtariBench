@@ -79,6 +79,11 @@ class TrajectoryTests(unittest.TestCase):
                 raw_response=parsed.raw_text,
                 parsed_response=parsed,
                 referenced_image_paths=[first_frame.frame_path, second_frame.frame_path],
+                input_tokens=14,
+                output_tokens=6,
+                total_tokens=20,
+                thinking_tokens=4,
+                cached_input_tokens=12,
                 start_frame_index=0,
                 start_frame_path=first_frame.frame_path,
                 executed_frame_end=1,
@@ -108,6 +113,14 @@ class TrajectoryTests(unittest.TestCase):
                 history_clips=3,
                 non_zero_reward_clips=3,
                 prompt_mode="append_only",
+                context_cache=True,
+                input_tokens=14,
+                output_tokens=6,
+                total_tokens=20,
+                thinking_tokens=4,
+                cached_input_tokens=12,
+                token_usage_reported_turns=1,
+                token_usage_missing_turns=0,
             )
 
             self.assertTrue(Path(first_frame.frame_path).exists())
@@ -121,6 +134,12 @@ class TrajectoryTests(unittest.TestCase):
             self.assertEqual(summary["history_clips"], -1)
             self.assertEqual(summary["non_zero_reward_clips"], -1)
             self.assertEqual(summary["prompt_mode"], "append_only")
+            self.assertTrue(summary["context_cache"])
+            self.assertEqual(summary["input_tokens"], 14)
+            self.assertEqual(summary["output_tokens"], 6)
+            self.assertEqual(summary["total_tokens"], 20)
+            self.assertEqual(summary["thinking_tokens"], 4)
+            self.assertEqual(summary["cached_input_tokens"], 12)
             self.assertFalse(summary["minimal_logging"])
             prompt_html_path = Path(trajectory.turn_records[0].prompt_html_path)
             self.assertTrue(prompt_html_path.exists())
@@ -136,8 +155,15 @@ class TrajectoryTests(unittest.TestCase):
             self.assertEqual(saved_summary["history_clips"], -1)
             self.assertEqual(saved_summary["non_zero_reward_clips"], -1)
             self.assertEqual(saved_summary["prompt_mode"], "append_only")
+            self.assertEqual(saved_summary["token_usage_reported_turns"], 1)
+            self.assertEqual(saved_summary["token_usage_missing_turns"], 0)
             saved_turn = json.loads(trajectory.turns_path.read_text(encoding="utf-8").splitlines()[0])
             self.assertFalse(saved_turn["new_game_started"])
+            self.assertEqual(saved_turn["input_tokens"], 14)
+            self.assertEqual(saved_turn["output_tokens"], 6)
+            self.assertEqual(saved_turn["total_tokens"], 20)
+            self.assertEqual(saved_turn["thinking_tokens"], 4)
+            self.assertEqual(saved_turn["cached_input_tokens"], 12)
 
     def test_apply_minimal_logging_policy_keeps_only_compact_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -197,6 +223,11 @@ class TrajectoryTests(unittest.TestCase):
                 raw_response=parsed.raw_text,
                 parsed_response=parsed,
                 referenced_image_paths=[first_frame.frame_path, second_frame.frame_path],
+                input_tokens=5,
+                output_tokens=2,
+                total_tokens=7,
+                thinking_tokens=1,
+                cached_input_tokens=3,
                 start_frame_index=0,
                 start_frame_path=first_frame.frame_path,
                 executed_frame_end=1,

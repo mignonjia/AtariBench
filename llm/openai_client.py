@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import os
 from pathlib import Path
 
-from .common import describe_effective_thinking_mode
+from .common import LlmTurnResponse, build_token_usage, describe_effective_thinking_mode, read_usage_value
 from .retry import call_with_retries
 
 try:
@@ -37,8 +38,9 @@ class OpenAIClient:
         model_name: str,
         thinking_mode: str = "default",
         prompt_messages: list[PromptMessage] | None = None,
-    ) -> str:
-        """Send one multimodal request and return the raw model text."""
+        context_cache: bool = False,
+    ) -> LlmTurnResponse:
+        """Send one multimodal request and return the raw model text plus usage."""
 
         try:
             from openai import OpenAI
@@ -60,17 +62,33 @@ class OpenAIClient:
                     image_paths=image_paths,
                     prompt_messages=prompt_messages,
                 ),
-                **_build_request_kwargs(model_name=model_name, thinking_mode=thinking_mode),
+                **_build_request_kwargs(
+                    model_name=model_name,
+                    thinking_mode=thinking_mode,
+                    context_cache=context_cache,
+                    prompt_text=prompt_text,
+                    prompt_messages=prompt_messages,
+                ),
             )
         )
+        token_usage = _extract_token_usage(response)
         text = _extract_response_text(response)
         if text:
-            return text
-        return _empty_response_fallback(response)
+            return LlmTurnResponse(text=text, token_usage=token_usage)
+        return LlmTurnResponse(
+            text=_empty_response_fallback(response),
+            token_usage=token_usage,
+        )
 
 
-def _build_input_content(prompt_text: str, image_paths: list[str]) -> list[dict[str, str]]:
-    content = [{"type": "input_text", "text": prompt_text}]
+def _build_input_content(
+    prompt_text: str,
+    image_paths: list[str],
+    *,
+    role: str,
+) -> list[dict[str, str]]:
+    text_type = "output_text" if role == "assistant" else "input_text"
+    content = [{"type": text_type, "text": prompt_text}]
     for image_path in image_paths:
         image_bytes = Path(image_path).read_bytes()
         encoded = base64.b64encode(image_bytes).decode("ascii")
@@ -90,25 +108,50 @@ def _build_input_messages(
     prompt_messages: list[PromptMessage] | None,
 ) -> list[dict[str, object]]:
     if not prompt_messages:
-        return [{"role": "user", "content": _build_input_content(prompt_text, image_paths)}]
+        return [
+            {
+                "role": "user",
+                "content": _build_input_content(prompt_text, image_paths, role="user"),
+            }
+        ]
     payload: list[dict[str, object]] = []
     for message in prompt_messages:
         payload.append(
             {
                 "role": message.role,
-                "content": _build_input_content(message.text, message.image_paths),
+                "content": _build_input_content(
+                    message.text,
+                    message.image_paths,
+                    role=message.role,
+                ),
             }
         )
     return payload
 
 
-def _build_request_kwargs(model_name: str, thinking_mode: str) -> dict[str, object]:
+def _build_request_kwargs(
+    model_name: str,
+    thinking_mode: str,
+    *,
+    context_cache: bool = False,
+    prompt_text: str = "",
+    prompt_messages: list[PromptMessage] | None = None,
+) -> dict[str, object]:
     metadata = describe_effective_thinking_mode(model_name=model_name, thinking_mode=thinking_mode)
-    if metadata["thinking_mode"] in {"default", "auto"}:
-        return {}
-    if metadata["thinking_level"] == "none":
-        return {"reasoning": {"effort": "none"}}
-    return {"reasoning": {"effort": metadata["thinking_level"]}}
+    kwargs: dict[str, object] = {}
+    if metadata["thinking_mode"] not in {"default", "auto"}:
+        if metadata["thinking_level"] == "none":
+            kwargs["reasoning"] = {"effort": "none"}
+        else:
+            kwargs["reasoning"] = {"effort": metadata["thinking_level"]}
+    if context_cache:
+        kwargs["prompt_cache_key"] = _build_prompt_cache_key(
+            model_name=model_name,
+            prompt_text=prompt_text,
+            prompt_messages=prompt_messages,
+        )
+        kwargs["prompt_cache_retention"] = "in-memory"
+    return kwargs
 
 
 def _empty_response_fallback(response) -> str:
@@ -153,3 +196,36 @@ def _extract_response_text(response) -> str | None:
         if text_parts:
             return "\n".join(text_parts)
     return None
+
+
+def _extract_token_usage(response) -> object:
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return build_token_usage()
+    input_tokens_details = read_usage_value(usage, "input_tokens_details")
+    output_tokens_details = read_usage_value(usage, "output_tokens_details")
+    return build_token_usage(
+        input_tokens=read_usage_value(usage, "input_tokens", "prompt_tokens"),
+        output_tokens=read_usage_value(usage, "output_tokens", "completion_tokens"),
+        total_tokens=read_usage_value(usage, "total_tokens"),
+        thinking_tokens=read_usage_value(output_tokens_details, "reasoning_tokens"),
+        cached_input_tokens=read_usage_value(input_tokens_details, "cached_tokens"),
+    )
+
+
+def _build_prompt_cache_key(
+    *,
+    model_name: str,
+    prompt_text: str,
+    prompt_messages: list[PromptMessage] | None,
+) -> str:
+    if prompt_messages:
+        root_text = prompt_messages[0].text
+        root_image_count = len(prompt_messages[0].image_paths)
+    else:
+        root_text = prompt_text
+        root_image_count = 0
+    digest = hashlib.sha256(
+        f"{model_name}\n{root_image_count}\n{root_text}".encode("utf-8")
+    ).hexdigest()
+    return f"ataribench:{digest[:32]}"

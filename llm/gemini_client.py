@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from .common import describe_effective_thinking_mode
+from .common import LlmTurnResponse, build_token_usage, describe_effective_thinking_mode, read_usage_value
 from .retry import call_with_retries
 
 try:
@@ -31,8 +31,10 @@ class GeminiClient:
         model_name: str,
         thinking_mode: str = "default",
         prompt_messages: list[PromptMessage] | None = None,
-    ) -> str:
-        """Send one multimodal request and return the raw model text."""
+        context_cache: bool = False,
+    ) -> LlmTurnResponse:
+        """Send one multimodal request and return the raw model text plus usage."""
+        del context_cache
 
         try:
             from google import genai
@@ -58,10 +60,14 @@ class GeminiClient:
                 config=_build_generate_config(types, model_name, thinking_mode),
             )
         )
+        token_usage = _extract_token_usage(response)
         text = _extract_response_text(response)
         if text:
-            return text
-        return _empty_response_fallback(response)
+            return LlmTurnResponse(text=text, token_usage=token_usage)
+        return LlmTurnResponse(
+            text=_empty_response_fallback(response),
+            token_usage=token_usage,
+        )
 
 
 def _empty_response_fallback(response) -> str:
@@ -189,3 +195,33 @@ def _extract_response_text(response) -> str | None:
         if filtered:
             return "\n".join(filtered)
     return None
+
+
+def _extract_token_usage(response) -> object:
+    usage_metadata = getattr(response, "usage_metadata", None)
+    if usage_metadata is None:
+        return build_token_usage()
+    return build_token_usage(
+        input_tokens=read_usage_value(
+            usage_metadata,
+            "prompt_token_count",
+            "input_token_count",
+        ),
+        output_tokens=read_usage_value(
+            usage_metadata,
+            "candidates_token_count",
+            "output_token_count",
+        ),
+        total_tokens=read_usage_value(
+            usage_metadata,
+            "total_token_count",
+        ),
+        thinking_tokens=read_usage_value(
+            usage_metadata,
+            "thoughts_token_count",
+        ),
+        cached_input_tokens=read_usage_value(
+            usage_metadata,
+            "cached_content_token_count",
+        ),
+    )

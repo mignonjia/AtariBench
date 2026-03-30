@@ -50,6 +50,44 @@ class MainTests(unittest.TestCase):
             self.assertTrue(captured_config["config"].minimal_logging)
             prune_mock.assert_called_once_with(str(run_dir))
 
+    def test_main_only_enables_context_cache_for_append_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            run_dir = Path(tmpdir) / "runs" / "breakout" / "0328_104742"
+            run_dir.mkdir(parents=True)
+            (run_dir / "summary.json").write_text("{}", encoding="utf-8")
+            runner_instance = mock.Mock()
+            runner_instance.run.return_value = {
+                "run_dir": str(run_dir),
+                "stop_reason": "frame_budget",
+            }
+            captured_configs: list[object] = []
+
+            def build_runner(*, game_spec, model_client, config):
+                del game_spec, model_client
+                captured_configs.append(config)
+                return runner_instance
+
+            with mock.patch("main.validate_model_thinking_mode"):
+                with mock.patch("main.get_game_spec", return_value=mock.Mock(fps=30)):
+                    with mock.patch("main.resolve_output_layout", return_value=(Path(tmpdir) / "runs", True)):
+                        with mock.patch("main.build_model_client", return_value=object()):
+                            with mock.patch("main.PipelineRunner", side_effect=build_runner):
+                                with mock.patch("main.render_run_video", return_value=run_dir / "visualization.mp4"):
+                                    with mock.patch("main.uses_canonical_game_storage", return_value=False):
+                                        main.main(["--game", "breakout", "--context-cache"])
+                                        main.main(
+                                            [
+                                                "--game",
+                                                "breakout",
+                                                "--prompt-mode",
+                                                "append_only",
+                                                "--context-cache",
+                                            ]
+                                        )
+
+        self.assertFalse(captured_configs[0].context_cache)
+        self.assertTrue(captured_configs[1].context_cache)
+
 
 if __name__ == "__main__":
     unittest.main()
