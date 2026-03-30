@@ -33,9 +33,7 @@ For a quick debug run, use `sample_runs.yaml`. If you want even faster debug cyc
 Run the debug batch with:
 
 ```bash
-python batch_run.py \
-  --common-config config/common.yaml \
-  --runs-config config/sample_runs.yaml
+python batch_run.py --common-config config/common.yaml --runs-config config/sample_runs.yaml
 ```
 
 Use [`config/runs.yaml`](config/runs.yaml) instead of `sample_runs.yaml` when you want the full batch.
@@ -43,10 +41,7 @@ Use [`config/runs.yaml`](config/runs.yaml) instead of `sample_runs.yaml` when yo
 Optional minimal logging:
 
 ```bash
-python batch_run.py \
-  --common-config config/common.yaml \
-  --runs-config config/sample_runs.yaml \
-  --minimal-logging
+python batch_run.py --common-config config/common.yaml --runs-config config/sample_runs.yaml  --minimal-logging
 ```
 
 This keeps only `summary.json`, `turns.jsonl`, and `visualization.mp4` in each run directory after rendering. In config-driven mode, you can also set `minimal_logging: true` in `common.yaml` or per-run entries.
@@ -78,6 +73,7 @@ Supported values:
 `structured_history` uses curated recent clips plus non-zero-reward clips.
 
 `append_only` uses a chronological user/assistant transcript. At serving time this is sent as structured chat messages, not hand-written role tags.
+It is also the only prompt mode where AtariBench can add explicit context-cache hints.
 
 ## Thinking Modes
 
@@ -87,11 +83,13 @@ Thinking support is model-specific.
 - The effective resolved request settings come from [`llm/common.py`](llm/common.py) via `describe_effective_thinking_mode()`.
 - `thinking_mode` is the requested user-facing knob.
 - `thinking_level` and `thinking_budget` are the resolved provider-specific settings recorded in summaries.
+- `input_tokens`, `output_tokens`, `total_tokens`, `thinking_tokens`, and `cached_input_tokens` are recorded for cost estimation when the provider reports them.
 
 ## Important Options
 
 - `--duration-seconds`: total game budget
 - `--prompt-mode`: `structured_history` or `append_only`
+- `--context-cache`: enable explicit cache hints for `append_only`; `structured_history` remains unchanged
 - `--minimal-logging`: after rendering, keep only `summary.json`, `turns.jsonl`, and `visualization.mp4`
 - `max_concurrency_by_company`: config-driven per-company concurrency caps in `common.yaml`
 - `max_retries`: config-driven transient retry count in `common.yaml`
@@ -122,6 +120,10 @@ Each completed run writes:
 - `summary.json`
 - `visualization.mp4`
 
+`turns.jsonl` records per-turn token usage when the backing SDK reports it.
+`summary.json` records run-level `input_tokens`, `output_tokens`, `total_tokens`, `thinking_tokens`, `cached_input_tokens`, plus token-usage coverage counts across turns.
+It also records `context_cache` so cached and uncached append-only runs stay distinct in aggregated summaries.
+
 If `--minimal-logging` is enabled, or `minimal_logging: true` is set in batch config, the run is pruned after video rendering and only these remain:
 
 - `turns.jsonl`
@@ -141,6 +143,7 @@ Cross-game flat summaries live at:
 `model_summary.json` includes all successful runs for that setting, including shorter debug runs that still finished with `stop_reason=frame_budget`.
 `model_summary_30s.json` keeps the previous benchmark view and only includes full 30-second canonical runs.
 Both summaries are aggregated per setting, not by mixing different prompt/thinking/clip configurations into one average.
+They also include average and latest token totals so you can estimate per-setting API cost from stored runs.
 They are rebuilt from stored run `summary.json` files on disk, not limited to the runs from the most recent batch.
 
 ## Batch Logging

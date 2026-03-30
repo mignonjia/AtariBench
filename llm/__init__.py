@@ -2,9 +2,13 @@
 
 from .anthropic_client import AnthropicClient
 from .common import (
+    LlmTurnResponse,
+    TokenUsage,
+    build_token_usage,
     describe_effective_thinking_mode,
     describe_thinking_mode,
     infer_model_provider,
+    read_usage_value,
     resolve_model_provider,
     validate_model_thinking_mode,
 )
@@ -28,11 +32,15 @@ def build_model_client(model_name: str, provider: str = "auto"):
 __all__ = [
     "AnthropicClient",
     "GeminiClient",
+    "LlmTurnResponse",
     "OpenAIClient",
+    "TokenUsage",
     "build_model_client",
+    "build_token_usage",
     "describe_effective_thinking_mode",
     "describe_thinking_mode",
     "infer_model_provider",
+    "read_usage_value",
     "resolve_model_provider",
     "validate_model_thinking_mode",
 ]

@@ -71,6 +71,7 @@ class BatchJobSpec:
     history_clips: int = 3
     non_zero_reward_clips: int = 3
     prompt_mode: str = "structured_history"
+    context_cache: bool = False
     seed: int | None = None
     seed_start: int | None = None
     minimal_logging: bool = False
@@ -94,6 +95,7 @@ class RunRequest:
     history_clips: int
     non_zero_reward_clips: int
     prompt_mode: str
+    context_cache: bool
     seed: int | None
     output_dir: str
     log_path: str
@@ -158,6 +160,7 @@ def parse_job_spec(
     history_clips: int = 3,
     non_zero_reward_clips: int = 3,
     prompt_mode: str = "structured_history",
+    context_cache: bool = False,
     seed: int | None = None,
     minimal_logging: bool = False,
     label: str | None = None,
@@ -199,6 +202,7 @@ def parse_job_spec(
         history_clips=history_clips,
         non_zero_reward_clips=non_zero_reward_clips,
         prompt_mode=prompt_mode,
+        context_cache=context_cache,
         seed=seed,
         minimal_logging=minimal_logging,
     )
@@ -260,6 +264,11 @@ def build_jobs_from_config(
         key="minimal_logging",
         context="common",
     )
+    common_context_cache = _coerce_config_bool(
+        common.get("context_cache", False),
+        key="context_cache",
+        context="common",
+    )
 
     jobs: list[BatchJobSpec] = []
     for index, entry in enumerate(setting_entries, start=1):
@@ -273,12 +282,19 @@ def build_jobs_from_config(
         games = resolve_games_value(games_value, game_selections)
         history_clips = -1
         non_zero_reward_clips = -1
+        context_cache = False
         if prompt_mode == "structured_history":
             history_clips = int(
                 _require_config_key(entry, "history_clips", context=f"setting #{index}")
             )
             non_zero_reward_clips = int(
                 _require_config_key(entry, "non_zero_reward_clips", context=f"setting #{index}")
+            )
+        else:
+            context_cache = _coerce_config_bool(
+                entry.get("context_cache", common_context_cache),
+                key="context_cache",
+                context=f"setting #{index}",
             )
         label = f"{sanitize_model_label(model_name)}_cfg_{index:03d}"
         jobs.append(
@@ -295,6 +311,7 @@ def build_jobs_from_config(
                 history_clips=history_clips,
                 non_zero_reward_clips=non_zero_reward_clips,
                 prompt_mode=prompt_mode,
+                context_cache=context_cache,
                 seed=None if entry.get("seed") is None else int(entry["seed"]),
                 seed_start=(
                     None
@@ -466,6 +483,7 @@ def expand_run_requests(
                         history_clips=job.history_clips,
                         non_zero_reward_clips=job.non_zero_reward_clips,
                         prompt_mode=job.prompt_mode,
+                        context_cache=job.context_cache,
                         seed=(
                             job.seed
                             if job.seed is not None
@@ -645,6 +663,7 @@ def execute_run(
                 f"history_clips={request.history_clips}\n"
                 f"non_zero_reward_clips={request.non_zero_reward_clips}\n"
                 f"minimal_logging={str(request.minimal_logging).lower()}\n"
+                f"context_cache={str(request.context_cache).lower()}\n"
                 f"attempt={attempts}\n"
                 f"return_code={completed.returncode}\n\n"
             ),
@@ -850,6 +869,7 @@ def _run_subprocess(
             "history_clips": request.history_clips,
             "non_zero_reward_clips": request.non_zero_reward_clips,
             "prompt_mode": request.prompt_mode,
+            "context_cache": request.context_cache,
             "run_label": request.run_label,
             "minimal_logging": request.minimal_logging,
         },
@@ -1006,6 +1026,7 @@ def _format_run_start_line(request: RunRequest) -> str:
         f"history_clips={request.history_clips} "
         f"non_zero_reward_clips={request.non_zero_reward_clips} "
         f"minimal_logging={str(request.minimal_logging).lower()} "
+        f"context_cache={str(request.context_cache).lower()} "
         f"games={request.games_label} "
         f"selected_game={request.game} "
         f"seed={seed_value} "

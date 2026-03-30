@@ -10,14 +10,14 @@ try:
     from ..games.env import capture_frame, create_env, detect_life_loss, extract_env_info
     from ..games.prompt_builder import build_prompt
     from ..games.registry import GameSpec
-    from ..llm import describe_effective_thinking_mode
+    from ..llm import LlmTurnResponse, describe_effective_thinking_mode
     from .clip import ParsedClipResponse, parse_model_response
     from .trajectory import ActionRecord, Trajectory
 except ImportError:  # Running from inside the AtariBench folder.
     from games.env import capture_frame, create_env, detect_life_loss, extract_env_info
     from games.prompt_builder import build_prompt
     from games.registry import GameSpec
-    from llm import describe_effective_thinking_mode
+    from llm import LlmTurnResponse, describe_effective_thinking_mode
     from core.clip import ParsedClipResponse, parse_model_response
     from core.trajectory import ActionRecord, Trajectory
 
@@ -34,6 +34,7 @@ class PipelineConfig:
     history_clips: int | None = 3
     non_zero_reward_clips: int | None = 3
     prompt_mode: str = "structured_history"
+    context_cache: bool = False
     model_name: str = "gemini-2.5-flash"
     thinking_mode: str = "default"
     seed: int | None = None
@@ -80,6 +81,10 @@ class PipelineRunner:
         assert self.config.non_zero_reward_clips is not None
         return int(self.config.non_zero_reward_clips)
 
+    @property
+    def effective_context_cache(self) -> bool:
+        return bool(self.config.context_cache and self.config.prompt_mode == "append_only")
+
     def run(self) -> dict[str, Any]:
         """Execute the pipeline and return the summary."""
 
@@ -97,6 +102,13 @@ class PipelineRunner:
         )
         total_reward = 0.0
         total_lost_lives = 0
+        total_input_tokens = 0
+        total_output_tokens = 0
+        total_tokens = 0
+        total_thinking_tokens = 0
+        total_cached_input_tokens = 0
+        token_usage_reported_turns = 0
+        token_usage_missing_turns = 0
         stop_reason = "unknown"
 
         try:
@@ -122,14 +134,26 @@ class PipelineRunner:
                     duration_seconds=self.config.duration_seconds,
                     prompt_mode=self.config.prompt_mode,
                 )
-                raw_response = self.model_client.generate_turn(
-                    prompt_text=prompt_package.text,
-                    image_paths=prompt_package.image_paths,
-                    model_name=self.config.model_name,
-                    thinking_mode=self.config.thinking_mode,
-                    prompt_messages=prompt_package.messages,
+                turn_response = self._coerce_turn_response(
+                    self.model_client.generate_turn(
+                        prompt_text=prompt_package.text,
+                        image_paths=prompt_package.image_paths,
+                        model_name=self.config.model_name,
+                        thinking_mode=self.config.thinking_mode,
+                        prompt_messages=prompt_package.messages,
+                        context_cache=self.effective_context_cache,
+                    )
                 )
-                parsed_response = self._parse_response_or_fallback(raw_response)
+                if turn_response.token_usage.reported:
+                    token_usage_reported_turns += 1
+                else:
+                    token_usage_missing_turns += 1
+                total_input_tokens += turn_response.token_usage.input_tokens or 0
+                total_output_tokens += turn_response.token_usage.output_tokens or 0
+                total_tokens += turn_response.token_usage.total_tokens or 0
+                total_thinking_tokens += turn_response.token_usage.thinking_tokens or 0
+                total_cached_input_tokens += turn_response.token_usage.cached_input_tokens or 0
+                parsed_response = self._parse_response_or_fallback(turn_response.text)
 
                 action_records: list[ActionRecord] = []
                 turn_reward = 0.0
@@ -211,9 +235,14 @@ class PipelineRunner:
 
                 trajectory.record_turn(
                     prompt_text=prompt_package.text,
-                    raw_response=raw_response,
+                    raw_response=turn_response.text,
                     parsed_response=parsed_response,
                     referenced_image_paths=prompt_package.image_paths,
+                    input_tokens=turn_response.token_usage.input_tokens,
+                    output_tokens=turn_response.token_usage.output_tokens,
+                    total_tokens=turn_response.token_usage.total_tokens,
+                    thinking_tokens=turn_response.token_usage.thinking_tokens,
+                    cached_input_tokens=turn_response.token_usage.cached_input_tokens,
                     start_frame_index=turn_start_frame,
                     start_frame_path=turn_start_path,
                     executed_frame_end=trajectory.latest_frame().local_frame_index,
@@ -263,7 +292,15 @@ class PipelineRunner:
                 history_clips=self.effective_history_clips,
                 non_zero_reward_clips=self.effective_non_zero_reward_clips,
                 prompt_mode=self.config.prompt_mode,
+                context_cache=self.effective_context_cache,
                 minimal_logging=self.config.minimal_logging,
+                input_tokens=total_input_tokens,
+                output_tokens=total_output_tokens,
+                total_tokens=total_tokens,
+                thinking_tokens=total_thinking_tokens,
+                cached_input_tokens=total_cached_input_tokens,
+                token_usage_reported_turns=token_usage_reported_turns,
+                token_usage_missing_turns=token_usage_missing_turns,
             )
         finally:
             close = getattr(env, "close", None)
@@ -316,3 +353,8 @@ class PipelineRunner:
             action_ids=[noop_action_id],
             errors=list(parsed_response.errors),
         )
+
+    def _coerce_turn_response(self, response: str | LlmTurnResponse) -> LlmTurnResponse:
+        if isinstance(response, LlmTurnResponse):
+            return response
+        return LlmTurnResponse(text=str(response))

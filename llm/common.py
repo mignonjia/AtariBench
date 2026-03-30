@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from functools import lru_cache
 from pathlib import Path
@@ -13,6 +14,87 @@ _ANTHROPIC_HAIKU_BUDGETS = {
     "high": 12_000,
     "max": 16_000,
 }
+
+
+@dataclasses.dataclass(frozen=True)
+class TokenUsage:
+    """Normalized token counts returned by one provider call."""
+
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    total_tokens: int | None = None
+    thinking_tokens: int | None = None
+    cached_input_tokens: int | None = None
+
+    def to_dict(self) -> dict[str, int | None]:
+        return {
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "total_tokens": self.total_tokens,
+            "thinking_tokens": self.thinking_tokens,
+            "cached_input_tokens": self.cached_input_tokens,
+        }
+
+    @property
+    def reported(self) -> bool:
+        return any(
+            value is not None
+            for value in (
+                self.input_tokens,
+                self.output_tokens,
+                self.total_tokens,
+                self.thinking_tokens,
+                self.cached_input_tokens,
+            )
+        )
+
+
+@dataclasses.dataclass(frozen=True)
+class LlmTurnResponse:
+    """Text plus any usage metadata returned by one provider call."""
+
+    text: str
+    token_usage: TokenUsage = dataclasses.field(default_factory=TokenUsage)
+
+
+def build_token_usage(
+    *,
+    input_tokens: object = None,
+    output_tokens: object = None,
+    total_tokens: object = None,
+    thinking_tokens: object = None,
+    cached_input_tokens: object = None,
+) -> TokenUsage:
+    """Normalize provider token counts into a stable shape."""
+
+    normalized_input = _coerce_optional_int(input_tokens)
+    normalized_output = _coerce_optional_int(output_tokens)
+    normalized_total = _coerce_optional_int(total_tokens)
+    normalized_thinking = _coerce_optional_int(thinking_tokens)
+    normalized_cached_input = _coerce_optional_int(cached_input_tokens)
+    if normalized_total is None and normalized_input is not None and normalized_output is not None:
+        normalized_total = normalized_input + normalized_output
+    return TokenUsage(
+        input_tokens=normalized_input,
+        output_tokens=normalized_output,
+        total_tokens=normalized_total,
+        thinking_tokens=normalized_thinking,
+        cached_input_tokens=normalized_cached_input,
+    )
+
+
+def read_usage_value(payload: object, *names: str) -> object:
+    """Read the first present usage field from an object or dict."""
+
+    for name in names:
+        if isinstance(payload, dict) and name in payload:
+            value = payload[name]
+            if value is not None:
+                return value
+        value = getattr(payload, name, None)
+        if value is not None:
+            return value
+    return None
 
 
 def describe_thinking_mode(thinking_mode: str) -> dict[str, str | int | None]:
@@ -183,6 +265,12 @@ def _normalize_model_thinking_key(model_name: str) -> str:
     if normalized_name.startswith("models/"):
         return normalized_name.split("/", 1)[1]
     return normalized_name
+
+
+def _coerce_optional_int(value: object) -> int | None:
+    if value is None:
+        return None
+    return int(value)
 
 
 def infer_model_provider(model_name: str) -> str:

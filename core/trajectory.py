@@ -64,6 +64,11 @@ class TurnRecord:
     planned_action_ids: list[int]
     parse_errors: list[str]
     referenced_image_paths: list[str]
+    input_tokens: int | None
+    output_tokens: int | None
+    total_tokens: int | None
+    thinking_tokens: int | None
+    cached_input_tokens: int | None
     start_frame_index: int
     start_frame_path: str
     executed_frame_end: int
@@ -142,6 +147,11 @@ class Trajectory:
         raw_response: str,
         parsed_response: ParsedClipResponse,
         referenced_image_paths: list[str],
+        input_tokens: int | None,
+        output_tokens: int | None,
+        total_tokens: int | None,
+        thinking_tokens: int | None,
+        cached_input_tokens: int | None,
         start_frame_index: int,
         start_frame_path: str,
         executed_frame_end: int,
@@ -178,6 +188,11 @@ class Trajectory:
             planned_action_ids=list(parsed_response.action_ids),
             parse_errors=list(parsed_response.errors),
             referenced_image_paths=list(referenced_image_paths),
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            total_tokens=total_tokens,
+            thinking_tokens=thinking_tokens,
+            cached_input_tokens=cached_input_tokens,
             start_frame_index=start_frame_index,
             start_frame_path=start_frame_path,
             executed_frame_end=executed_frame_end,
@@ -204,7 +219,15 @@ class Trajectory:
         history_clips: int | None = None,
         non_zero_reward_clips: int | None = None,
         prompt_mode: str | None = None,
+        context_cache: bool = False,
         minimal_logging: bool = False,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+        total_tokens: int = 0,
+        thinking_tokens: int = 0,
+        cached_input_tokens: int = 0,
+        token_usage_reported_turns: int = 0,
+        token_usage_missing_turns: int = 0,
     ) -> dict[str, Any]:
         """Write and return the run summary."""
 
@@ -228,7 +251,15 @@ class Trajectory:
             "history_clips": history_clips,
             "non_zero_reward_clips": non_zero_reward_clips,
             "prompt_mode": prompt_mode,
+            "context_cache": bool(context_cache),
             "minimal_logging": bool(minimal_logging),
+            "input_tokens": int(input_tokens),
+            "output_tokens": int(output_tokens),
+            "total_tokens": int(total_tokens),
+            "thinking_tokens": int(thinking_tokens),
+            "cached_input_tokens": int(cached_input_tokens),
+            "token_usage_reported_turns": int(token_usage_reported_turns),
+            "token_usage_missing_turns": int(token_usage_missing_turns),
             "last_frame": dataclasses.asdict(self.frame_records[-1])
             if self.frame_records
             else None,

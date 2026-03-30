@@ -6,7 +6,7 @@ import base64
 import os
 from pathlib import Path
 
-from .common import describe_effective_thinking_mode
+from .common import LlmTurnResponse, build_token_usage, describe_effective_thinking_mode, read_usage_value
 from .retry import call_with_retries
 
 try:
@@ -39,8 +39,9 @@ class AnthropicClient:
         model_name: str,
         thinking_mode: str = "default",
         prompt_messages: list[PromptMessage] | None = None,
-    ) -> str:
-        """Send one multimodal request and return the raw model text."""
+        context_cache: bool = False,
+    ) -> LlmTurnResponse:
+        """Send one multimodal request and return the raw model text plus usage."""
 
         try:
             from anthropic import Anthropic
@@ -57,13 +58,21 @@ class AnthropicClient:
                     image_paths=image_paths,
                     prompt_messages=prompt_messages,
                 ),
-                **_build_request_kwargs(model_name=model_name, thinking_mode=thinking_mode),
+                **_build_request_kwargs(
+                    model_name=model_name,
+                    thinking_mode=thinking_mode,
+                    context_cache=context_cache,
+                ),
             )
         )
+        token_usage = _extract_token_usage(response)
         text = _extract_response_text(response)
         if text:
-            return text
-        return _empty_response_fallback(response)
+            return LlmTurnResponse(text=text, token_usage=token_usage)
+        return LlmTurnResponse(
+            text=_empty_response_fallback(response),
+            token_usage=token_usage,
+        )
 
 
 def _build_input_content(prompt_text: str, image_paths: list[str]) -> list[dict[str, object]]:
@@ -103,22 +112,31 @@ def _build_input_messages(
     return payload
 
 
-def _build_request_kwargs(model_name: str, thinking_mode: str) -> dict[str, object]:
+def _build_request_kwargs(
+    model_name: str,
+    thinking_mode: str,
+    *,
+    context_cache: bool = False,
+) -> dict[str, object]:
     metadata = describe_effective_thinking_mode(model_name=model_name, thinking_mode=thinking_mode)
+    kwargs: dict[str, object] = {}
+    if context_cache:
+        kwargs["cache_control"] = {"type": "ephemeral"}
     if metadata["thinking_mode"] in {"default", "auto"}:
-        return {}
+        return kwargs
     normalized_model = model_name.strip().lower()
     if normalized_model.startswith("claude-haiku"):
         if metadata["thinking_mode"] in {"off", "none"}:
-            return {"thinking": {"type": "disabled"}}
-        return {"thinking": {"type": "enabled", "budget_tokens": metadata["thinking_budget"]}}
+            kwargs["thinking"] = {"type": "disabled"}
+            return kwargs
+        kwargs["thinking"] = {"type": "enabled", "budget_tokens": metadata["thinking_budget"]}
+        return kwargs
     if metadata["thinking_mode"] in {"off", "none"}:
-        return {}
+        return kwargs
     effort = metadata["thinking_level"]
-    return {
-        "thinking": {"type": "adaptive"},
-        "output_config": {"effort": effort},
-    }
+    kwargs["thinking"] = {"type": "adaptive"}
+    kwargs["output_config"] = {"effort": effort}
+    return kwargs
 
 
 def _empty_response_fallback(response) -> str:
@@ -157,3 +175,16 @@ def _extract_response_text(response) -> str | None:
     if text_parts:
         return "\n".join(text_parts)
     return None
+
+
+def _extract_token_usage(response) -> object:
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return build_token_usage()
+    return build_token_usage(
+        input_tokens=read_usage_value(usage, "input_tokens"),
+        output_tokens=read_usage_value(usage, "output_tokens"),
+        total_tokens=read_usage_value(usage, "total_tokens"),
+        thinking_tokens=read_usage_value(usage, "thinking_tokens", "reasoning_tokens"),
+        cached_input_tokens=read_usage_value(usage, "cache_read_input_tokens"),
+    )

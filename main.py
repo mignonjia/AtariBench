@@ -53,6 +53,14 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["structured_history", "append_only"],
     )
     parser.add_argument(
+        "--context-cache",
+        action="store_true",
+        help=(
+            "Enable explicit provider context/prompt cache hints for append_only. "
+            "Structured_history requests stay unchanged."
+        ),
+    )
+    parser.add_argument(
         "--minimal-logging",
         action="store_true",
         help=(
@@ -73,6 +81,7 @@ def _args_from_internal_request(project_dir: Path, raw_payload: str) -> argparse
         thinking=payload["thinking"],
         duration_seconds=int(payload.get("duration_seconds", 30)),
         prompt_mode=payload.get("prompt_mode", "structured_history"),
+        context_cache=bool(payload.get("context_cache", False)),
         minimal_logging=bool(payload.get("minimal_logging", False)),
         provider=payload.get("provider", "auto"),
         output_dir=str(payload.get("output_dir", project_dir / "runs")),
@@ -99,6 +108,7 @@ def main(argv: list[str] | None = None) -> int:
             thinking=parsed_args.thinking,
             duration_seconds=parsed_args.duration_seconds,
             prompt_mode=parsed_args.prompt_mode,
+            context_cache=parsed_args.context_cache,
             minimal_logging=parsed_args.minimal_logging,
             provider="auto",
             output_dir=str(project_dir / "runs"),
@@ -115,6 +125,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.prompt_mode == "append_only":
         history_clips = -1
         non_zero_reward_clips = -1
+    else:
+        args.context_cache = False
 
     game_spec = get_game_spec(args.game)
     output_dir, nest_output_by_game = resolve_output_layout(
@@ -130,6 +142,7 @@ def main(argv: list[str] | None = None) -> int:
         history_clips=history_clips,
         non_zero_reward_clips=non_zero_reward_clips,
         prompt_mode=args.prompt_mode,
+        context_cache=args.context_cache,
         model_name=args.model,
         thinking_mode=args.thinking,
         seed=args.seed,

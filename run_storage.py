@@ -317,6 +317,19 @@ def _build_setting_summary(
     ]
     turn_counts = [_coerce_float(summary.get("turn_count")) for _, summary in eligible_runs]
     frame_counts = [_coerce_float(summary.get("frame_count")) for _, summary in eligible_runs]
+    input_tokens = [_coerce_float(summary.get("input_tokens")) for _, summary in eligible_runs]
+    output_tokens = [_coerce_float(summary.get("output_tokens")) for _, summary in eligible_runs]
+    total_tokens = [_coerce_float(summary.get("total_tokens")) for _, summary in eligible_runs]
+    thinking_tokens = [_coerce_float(summary.get("thinking_tokens")) for _, summary in eligible_runs]
+    cached_input_tokens = [
+        _coerce_float(summary.get("cached_input_tokens")) for _, summary in eligible_runs
+    ]
+    token_usage_reported_turns = [
+        _coerce_float(summary.get("token_usage_reported_turns")) for _, summary in eligible_runs
+    ]
+    token_usage_missing_turns = [
+        _coerce_float(summary.get("token_usage_missing_turns")) for _, summary in eligible_runs
+    ]
 
     run_count = len(eligible_runs)
     return {
@@ -327,16 +340,35 @@ def _build_setting_summary(
         "avg_total_lost_lives": sum(total_lost_lives) / run_count,
         "avg_turn_count": sum(turn_counts) / run_count,
         "avg_frame_count": sum(frame_counts) / run_count,
+        "avg_input_tokens": sum(input_tokens) / run_count,
+        "avg_output_tokens": sum(output_tokens) / run_count,
+        "avg_total_tokens": sum(total_tokens) / run_count,
+        "avg_thinking_tokens": sum(thinking_tokens) / run_count,
+        "avg_cached_input_tokens": sum(cached_input_tokens) / run_count,
+        "avg_token_usage_reported_turns": sum(token_usage_reported_turns) / run_count,
+        "avg_token_usage_missing_turns": sum(token_usage_missing_turns) / run_count,
         "best_total_reward": max(total_rewards),
         "worst_total_reward": min(total_rewards),
         "latest_run_dir": str(latest_run_dir.resolve()),
         "latest_timestamp": latest_run_dir.name,
         "latest_total_reward": _coerce_float(latest_summary.get("total_reward")),
+        "latest_input_tokens": _coerce_float(latest_summary.get("input_tokens")),
+        "latest_output_tokens": _coerce_float(latest_summary.get("output_tokens")),
+        "latest_total_tokens": _coerce_float(latest_summary.get("total_tokens")),
+        "latest_thinking_tokens": _coerce_float(latest_summary.get("thinking_tokens")),
+        "latest_cached_input_tokens": _coerce_float(latest_summary.get("cached_input_tokens")),
+        "latest_token_usage_reported_turns": _coerce_float(
+            latest_summary.get("token_usage_reported_turns")
+        ),
+        "latest_token_usage_missing_turns": _coerce_float(
+            latest_summary.get("token_usage_missing_turns")
+        ),
         "thinking_mode": _coerce_string(latest_summary.get("thinking_mode"), default="default"),
         "prompt_mode": _coerce_string(
             latest_summary.get("prompt_mode"),
             default="structured_history",
         ),
+        "context_cache": bool(latest_summary.get("context_cache", False)),
         "frames_per_action": _extract_frames_per_action(latest_summary),
         "thinking_level": latest_summary.get("thinking_level"),
         "thinking_budget": latest_summary.get("thinking_budget"),
@@ -349,6 +381,7 @@ def _build_setting_key(summary: dict[str, object]) -> str:
     return "|".join(
         (
             f"prompt_mode={_coerce_string(summary.get('prompt_mode'), default='structured_history')}",
+            f"context_cache={_stringify_setting_value(bool(summary.get('context_cache', False)))}",
             f"thinking_mode={_coerce_string(summary.get('thinking_mode'), default='default')}",
             f"frames_per_action={_extract_frames_per_action(summary)}",
             f"thinking_level={_stringify_setting_value(summary.get('thinking_level'))}",
