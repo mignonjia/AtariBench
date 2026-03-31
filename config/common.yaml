@@ -1,5 +1,5 @@
 max_concurrency_by_company: # change it based on your quota
-  gemini: 2
+  gemini: 10
   openai: 2
   anthropic: 1
 max_retries: 10
@@ -13,5 +13,4 @@ games:
   full:
     - all
   selected:
-    - assault
     - breakout

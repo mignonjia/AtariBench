@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 from .common import LlmTurnResponse, build_token_usage, describe_effective_thinking_mode, read_usage_value
-from .retry import call_with_retries
+from .retry import RetryableResponseError, call_with_retries
 
 try:
     from ..games.prompt_builder import PromptMessage
@@ -48,29 +48,47 @@ class GeminiClient:
             api_key=self.api_key,
             http_options=_build_http_options(types),
         )
-        response = call_with_retries(
-            lambda: client.models.generate_content(
-                model=model_name,
-                contents=_build_contents(
-                    types=types,
-                    prompt_text=prompt_text,
-                    image_paths=image_paths,
-                    prompt_messages=prompt_messages,
-                ),
-                config=_build_generate_config(types, model_name, thinking_mode),
+        return call_with_retries(
+            lambda: _generate_turn_response(
+                client=client,
+                types=types,
+                prompt_text=prompt_text,
+                image_paths=image_paths,
+                model_name=model_name,
+                thinking_mode=thinking_mode,
+                prompt_messages=prompt_messages,
             )
         )
-        token_usage = _extract_token_usage(response)
-        text = _extract_response_text(response)
-        if text:
-            return LlmTurnResponse(text=text, token_usage=token_usage)
-        return LlmTurnResponse(
-            text=_empty_response_fallback(response),
-            token_usage=token_usage,
-        )
 
 
-def _empty_response_fallback(response) -> str:
+def _generate_turn_response(
+    *,
+    client,
+    types,
+    prompt_text: str,
+    image_paths: list[str],
+    model_name: str,
+    thinking_mode: str,
+    prompt_messages: list[PromptMessage] | None,
+) -> LlmTurnResponse:
+    response = client.models.generate_content(
+        model=model_name,
+        contents=_build_contents(
+            types=types,
+            prompt_text=prompt_text,
+            image_paths=image_paths,
+            prompt_messages=prompt_messages,
+        ),
+        config=_build_generate_config(types, model_name, thinking_mode),
+    )
+    token_usage = _extract_token_usage(response)
+    text = _extract_response_text(response)
+    if text:
+        return LlmTurnResponse(text=text, token_usage=token_usage)
+    raise RetryableResponseError(_empty_response_error_message(response))
+
+
+def _empty_response_error_message(response) -> str:
     finish_reasons = []
     candidates = getattr(response, "candidates", None) or []
     for candidate in candidates:
@@ -85,11 +103,7 @@ def _empty_response_fallback(response) -> str:
     if prompt_feedback:
         details.append(f"prompt_feedback={prompt_feedback}")
     summary = "; ".join(details) if details else "empty response"
-    return (
-        "thought: Gemini returned no text output; defaulting to noop. "
-        f"Metadata: {summary}\n"
-        "move: [noop]"
-        )
+    return f"Gemini returned no text output. Metadata: {summary}"
 
 
 def _build_contents(types, prompt_text: str, image_paths: list[str], prompt_messages: list[PromptMessage] | None):

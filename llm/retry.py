@@ -12,6 +12,10 @@ T = TypeVar("T")
 MAX_RETRIES = 5
 
 
+class RetryableResponseError(RuntimeError):
+    """Raised when a provider returns a malformed or unusable response worth retrying."""
+
+
 def call_with_retries(operation: Callable[[], T], max_retries: int = MAX_RETRIES) -> T:
     """Run one operation with jittered exponential backoff for transient errors."""
 
@@ -28,6 +32,9 @@ def call_with_retries(operation: Callable[[], T], max_retries: int = MAX_RETRIES
 
 def is_retryable_error(exc: Exception) -> bool:
     """Return whether one provider error should be retried."""
+
+    if isinstance(exc, RetryableResponseError):
+        return True
 
     status_code = getattr(exc, "status_code", None)
     if status_code in {408, 409, 429, 500, 502, 503, 504}:

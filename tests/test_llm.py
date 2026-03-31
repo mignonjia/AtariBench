@@ -27,7 +27,7 @@ from llm import (
 from llm.anthropic_client import _build_request_kwargs as _build_anthropic_request_kwargs
 from llm.gemini_client import _build_generate_config
 from llm.openai_client import OpenAIClient
-from llm.retry import is_retryable_error
+from llm.retry import RetryableResponseError, is_retryable_error
 from games.prompt_builder import PromptMessage
 
 
@@ -309,6 +309,10 @@ class LlmTests(unittest.TestCase):
 
     def test_retry_classifier_treats_remote_protocol_disconnect_as_transient(self) -> None:
         exc = RuntimeError("httpx.RemoteProtocolError: Server disconnected without sending a response.")
+        self.assertTrue(is_retryable_error(exc))
+
+    def test_retry_classifier_treats_retryable_response_errors_as_transient(self) -> None:
+        exc = RetryableResponseError("Gemini returned no text output.")
         self.assertTrue(is_retryable_error(exc))
 
     def test_anthropic_client_builds_multimodal_request(self) -> None:
@@ -607,6 +611,111 @@ class LlmTests(unittest.TestCase):
         self.assertEqual(response.text, "thought: hold fire\nmove: [noop]")
         self.assertEqual(calls, 4)
         self.assertEqual(sleep_mock.call_count, 3)
+
+    def test_gemini_client_retries_empty_text_responses(self) -> None:
+        calls = 0
+
+        class FakePart:
+            @staticmethod
+            def from_text(*, text: str):
+                return {"type": "text", "text": text}
+
+            @staticmethod
+            def from_bytes(*, data: bytes, mime_type: str):
+                return {"type": "bytes", "data": data, "mime_type": mime_type}
+
+        class FakeContent:
+            def __init__(self, role: str, parts: list[object]):
+                self.role = role
+                self.parts = parts
+
+        class FakeThinkingConfig:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+
+        class FakeGenerateContentConfig:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+
+        class FakeHttpOptions:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+
+        class EmptyResponse:
+            text = None
+            usage_metadata = types.SimpleNamespace(
+                prompt_token_count=10,
+                total_token_count=10,
+            )
+            candidates = [types.SimpleNamespace(finish_reason="STOP", content=types.SimpleNamespace(parts=[]))]
+
+        class SuccessResponse:
+            text = "thought: hold fire\nmove: [noop]"
+            usage_metadata = types.SimpleNamespace(
+                cached_content_token_count=5,
+                prompt_token_count=12,
+                candidates_token_count=5,
+                thoughts_token_count=4,
+                total_token_count=17,
+            )
+
+        class FakeModels:
+            def generate_content(self, **kwargs):
+                nonlocal calls
+                del kwargs
+                calls += 1
+                if calls == 1:
+                    return EmptyResponse()
+                return SuccessResponse()
+
+        class FakeClient:
+            def __init__(self, **kwargs):
+                del kwargs
+                self.models = FakeModels()
+
+        fake_types = types.SimpleNamespace(
+            Part=FakePart,
+            Content=FakeContent,
+            ThinkingConfig=FakeThinkingConfig,
+            GenerateContentConfig=FakeGenerateContentConfig,
+            ThinkingLevel=types.SimpleNamespace(MEDIUM="medium", LOW="low", MINIMAL="minimal"),
+            HttpOptions=FakeHttpOptions,
+        )
+        fake_genai_module = types.ModuleType("google.genai")
+        fake_genai_module.Client = FakeClient
+        fake_genai_module.types = fake_types
+        fake_google_module = types.ModuleType("google")
+        fake_google_module.genai = fake_genai_module
+
+        previous_google = sys.modules.get("google")
+        previous_google_genai = sys.modules.get("google.genai")
+        try:
+            sys.modules["google"] = fake_google_module
+            sys.modules["google.genai"] = fake_genai_module
+            with mock.patch("llm.retry.random.uniform", return_value=1.0), mock.patch(
+                "llm.retry.time.sleep"
+            ) as sleep_mock:
+                client = GeminiClient(api_key="test-key")
+                response = client.generate_turn(
+                    prompt_text="state",
+                    image_paths=[],
+                    model_name="gemini-2.5-flash",
+                    thinking_mode="off",
+                )
+        finally:
+            if previous_google is None:
+                sys.modules.pop("google", None)
+            else:
+                sys.modules["google"] = previous_google
+            if previous_google_genai is None:
+                sys.modules.pop("google.genai", None)
+            else:
+                sys.modules["google.genai"] = previous_google_genai
+
+        self.assertEqual(response.text, "thought: hold fire\nmove: [noop]")
+        self.assertEqual(response.token_usage.total_tokens, 17)
+        self.assertEqual(calls, 2)
+        self.assertEqual(sleep_mock.call_count, 1)
 
 
 if __name__ == "__main__":

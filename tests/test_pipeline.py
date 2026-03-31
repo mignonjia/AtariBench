@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import sys
 import tempfile
 import unittest
@@ -68,6 +69,7 @@ class FakeEnv:
         self.closed = False
         self.lives_schedule = lives_schedule or {}
         self.reset_count = 0
+        self.actions: list[int] = []
 
     def reset(self, seed=None):
         self.reset_count += 1
@@ -79,7 +81,7 @@ class FakeEnv:
         }
 
     def step(self, action_id: int):
-        del action_id
+        self.actions.append(action_id)
         self.step_count += 1
         self.total_step_count += 1
         lives = self.lives_schedule.get(self.step_count, 5)
@@ -101,6 +103,38 @@ class FakeEnv:
 
 
 class PipelineRunnerTests(unittest.TestCase):
+    def test_skip_seconds_warms_up_before_first_turn(self) -> None:
+        spec = dataclasses.replace(get_game_spec("breakout"), skip_seconds=0.2)
+        client = FakeGeminiClient(
+            responses=[
+                "thought: keep moving\nmove: [right, left, right, left, right, left, right, left, right, left]",
+            ]
+        )
+        env = FakeEnv()
+        runner = PipelineRunner(
+            game_spec=spec,
+            model_client=client,
+            config=PipelineConfig(
+                duration_seconds=1,
+                max_actions_per_turn=10,
+                frames_per_action=3,
+                history_clips=2,
+                output_dir=tempfile.mkdtemp(),
+            ),
+            env_factory=lambda: env,
+            frame_writer=fake_frame_writer,
+        )
+
+        summary = runner.run()
+
+        self.assertEqual(summary["stop_reason"], "frame_budget")
+        self.assertEqual(summary["frame_count"], 31)
+        self.assertEqual(summary["skip_seconds"], 0.2)
+        self.assertEqual(summary["total_duration_seconds"], 1.2)
+        self.assertEqual(env.total_step_count, 36)
+        self.assertEqual(env.actions[:6], [0] * 6)
+        self.assertIn("time: 0.00s", str(client.calls[0]["prompt_text"]))
+
     def test_actions_expand_to_three_frames_and_stop_at_budget(self) -> None:
         spec = get_game_spec("breakout")
         client = FakeGeminiClient(

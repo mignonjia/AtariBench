@@ -284,6 +284,8 @@ class PipelineRunner:
                 total_reward=total_reward,
                 total_lost_lives=total_lost_lives,
                 duration_seconds=self.config.duration_seconds,
+                skip_seconds=self.game_spec.skip_seconds,
+                total_duration_seconds=self.config.duration_seconds + self.game_spec.skip_seconds,
                 model_name=self.config.model_name,
                 thinking_mode=thinking_metadata["thinking_mode"],
                 thinking_budget=thinking_metadata["thinking_budget"],
@@ -313,13 +315,8 @@ class PipelineRunner:
         trajectory: Trajectory,
         local_frame_index: int,
     ):
-        try:
-            observation, info = env.reset(seed=self.config.seed)
-        except TypeError:
-            if self.config.seed is None:
-                observation, info = env.reset()
-            else:
-                observation, info = env.reset(seed=self.config.seed)
+        observation, info = self._reset_env(env)
+        observation, info = self._apply_skip_seconds(env, observation, info)
         frame = capture_frame(env, observation)
         frame_record = trajectory.record_frame(
             frame=frame,
@@ -328,6 +325,33 @@ class PipelineRunner:
             local_frame_index=local_frame_index,
         )
         return frame_record.local_frame_index, extract_env_info(info)
+
+    def _reset_env(self, env: Any):
+        try:
+            return env.reset(seed=self.config.seed)
+        except TypeError:
+            if self.config.seed is None:
+                return env.reset()
+            return env.reset(seed=self.config.seed)
+
+    def _apply_skip_seconds(self, env: Any, observation: Any, info: dict[str, Any]):
+        skip_frames = max(int(round(self.game_spec.skip_seconds * self.game_spec.fps)), 0)
+        if skip_frames <= 0:
+            return observation, info
+
+        startup_action_id = self.game_spec.action_map.get(
+            "noop",
+            next(iter(self.game_spec.action_map.values())),
+        )
+        current_observation = observation
+        current_info = info
+
+        for _ in range(skip_frames):
+            current_observation, _, terminated, truncated, current_info = env.step(startup_action_id)
+            if terminated or truncated:
+                current_observation, current_info = self._reset_env(env)
+
+        return current_observation, current_info
 
     def _parse_response(self, raw_response: str) -> ParsedClipResponse:
         return parse_model_response(

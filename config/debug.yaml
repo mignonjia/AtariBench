@@ -3,6 +3,6 @@
   prompt_mode: structured_history
   history_clips: 3
   non_zero_reward_clips: 3
-  games: full
+  games: selected
   seed_start: 0
-  num_runs: 10
+  num_runs: 1

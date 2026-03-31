@@ -19,6 +19,7 @@ class GameSpec:
     frames_per_action: int
     game_prompt: str
     fps_prompt: str
+    skip_seconds: float = 0.0
 
 
 def _load_prompt_module(module_name: str):
@@ -54,6 +55,7 @@ def _build_game_spec(
         frames_per_action=frames_per_action,
         game_prompt=getattr(prompt_module, "GAME_PROMPT"),
         fps_prompt=getattr(prompt_module, "FPS_10_PROMPT"),
+        skip_seconds=float(getattr(prompt_module, "SKIP_SECONDS", 0.0)),
     )
 
 
