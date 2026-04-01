@@ -27,7 +27,12 @@ from llm import (
 from llm.anthropic_client import _build_request_kwargs as _build_anthropic_request_kwargs
 from llm.gemini_client import _build_generate_config
 from llm.openai_client import OpenAIClient
-from llm.retry import RetryableResponseError, is_retryable_error
+from llm.retry import (
+    RetryableResponseError,
+    call_with_retries,
+    compute_retry_delay_seconds,
+    is_retryable_error,
+)
 from games.prompt_builder import PromptMessage
 
 
@@ -314,6 +319,33 @@ class LlmTests(unittest.TestCase):
     def test_retry_classifier_treats_retryable_response_errors_as_transient(self) -> None:
         exc = RetryableResponseError("Gemini returned no text output.")
         self.assertTrue(is_retryable_error(exc))
+
+    def test_retry_delay_prefers_provider_hint(self) -> None:
+        exc = RuntimeError("429 RESOURCE_EXHAUSTED. Please retry in 22.5s.")
+        self.assertEqual(compute_retry_delay_seconds(exc, retry_index=7), 22.5)
+
+    def test_call_with_retries_extends_transient_retries_beyond_count_budget(self) -> None:
+        calls = 0
+
+        def flaky_operation() -> str:
+            nonlocal calls
+            calls += 1
+            if calls < 4:
+                raise RuntimeError("429 RESOURCE_EXHAUSTED")
+            return "ok"
+
+        with mock.patch("llm.retry.compute_retry_delay_seconds", return_value=1.0), mock.patch(
+            "llm.retry.time.sleep"
+        ) as sleep_mock, mock.patch("llm.retry.time.monotonic", return_value=0.0):
+            result = call_with_retries(
+                flaky_operation,
+                max_retries=1,
+                max_retry_window_seconds=30.0,
+            )
+
+        self.assertEqual(result, "ok")
+        self.assertEqual(calls, 4)
+        self.assertEqual(sleep_mock.call_count, 3)
 
     def test_anthropic_client_builds_multimodal_request(self) -> None:
         calls: list[dict[str, object]] = []
