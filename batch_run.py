@@ -713,14 +713,6 @@ def execute_run(
             )
 
         error_type = classify_error_output(combined_output)
-        if (error_type == "transient" or error_type is None) and attempts <= max_retries:
-            sleep_seconds = compute_retry_sleep_seconds(
-                attempt=attempts,
-                base_backoff_seconds=retry_backoff_seconds,
-            )
-            time.sleep(sleep_seconds)
-            continue
-
         return RunResult(
             game=request.game,
             job_label=request.job_label,

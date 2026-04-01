@@ -11,7 +11,7 @@ This index covers the maintained source tree and intentionally excludes stored r
 [`batch_run.py`](batch_run.py)
 - Batch orchestration CLI.
 - Supports ad hoc `--job` specs and config-driven batches from `config/common.yaml` plus `config/runs.yaml`.
-- Expands game selections, enforces company-level concurrency caps, retries transient failures, and renders videos for successful runs.
+- Expands game selections, enforces company-level concurrency caps, retries incomplete runs, and renders videos for successful runs.
 
 [`run_storage.py`](run_storage.py)
 - Canonical storage helpers for maintained games.
@@ -88,6 +88,7 @@ This index covers the maintained source tree and intentionally excludes stored r
 
 [`llm/retry.py`](llm/retry.py)
 - Shared retry classification and backoff helpers for provider calls.
+- Keeps transient provider failures inside the active turn instead of escalating them to batch-level reruns.
 
 [`llm/model_thinking.json`](llm/model_thinking.json)
 - Declared supported thinking modes per model.

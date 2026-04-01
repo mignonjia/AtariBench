@@ -24,7 +24,7 @@ export ANTHROPIC_API_KEY="YOUR_ANTHROPIC_KEY"
 
 The main workflow is config-driven batch mode.
 
-- [`config/common.yaml`](config/common.yaml): shared defaults such as game selections, retries, concurrency caps, duration, and rendering settings
+- [`config/common.yaml`](config/common.yaml): shared defaults such as game selections, incomplete-run retries, concurrency caps, duration, and rendering settings
 - [`config/runs.yaml`](config/runs.yaml): the full set of batch run definitions
 - [`config/sample_runs.yaml`](config/sample_runs.yaml): a smaller debug batch
 
@@ -92,9 +92,11 @@ Thinking support is model-specific.
 - `--context-cache`: enable explicit cache hints for `append_only`; `structured_history` remains unchanged
 - `--minimal-logging`: after rendering, keep only `summary.json`, `turns.jsonl`, and `visualization.mp4`
 - `max_concurrency_by_company`: config-driven per-company concurrency caps in `common.yaml`
-- `max_retries`: config-driven transient retry count in `common.yaml`
-- `retry_backoff_seconds`: config-driven transient retry backoff base in `common.yaml`
+- `max_retries`: config-driven incomplete-run retry count in `common.yaml`
+- `retry_backoff_seconds`: config-driven incomplete-run retry backoff base in `common.yaml`
 - `render_video_fps`: config-driven visualization FPS in `common.yaml`
+
+Transient provider errors such as `429 RESOURCE_EXHAUSTED`, network timeouts, and empty provider responses are retried inside the active turn by the LLM adapter. Batch-level reruns are reserved for incomplete runs that exited cleanly without reaching the full frame budget.
 
 ## Output
 

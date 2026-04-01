@@ -1,8 +1,8 @@
 max_concurrency_by_company: # change it based on your quota
-  gemini: 10
+  gemini: 5
   openai: 2
   anthropic: 1
-max_retries: 10
+max_retries: 10 # reruns only incomplete runs; transient provider/API errors retry inside one turn
 retry_backoff_seconds: 10
 render_video_fps: 30 # constant, shouldn't change
 max_actions_per_turn: 10 # constant, shouldn't change

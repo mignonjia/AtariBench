@@ -526,7 +526,7 @@ class BatchRunTests(unittest.TestCase):
         self.assertEqual(run_mock.call_count, 2)
         self.assertEqual(result.stop_reason, "frame_budget")
 
-    def test_execute_run_retries_non_transient_failure(self) -> None:
+    def test_execute_run_does_not_retry_failed_subprocess(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             request = expand_run_requests(
                 jobs=[
@@ -547,34 +547,22 @@ class BatchRunTests(unittest.TestCase):
                 subprocess.CompletedProcess(
                     args=[],
                     returncode=1,
-                    stdout="some unrelated traceback",
-                ),
-                subprocess.CompletedProcess(
-                    args=[],
-                    returncode=0,
-                    stdout="runs/example/breakout/20260316_000002\nframe_budget\n",
+                    stdout="429 RESOURCE_EXHAUSTED",
                 ),
             ]
 
             with mock.patch("batch_run._run_subprocess", side_effect=responses) as run_mock:
-                with mock.patch(
-                    "batch_run.load_run_summary",
-                    return_value={"stop_reason": "frame_budget", "duration_seconds": 30, "frame_count": 901},
-                ):
-                    with mock.patch(
-                        "batch_run.render_run_video",
-                        return_value=Path("runs/example/breakout/20260316_000002/visualization.mp4"),
-                    ):
-                        result = execute_run(
-                            request=request,
-                            max_retries=1,
-                            retry_backoff_seconds=0.0,
-                            render_video_fps=30,
-                        )
+                result = execute_run(
+                    request=request,
+                    max_retries=1,
+                    retry_backoff_seconds=0.0,
+                    render_video_fps=30,
+                )
 
-        self.assertTrue(result.success)
-        self.assertEqual(result.attempts, 2)
-        self.assertEqual(run_mock.call_count, 2)
+        self.assertFalse(result.success)
+        self.assertEqual(result.error_type, "transient")
+        self.assertEqual(result.attempts, 1)
+        self.assertEqual(run_mock.call_count, 1)
 
     def test_execute_run_marks_incomplete_run_failed_after_retry_budget(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
