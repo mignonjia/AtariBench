@@ -1,0 +1,2 @@
+thought: The paddle is at the bottom right, and the current image shows a red ball on the right side of the screen, moving downwards and to the left. Since the ball is already in play, I should try to move the paddle to intercept it. It seems to be moving towards the left side of the paddle, so a series of 'left' actions would be appropriate to meet the ball.
+move: [left, left, left, left, left, left, left]

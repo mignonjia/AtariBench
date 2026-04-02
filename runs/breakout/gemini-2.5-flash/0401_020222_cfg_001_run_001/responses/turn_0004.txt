@@ -1,0 +1,2 @@
+thought: The game has started, and there's a ball in play. The paddle is on the far left, and the ball appears to be moving downwards and slightly to the right. I need to move the paddle to the right to intercept the ball. Since the ball is still relatively high, I can plan for a longer move to ensure the paddle is in position for when the ball descends further.
+move: [right, right, right, right, right, right, right]

@@ -1,0 +1,2 @@
+thought: The ball is currently mid-screen and moving downwards and slightly to the left. The paddle is on the far right. The previous actions were moving the paddle to the left, which was the wrong direction for the ball's current trajectory. I need to move the paddle to the left to try and intercept the ball as it comes down. Since the time budget is almost up, a shorter plan would be better to get quick feedback.
+move: [left, left, left]

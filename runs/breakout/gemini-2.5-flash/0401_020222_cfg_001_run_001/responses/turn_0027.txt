@@ -1,0 +1,2 @@
+thought: The ball is currently on the paddle at the bottom right. The paddle is on the right side of the screen. I should move the paddle to the left to try and center it, then wait for the ball to rebound off the wall or a brick. Given the paddle is on the far right and the ball is about to be launched, moving left seems like a good initial strategy to prepare for potential returns. I will plan to move left for a few actions.
+move: [left, left, left, left, left]

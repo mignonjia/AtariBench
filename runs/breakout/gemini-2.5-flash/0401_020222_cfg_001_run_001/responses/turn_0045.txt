@@ -1,0 +1,2 @@
+thought: The ball is currently on its way down and slightly to the right of the paddle. The paddle is on the far right. I need to move the paddle to the left to intercept the ball. I will make a short plan as the ball is low and will arrive soon.
+move: [left, left, left, left, left]

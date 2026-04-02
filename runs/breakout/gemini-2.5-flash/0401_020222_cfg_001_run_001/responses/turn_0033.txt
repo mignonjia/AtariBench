@@ -1,0 +1,2 @@
+thought: I am playing Breakout. The goal is to hit bricks with a ball and not let the ball fall off the bottom of the screen. I have 1 life remaining and my score is 0.Looking at the current state, there is no ball visible on the screen. The paddle is on the right side. According to the rules, if there is no ball, I must use the 'start' action to serve a new ball.
+move: [start, start, start, start, start, start, start, start, start, start]

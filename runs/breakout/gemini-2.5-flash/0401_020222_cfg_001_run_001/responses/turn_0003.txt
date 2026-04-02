@@ -1,0 +1,2 @@
+thought: The ball is currently located above and to the left of the paddle. The paddle is on the left side of the screen. In the previous clip, I moved the paddle to the left. The ball appears to be moving generally downwards and to the left. To intercept the ball when it reaches the bottom of the screen, I need to continue moving the paddle to the left to align with the ball's trajectory. I should plan a few 'left' actions to get the paddle further under the ball.
+move: [left, left, left, left, left]

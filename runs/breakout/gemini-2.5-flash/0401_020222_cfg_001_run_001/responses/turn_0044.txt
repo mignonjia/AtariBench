@@ -1,0 +1,2 @@
+thought: The ball is currently located above the paddle and moving downwards. The paddle is on the left side of the screen. I need to move the paddle to the right to intercept the ball. Based on the ball's current horizontal position, I anticipate that a few 'right' movements should position the paddle correctly to hit the ball back up.
+move: [right, right, right, right]

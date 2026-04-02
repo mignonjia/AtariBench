@@ -1,0 +1,2 @@
+thought: The non-zero reward history indicates that 'start' is only relevant when a life is lost. The current image shows the paddle (red at the bottom right) and the ball (small red dot above the paddle). The ball is moving downwards and to the left. The paddle is on the right side of the screen. I need to move the paddle to the left to intercept the ball. I will move left multiple times to ensure the paddle is under the ball.
+move: [left, left, left, left, left, left, left, left]

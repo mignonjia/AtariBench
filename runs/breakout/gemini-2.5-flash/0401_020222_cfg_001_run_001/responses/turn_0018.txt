@@ -1,0 +1,2 @@
+thought: The game has restarted. I need to serve the ball to start playing. There is no ball on the screen, so I must use the 'start' action. I will repeat this for a few actions to ensure the ball is launched.
+move: [start, start, start]

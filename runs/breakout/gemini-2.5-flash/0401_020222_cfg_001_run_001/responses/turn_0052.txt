@@ -1,0 +1,2 @@
+thought: The game just restarted, and the ball has been served (I can see it moving). It's currently moving left and downwards. I need to move the paddle to the left to intercept the ball. I will issue a few 'left' commands to ensure the paddle is in position.
+move: [left, left, left, left, left, left]

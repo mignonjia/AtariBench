@@ -1,0 +1,2 @@
+thought: The game has restarted. The ball is not on the screen, so I need to issue a 'start' command to launch the ball. The paddle is on the far right. I will serve the ball and try to move the paddle to the left to catch it.
+move: [start, left, left, left, left, left, left, left, left, left]

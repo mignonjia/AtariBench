@@ -1,0 +1,2 @@
+thought: The ball (small red dot) is currently moving down and to the left. The paddle is on the far left. I need to move the paddle to the right to intercept the ball and prevent losing a life. Given the ball's current position and trajectory, a long series of 'right' actions should be appropriate to bring the paddle under the ball.
+move: [right, right, right, right, right, right, right, right, right, right]

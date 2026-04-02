@@ -1,0 +1,2 @@
+thought: The ball is not on the screen, indicating that a life was lost and the game restarted. The first action must be 'start' to serve a new ball. Then, I need to observe the ball's trajectory to position the paddle. Based on the previous actions, the paddle is currently on the left side of the screen. I will need to move it right to be in the center for the ball.
+move: [start, right, right, right, right]

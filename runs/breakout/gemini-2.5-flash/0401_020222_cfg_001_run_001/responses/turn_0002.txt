@@ -1,0 +1,2 @@
+thought: The game has just started, and the ball has been served. The ball is currently located above the paddle and slightly to the left of the center. The paddle is also slightly to the left of the center. To ensure the ball hits the bricks and avoid losing a life, I need to move the paddle to the left to align with the ball's likely trajectory. I'll make a series of 'left' moves to adjust the paddle's position, as the ball is still relatively high, giving me some time.
+move: [left, left, left, left, left]
