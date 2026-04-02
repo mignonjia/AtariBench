@@ -145,7 +145,7 @@ Cross-game flat summaries live at:
 `model_summary.json` includes all successful runs for that setting, including shorter debug runs that still finished with `stop_reason=frame_budget`.
 `model_summary_30s.json` keeps the previous benchmark view and only includes full 30-second canonical runs.
 Both summaries are aggregated per setting, not by mixing different prompt/thinking/clip configurations into one average.
-They also include average and latest token totals so you can estimate per-setting API cost from stored runs.
+They also include average reward/lost-life standard error plus average and latest token totals so you can estimate variance and per-setting API cost from stored runs.
 They are rebuilt from stored run `summary.json` files on disk, not limited to the runs from the most recent batch.
 
 ## Batch Logging

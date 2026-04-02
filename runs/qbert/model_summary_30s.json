@@ -1,0 +1,47 @@
+{
+  "game": "qbert",
+  "models": {
+    "gemini-2.5-flash": [
+      {
+        "avg_cached_input_tokens": 273100.6,
+        "avg_frame_count": 901.0,
+        "avg_input_tokens": 1493115.2,
+        "avg_output_tokens": 36015.3,
+        "avg_thinking_tokens": 0.0,
+        "avg_token_usage_missing_turns": 0.0,
+        "avg_token_usage_reported_turns": 263.8,
+        "avg_total_lost_lives": 1.5,
+        "avg_total_reward": 262.5,
+        "avg_total_tokens": 1529130.5,
+        "avg_turn_count": 263.8,
+        "best_total_reward": 600.0,
+        "context_cache": false,
+        "frames_per_action": 3,
+        "history_clips": 3,
+        "latest_cached_input_tokens": 316666.0,
+        "latest_input_tokens": 1652883.0,
+        "latest_output_tokens": 43067.0,
+        "latest_run_dir": "/home/hal-mingjiahuo/AtariBench/runs/qbert/gemini-2.5-flash/0401_045614_cfg_001_run_005",
+        "latest_thinking_tokens": 0.0,
+        "latest_timestamp": "0401_045614_cfg_001_run_005",
+        "latest_token_usage_missing_turns": 0.0,
+        "latest_token_usage_reported_turns": 288.0,
+        "latest_total_reward": 100.0,
+        "latest_total_tokens": 1695950.0,
+        "model_name": "gemini-2.5-flash",
+        "non_zero_reward_clips": 3,
+        "prompt_mode": "structured_history",
+        "run_count": 10,
+        "setting_key": "prompt_mode=structured_history|context_cache=False|thinking_mode=off|frames_per_action=3|thinking_level=null|thinking_budget=0|history_clips=3|non_zero_reward_clips=3",
+        "stderr_total_lost_lives": 0.16666666666666666,
+        "stderr_total_reward": 64.46898479113813,
+        "thinking_budget": 0,
+        "thinking_level": null,
+        "thinking_mode": "off",
+        "worst_total_reward": 25.0
+      }
+    ]
+  },
+  "run_filter": "full_30s",
+  "updated_at": "2026-04-01T23:44:37"
+}

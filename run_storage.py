@@ -6,6 +6,7 @@ import contextlib
 import datetime as dt
 import fcntl
 import json
+import math
 import re
 from pathlib import Path
 
@@ -337,7 +338,9 @@ def _build_setting_summary(
         "setting_key": setting_key,
         "run_count": run_count,
         "avg_total_reward": sum(total_rewards) / run_count,
+        "stderr_total_reward": _standard_error(total_rewards),
         "avg_total_lost_lives": sum(total_lost_lives) / run_count,
+        "stderr_total_lost_lives": _standard_error(total_lost_lives),
         "avg_turn_count": sum(turn_counts) / run_count,
         "avg_frame_count": sum(frame_counts) / run_count,
         "avg_input_tokens": sum(input_tokens) / run_count,
@@ -424,3 +427,13 @@ def _extract_frames_per_action(summary: dict[str, object]) -> int:
     if value is None:
         return 3
     return int(value)
+
+
+def _standard_error(values: list[float]) -> float:
+    count = len(values)
+    if count <= 1:
+        return 0.0
+
+    mean = sum(values) / count
+    variance = sum((value - mean) ** 2 for value in values) / (count - 1)
+    return math.sqrt(variance) / math.sqrt(count)
