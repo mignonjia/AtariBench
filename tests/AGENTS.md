@@ -4,6 +4,7 @@ Purpose:
 - Own regression coverage for the main runner, batch orchestration, model-layer helpers, and storage logic.
 
 Key files:
+- `test_main.py`: single-run CLI behavior and post-render pruning
 - `test_pipeline.py`: runtime loop behavior
 - `test_batch_run.py`: batch orchestration and retry behavior
 - `test_games.py`: registry and prompt/game layer behavior
@@ -21,6 +22,7 @@ Edit guidance:
 
 Useful commands:
 - `python -m unittest`
+- `python -m unittest tests.test_main`
 - `python -m unittest tests.test_pipeline`
 - `python -m unittest tests.test_batch_run`
 - `python -m unittest tests.test_model_thinking_options`
