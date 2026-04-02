@@ -26,22 +26,22 @@ The main workflow is config-driven batch mode.
 
 - [`config/common.yaml`](config/common.yaml): shared defaults such as game selections, incomplete-run retries, concurrency caps, duration, and rendering settings
 - [`config/runs.yaml`](config/runs.yaml): the full set of batch run definitions
-- [`config/sample_runs.yaml`](config/sample_runs.yaml): a smaller debug batch
+- [`config/debug.yaml`](config/debug.yaml): a smaller debug batch
 
-For a quick debug run, use `sample_runs.yaml`. If you want even faster debug cycles, lower `duration_seconds` in [`config/common.yaml`](config/common.yaml).
+For a quick debug run, use `debug.yaml`. If you want even faster debug cycles, lower `duration_seconds` in [`config/common.yaml`](config/common.yaml).
 
 Run the debug batch with:
 
 ```bash
-python batch_run.py --common-config config/common.yaml --runs-config config/sample_runs.yaml
+python batch_run.py --common-config config/common.yaml --runs-config config/debug.yaml
 ```
 
-Use [`config/runs.yaml`](config/runs.yaml) instead of `sample_runs.yaml` when you want the full batch.
+Use [`config/runs.yaml`](config/runs.yaml) instead of `debug.yaml` when you want the full batch.
 
 Optional minimal logging:
 
 ```bash
-python batch_run.py --common-config config/common.yaml --runs-config config/sample_runs.yaml  --minimal-logging
+python batch_run.py --common-config config/common.yaml --runs-config config/debug.yaml  --minimal-logging
 ```
 
 This keeps only `summary.json`, `turns.jsonl`, and `visualization.mp4` in each run directory after rendering. In config-driven mode, you can also set `minimal_logging: true` in `common.yaml` or per-run entries.
@@ -147,6 +147,8 @@ Cross-game flat summaries live at:
 Both summaries are aggregated per setting, not by mixing different prompt/thinking/clip configurations into one average.
 They also include average reward/lost-life standard error plus average and latest token totals so you can estimate variance and per-setting API cost from stored runs.
 They are rebuilt from stored run `summary.json` files on disk, not limited to the runs from the most recent batch.
+
+See [`runs/breakout/gemini-2.5-flash/0401_020222_cfg_001_run_001`](runs/breakout/gemini-2.5-flash/0401_020222_cfg_001_run_001) for an example run of complete logging, and [`runs/breakout/gemini-2.5-flash/0331_235632_cfg_001_run_001`](runs/breakout/gemini-2.5-flash/0331_235632_cfg_001_run_001) for an example run of minimal logging
 
 ## Batch Logging
 

@@ -4,6 +4,7 @@ _pycache_/
 runs/
 llm/api.sh
 games/prompts_mix_termination/
+config/sample_runs.yaml
 
 .vscode/
 .claude/
