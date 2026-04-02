@@ -8,6 +8,10 @@ This folder contains the config-driven batch inputs for AtariBench.
 - [`runs.yaml`](runs.yaml): the full set of batch run definitions
 - [`debug.yaml`](debug.yaml): a smaller debug batch for quick iteration
 
+### Params
+- `games` can be a single game key, `selected`, `full`, or a list mixing those values.
+- Allowed `thinking_mode` values are model-specific; see [`../llm/model_thinking.json`](../llm/model_thinking.json) for all options.
+
 ## Usage - debug
 
 Use `debug.yaml` when you want a fast debug run:

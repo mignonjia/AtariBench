@@ -28,6 +28,11 @@ The main workflow is config-driven batch mode.
 - [`config/runs.yaml`](config/runs.yaml): the full set of batch run definitions
 - [`config/debug.yaml`](config/debug.yaml): a smaller debug batch
 
+Some params:
+
+- `games` can be a single game key, `selected`, `full`, or a list mixing those values.
+- Allowed `thinking_mode` values are model-specific; see [`llm/model_thinking.json`](llm/model_thinking.json).
+
 For a quick debug run, use `debug.yaml`. If you want even faster debug cycles, lower `duration_seconds` in [`config/common.yaml`](config/common.yaml).
 
 Run the debug batch with:
@@ -44,11 +49,8 @@ Optional minimal logging:
 python batch_run.py --common-config config/common.yaml --runs-config config/debug.yaml  --minimal-logging
 ```
 
-This keeps only `summary.json`, `turns.jsonl`, and `visualization.mp4` in each run directory after rendering. In config-driven mode, you can also set `minimal_logging: true` in `common.yaml` or per-run entries.
+This keeps only `summary.json`, `turns.jsonl`, and `visualization.mp4` in each run directory after rendering. See [`runs/breakout/gemini-2.5-flash/0401_020222_cfg_001_run_001`](runs/breakout/gemini-2.5-flash/0401_020222_cfg_001_run_001) for an example run of complete logging, and [`runs/breakout/gemini-2.5-flash/0331_235632_cfg_001_run_001`](runs/breakout/gemini-2.5-flash/0331_235632_cfg_001_run_001) for an example run of minimal logging
 
-- `games` can be a single game key, `selected`, `full`, or a list mixing those values.
-- `seed_start: 0` with `num_runs: 3` expands to seeds `0`, `1`, and `2`.
-- Allowed `thinking_mode` values are model-specific; see [`llm/model_thinking.json`](llm/model_thinking.json).
 
 ## Other Commands
 
