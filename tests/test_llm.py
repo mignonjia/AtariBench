@@ -17,6 +17,7 @@ if candidate not in sys.path:
 from llm import (
     AnthropicClient,
     GeminiClient,
+    TogetherClient,
     build_model_client,
     build_token_usage,
     describe_effective_thinking_mode,
@@ -27,6 +28,7 @@ from llm import (
 from llm.anthropic_client import _build_request_kwargs as _build_anthropic_request_kwargs
 from llm.gemini_client import _build_generate_config
 from llm.openai_client import OpenAIClient
+from llm.together_client import TogetherClient, _build_request_kwargs as _build_together_request_kwargs
 from llm.retry import (
     RetryableResponseError,
     call_with_retries,
@@ -42,6 +44,7 @@ class LlmTests(unittest.TestCase):
         self.assertEqual(infer_model_provider("gpt-5.4"), "openai")
         self.assertEqual(infer_model_provider("claude-sonnet-4-6"), "anthropic")
         self.assertEqual(infer_model_provider("o3"), "openai")
+        self.assertEqual(infer_model_provider("deepseek-ai/DeepSeek-V3.1"), "together")
 
     def test_resolve_model_provider_honors_explicit_provider(self) -> None:
         self.assertEqual(resolve_model_provider("custom-model", provider="openai"), "openai")
@@ -56,6 +59,11 @@ class LlmTests(unittest.TestCase):
             client = build_model_client("claude-sonnet-4-6", provider="anthropic")
         self.assertIsInstance(client, AnthropicClient)
 
+    def test_build_model_client_returns_together_client(self) -> None:
+        with mock.patch.dict(os.environ, {"TOGETHER_API_KEY": "test-key"}, clear=False):
+            client = build_model_client("deepseek-ai/DeepSeek-V3.1")
+        self.assertIsInstance(client, TogetherClient)
+
     def test_describe_effective_thinking_mode_matches_provider_specific_request_shape(self) -> None:
         self.assertEqual(
             describe_effective_thinking_mode("gemini-2.5-flash", "on"),
@@ -68,6 +76,18 @@ class LlmTests(unittest.TestCase):
         self.assertEqual(
             describe_effective_thinking_mode("gpt-5.4", "none"),
             {"thinking_mode": "none", "thinking_budget": None, "thinking_level": "none"},
+        )
+        self.assertEqual(
+            describe_effective_thinking_mode("deepseek-ai/DeepSeek-V3.1", "default"),
+            {"thinking_mode": "default", "thinking_budget": None, "thinking_level": None},
+        )
+        self.assertEqual(
+            describe_effective_thinking_mode("deepseek-ai/DeepSeek-V3.1", "off"),
+            {"thinking_mode": "off", "thinking_budget": None, "thinking_level": "none"},
+        )
+        self.assertEqual(
+            describe_effective_thinking_mode("deepseek-ai/DeepSeek-V3.1", "on"),
+            {"thinking_mode": "on", "thinking_budget": None, "thinking_level": "medium"},
         )
 
     def test_validate_model_thinking_mode_rejects_unsupported_pair(self) -> None:
@@ -748,6 +768,226 @@ class LlmTests(unittest.TestCase):
         self.assertEqual(response.token_usage.total_tokens, 17)
         self.assertEqual(calls, 2)
         self.assertEqual(sleep_mock.call_count, 1)
+
+    def test_together_client_builds_multimodal_request(self) -> None:
+        calls: list[dict[str, object]] = []
+
+        class FakeResponse:
+            def __init__(self):
+                self.id = "resp_123"
+                self.choices = [
+                    types.SimpleNamespace(
+                        message=types.SimpleNamespace(content="thought: drift right\nmove: [right]"),
+                        finish_reason="stop",
+                    )
+                ]
+                self.usage = types.SimpleNamespace(
+                    prompt_tokens=17,
+                    completion_tokens=6,
+                    total_tokens=23,
+                )
+
+        class FakeChatCompletions:
+            def create(self, **kwargs):
+                calls.append(kwargs)
+                return FakeResponse()
+
+        class FakeChat:
+            def __init__(self):
+                self.completions = FakeChatCompletions()
+
+        class FakeTogether:
+            def __init__(self, **kwargs):
+                self.client_kwargs = kwargs
+                self.chat = FakeChat()
+
+        fake_module = types.ModuleType("together")
+        fake_module.Together = FakeTogether
+
+        previous_module = sys.modules.get("together")
+        sys.modules["together"] = fake_module
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                image_path = Path(tmpdir) / "frame.png"
+                image_path.write_bytes(b"png-bytes")
+                client = TogetherClient(api_key="test-key")
+                response = client.generate_turn(
+                    prompt_text="state",
+                    image_paths=[str(image_path)],
+                    model_name="deepseek-ai/DeepSeek-V3.1",
+                    thinking_mode="on",
+                )
+        finally:
+            if previous_module is None:
+                sys.modules.pop("together", None)
+            else:
+                sys.modules["together"] = previous_module
+
+        self.assertEqual(response.text, "thought: drift right\nmove: [right]")
+        self.assertEqual(
+            response.token_usage,
+            build_token_usage(
+                input_tokens=17,
+                output_tokens=6,
+                total_tokens=23,
+            ),
+        )
+        self.assertEqual(calls[0]["model"], "deepseek-ai/DeepSeek-V3.1")
+        self.assertEqual(calls[0]["reasoning"], {"enabled": True})
+        self.assertEqual(calls[0]["messages"][0]["role"], "user")
+        content = calls[0]["messages"][0]["content"]
+        self.assertEqual(content[0], {"type": "text", "text": "state"})
+        self.assertEqual(content[1]["type"], "image_url")
+        self.assertTrue(content[1]["image_url"]["url"].startswith("data:image/png;base64,"))
+
+    def test_together_client_sends_structured_prompt_messages(self) -> None:
+        calls: list[dict[str, object]] = []
+
+        class FakeResponse:
+            def __init__(self):
+                self.choices = [
+                    types.SimpleNamespace(
+                        message=types.SimpleNamespace(content="thought: wait\nmove: [noop]"),
+                        finish_reason="stop",
+                    )
+                ]
+                self.usage = {
+                    "prompt_tokens": 9,
+                    "completion_tokens": 3,
+                    "total_tokens": 12,
+                }
+
+        class FakeChatCompletions:
+            def create(self, **kwargs):
+                calls.append(kwargs)
+                return FakeResponse()
+
+        class FakeChat:
+            def __init__(self):
+                self.completions = FakeChatCompletions()
+
+        class FakeTogether:
+            def __init__(self, **kwargs):
+                del kwargs
+                self.chat = FakeChat()
+
+        fake_module = types.ModuleType("together")
+        fake_module.Together = FakeTogether
+
+        previous_module = sys.modules.get("together")
+        sys.modules["together"] = fake_module
+        try:
+            client = TogetherClient(api_key="test-key")
+            response = client.generate_turn(
+                prompt_text="unused",
+                image_paths=[],
+                model_name="deepseek-ai/DeepSeek-V3.1",
+                thinking_mode="off",
+                prompt_messages=[
+                    PromptMessage(role="user", text="state", image_paths=[]),
+                    PromptMessage(role="assistant", text="thought: go\nmove: [right]", image_paths=[]),
+                    PromptMessage(role="user", text="new state", image_paths=[]),
+                ],
+            )
+        finally:
+            if previous_module is None:
+                sys.modules.pop("together", None)
+            else:
+                sys.modules["together"] = previous_module
+
+        self.assertEqual(response.text, "thought: wait\nmove: [noop]")
+        self.assertEqual(response.token_usage.total_tokens, 12)
+        self.assertEqual(calls[0]["reasoning"], {"enabled": False})
+        self.assertEqual(calls[0]["messages"][0], {"role": "user", "content": "state"})
+        self.assertEqual(
+            calls[0]["messages"][1],
+            {"role": "assistant", "content": "thought: go\nmove: [right]"},
+        )
+        self.assertEqual(calls[0]["messages"][2], {"role": "user", "content": "new state"})
+
+    def test_together_request_kwargs_map_on_and_off(self) -> None:
+        self.assertEqual(_build_together_request_kwargs(thinking_mode="default"), {})
+        self.assertEqual(_build_together_request_kwargs(thinking_mode="auto"), {})
+        self.assertEqual(_build_together_request_kwargs(thinking_mode="off"), {"reasoning": {"enabled": False}})
+        self.assertEqual(_build_together_request_kwargs(thinking_mode="none"), {"reasoning": {"enabled": False}})
+        self.assertEqual(_build_together_request_kwargs(thinking_mode="on"), {"reasoning": {"enabled": True}})
+
+    def test_together_client_rejects_unsupported_thinking_modes(self) -> None:
+        with self.assertRaisesRegex(ValueError, "currently support only thinking_mode='default', 'auto', 'off', 'none', or 'on'"):
+            _build_together_request_kwargs(thinking_mode="low")
+
+    def test_together_live_image_request_describes_generated_breakout_frame(self) -> None:
+        if os.getenv("ATARIBENCH_RUN_LIVE_TOGETHER_VISION_TESTS") != "1":
+            self.skipTest("Set ATARIBENCH_RUN_LIVE_TOGETHER_VISION_TESTS=1 to run live Together vision checks.")
+
+        if not os.getenv("TOGETHER_API_KEY"):
+            self.skipTest("TOGETHER_API_KEY is required for live Together vision checks.")
+
+        try:
+            from PIL import Image, ImageDraw
+        except ImportError as exc:  # pragma: no cover - depends on local env
+            self.fail(f"Pillow is required for the live Together vision test: {exc}")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            image_path = Path(tmpdir) / "breakout_like.png"
+            _write_breakout_like_test_image(image_path, Image=Image, ImageDraw=ImageDraw)
+
+            client = TogetherClient()
+            for model_name, thinking_mode in (
+                ("deepseek-ai/DeepSeek-V3.1", "off"),
+                ("Qwen/Qwen3.5-397B-A17B", "default"),
+                ("zai-org/GLM-5.1", "off"),
+            ):
+                with self.subTest(model_name=model_name):
+                    response = client.generate_turn(
+                        prompt_text=(
+                            "Describe this Atari-style game screenshot. Mention the score area, "
+                            "the colored horizontal bands near the top, and the paddle-like object near the bottom."
+                        ),
+                        image_paths=[str(image_path)],
+                        model_name=model_name,
+                        thinking_mode=thinking_mode,
+                    )
+                    print(f"\nTOGETHER_VISION_TEST_IMAGE={image_path}")
+                    print(f"TOGETHER_VISION_MODEL={model_name}")
+                    print(f"TOGETHER_VISION_RESPONSE:\n{response.text}\n")
+
+                    normalized_text = response.text.lower()
+                    self.assertTrue(response.text.strip())
+                    self.assertTrue(
+                        any(
+                            token in normalized_text
+                            for token in ("score", "top", "stripe", "band", "paddle", "bottom")
+                        ),
+                        f"Expected the model to mention visible image features, got: {response.text!r}",
+                    )
+
+
+def _write_breakout_like_test_image(image_path: Path, *, Image, ImageDraw) -> None:
+    image = Image.new("RGB", (160, 210), color=(0, 0, 0))
+    draw = ImageDraw.Draw(image)
+
+    draw.rectangle((0, 0, 159, 12), fill=(60, 60, 60))
+    draw.text((38, 1), "000 5 1", fill=(255, 255, 255))
+
+    stripe_colors = [
+        (205, 49, 49),
+        (219, 120, 32),
+        (185, 160, 35),
+        (96, 166, 37),
+        (62, 107, 220),
+    ]
+    top = 56
+    for color in stripe_colors:
+        draw.rectangle((8, top, 119, top + 8), fill=color)
+        top += 9
+
+    draw.rectangle((0, 13, 7, 199), fill=(192, 192, 192))
+    draw.rectangle((0, 200, 7, 209), fill=(92, 186, 160))
+    draw.rectangle((120, 190, 132, 196), fill=(220, 80, 80))
+    draw.rectangle((151, 188, 159, 209), fill=(220, 80, 80))
+
+    image.save(image_path, format="PNG")
 
 
 if __name__ == "__main__":

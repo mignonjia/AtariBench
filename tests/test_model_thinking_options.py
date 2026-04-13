@@ -18,6 +18,7 @@ from llm.common import describe_effective_thinking_mode, describe_thinking_mode,
 from llm.gemini_client import _build_generate_config
 from llm.anthropic_client import _build_request_kwargs as _build_anthropic_request_kwargs
 from llm.openai_client import _build_request_kwargs
+from llm.together_client import _build_request_kwargs as _build_together_request_kwargs
 
 
 class ModelThinkingOptionsTests(unittest.TestCase):
@@ -113,6 +114,16 @@ class ModelThinkingOptionsTests(unittest.TestCase):
                                         "output_config": {"effort": expected_effort},
                                     },
                                 )
+                    elif provider == "together":
+                        request_kwargs = _build_together_request_kwargs(thinking_mode=option)
+                        if option in {"auto", "default"}:
+                            self.assertEqual(request_kwargs, {})
+                        elif option in {"off", "none"}:
+                            self.assertEqual(request_kwargs, {"reasoning": {"enabled": False}})
+                        elif option == "on":
+                            self.assertEqual(request_kwargs, {"reasoning": {"enabled": True}})
+                        else:  # pragma: no cover
+                            self.fail(f"Unexpected Together thinking option for {model_name}: {option}")
                     else:  # pragma: no cover
                         self.fail(f"Unexpected provider for {model_name}: {provider}")
 
@@ -123,6 +134,10 @@ class ModelThinkingOptionsTests(unittest.TestCase):
                     if model_name == "claude-haiku-4-5" and option == "on":
                         self.assertEqual(effective["thinking_budget"], 16000)
                         self.assertIsNone(effective["thinking_level"])
+                    if model_name == "deepseek-ai/deepseek-v3.1" and option == "off":
+                        self.assertEqual(effective["thinking_level"], "none")
+                    if model_name == "deepseek-ai/deepseek-v3.1" and option == "on":
+                        self.assertEqual(effective["thinking_level"], "medium")
 
     def test_model_thinking_json_options_support_live_requests(self) -> None:
         if os.getenv("ATARIBENCH_RUN_LIVE_MODEL_THINKING_TESTS") != "1":
@@ -203,6 +218,10 @@ def _assert_required_live_sdk_modules() -> None:
         import anthropic  # noqa: F401
     except ImportError:
         missing.append("anthropic")
+    try:
+        import together  # noqa: F401
+    except ImportError:
+        missing.append("together")
     if missing:
         raise RuntimeError(
             "Live model thinking tests require installed SDKs: " + ", ".join(missing)

@@ -221,6 +221,19 @@ def describe_effective_thinking_mode(
             return result
         raise ValueError(f"Unsupported Anthropic thinking mode: {thinking_mode}")
 
+    if resolved_provider == "together":
+        if normalized_mode in {"default", "auto"}:
+            return result
+        if normalized_mode in {"off", "none"}:
+            result["thinking_level"] = "none"
+            return result
+        if normalized_mode == "on":
+            result["thinking_level"] = "medium"
+            return result
+        raise ValueError(
+            "Together models currently support only thinking_mode='default', 'auto', 'off', 'none', or 'on'."
+        )
+
     raise AssertionError(f"Unhandled provider: {resolved_provider}")
 
 
@@ -294,9 +307,11 @@ def infer_model_provider(model_name: str) -> str:
         )
     ):
         return "openai"
+    if "/" in normalized_name:
+        return "together"
     raise ValueError(
         f"Could not infer provider from model '{model_name}'. "
-        "Use a Gemini/OpenAI model name or pass --provider explicitly."
+        "Use a Gemini/OpenAI/Anthropic/Together model name or pass --provider explicitly."
     )
 
 
@@ -306,6 +321,6 @@ def resolve_model_provider(model_name: str, provider: str = "auto") -> str:
     normalized_provider = provider.strip().lower()
     if normalized_provider == "auto":
         return infer_model_provider(model_name)
-    if normalized_provider in {"gemini", "openai", "anthropic"}:
+    if normalized_provider in {"gemini", "openai", "anthropic", "together"}:
         return normalized_provider
     raise ValueError(f"Unsupported provider: {provider}")

@@ -86,6 +86,9 @@ This index covers the maintained source tree and intentionally excludes stored r
 [`llm/anthropic_client.py`](llm/anthropic_client.py)
 - Anthropic adapter.
 
+[`llm/together_client.py`](llm/together_client.py)
+- Together adapter.
+
 [`llm/retry.py`](llm/retry.py)
 - Shared retry classification and backoff helpers for provider calls.
 - Keeps transient provider failures inside the active turn instead of escalating them to batch-level reruns.

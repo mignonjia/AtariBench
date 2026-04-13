@@ -14,6 +14,7 @@ from .common import (
 )
 from .gemini_client import GeminiClient
 from .openai_client import OpenAIClient
+from .together_client import TogetherClient
 
 
 def build_model_client(model_name: str, provider: str = "auto"):
@@ -26,6 +27,8 @@ def build_model_client(model_name: str, provider: str = "auto"):
         return OpenAIClient()
     if resolved_provider == "anthropic":
         return AnthropicClient()
+    if resolved_provider == "together":
+        return TogetherClient()
     raise AssertionError(f"Unhandled provider: {resolved_provider}")
 
 
@@ -35,6 +38,7 @@ __all__ = [
     "LlmTurnResponse",
     "OpenAIClient",
     "TokenUsage",
+    "TogetherClient",
     "build_model_client",
     "build_token_usage",
     "describe_effective_thinking_mode",

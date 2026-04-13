@@ -51,6 +51,7 @@ class BatchRunTests(unittest.TestCase):
                     "gemini": 1,
                     "openai": 2,
                     "anthropic": 1,
+                    "together": 3,
                 },
                 "games": {
                     "selected": ["assault"],
@@ -101,6 +102,7 @@ class BatchRunTests(unittest.TestCase):
                 "gemini": 1,
                 "openai": 2,
                 "anthropic": 1,
+                "together": 3,
             },
         )
         self.assertEqual(batch_options["max_retries"], 8)
@@ -144,9 +146,10 @@ class BatchRunTests(unittest.TestCase):
                     "gemini": 2,
                     "openai": 1,
                     "anthropic": 1,
+                    "together": 3,
                 },
             ),
-            4,
+            7,
         )
 
     def test_find_next_schedulable_request_index_skips_blocked_company(self) -> None:
@@ -200,6 +203,34 @@ class BatchRunTests(unittest.TestCase):
             ),
             1,
         )
+
+    def test_normalize_company_concurrency_map_accepts_together(self) -> None:
+        batch_options, jobs = build_jobs_from_config(
+            common_settings={
+                "max_concurrency_by_company": {
+                    "together": 2,
+                },
+                "max_retries": 1,
+                "render_video_fps": 24,
+                "retry_backoff_seconds": 1,
+                "duration_seconds": 30,
+                "max_actions_per_turn": 10,
+            },
+            setting_entries=[
+                {
+                    "model_name": "deepseek-ai/DeepSeek-V3.1",
+                    "thinking_mode": "default",
+                    "prompt_mode": "structured_history",
+                    "history_clips": 3,
+                    "non_zero_reward_clips": 3,
+                    "games": ["assault"],
+                    "num_runs": 1,
+                }
+            ],
+        )
+
+        self.assertEqual(batch_options["max_concurrency_by_company"], {"together": 2})
+        self.assertEqual(jobs[0].model_name, "deepseek-ai/DeepSeek-V3.1")
 
     def test_format_run_start_line_is_flat_and_includes_run_indices(self) -> None:
         line = _format_run_start_line(

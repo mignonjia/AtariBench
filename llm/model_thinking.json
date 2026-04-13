@@ -8,5 +8,7 @@
     "gpt-5.4-nano": ["none", "low", "medium", "high", "xhigh"],
     "claude-sonnet-4-6": ["low", "medium", "high", "max"],
     "claude-opus-4-6": ["low", "medium", "high", "max"],
-    "claude-haiku-4-5": ["off", "on"]
+    "claude-haiku-4-5": ["off", "on"],
+    "deepseek-ai/deepseek-v3.1": ["off", "on"],
+    "zai-org/glm-5.1": ["off", "on"]
 }

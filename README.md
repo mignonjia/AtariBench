@@ -18,6 +18,7 @@ conda activate ale
 export GEMINI_API_KEY="YOUR_GEMINI_KEY"
 export OPENAI_API_KEY="YOUR_OPENAI_KEY"
 export ANTHROPIC_API_KEY="YOUR_ANTHROPIC_KEY"
+export TOGETHER_API_KEY="YOUR_TOGETHER_KEY"
 ```
 
 ## Main Command
@@ -32,6 +33,7 @@ Some params:
 
 - `games` can be a single game key, `selected`, `full`, or a list mixing those values.
 - Allowed `thinking_mode` values are model-specific; see [`llm/model_thinking.json`](llm/model_thinking.json).
+- Together-hosted models such as `deepseek-ai/DeepSeek-V3.1` can be used directly as `--model` values; slash-form model names resolve to the Together adapter, and DeepSeek V3.1 supports `thinking_mode: off` and `thinking_mode: on`.
 
 For a quick debug run, use `debug.yaml`. If you want even faster debug cycles, lower `duration_seconds` in [`config/common.yaml`](config/common.yaml).
 
