@@ -122,11 +122,21 @@ def _build_contents(types, prompt_text: str, image_paths: list[str], prompt_mess
 
 
 def _build_parts(types, prompt_text: str, image_paths: list[str]):
-    parts = [types.Part.from_text(text=prompt_text)]
-    for image_path in image_paths:
-        image_bytes = Path(image_path).read_bytes()
-        mime_type = _guess_mime_type(image_path)
-        parts.append(types.Part.from_bytes(data=image_bytes, mime_type=mime_type))
+    segments = prompt_text.split("IMG_HOLDER")
+    num_placeholders = len(segments) - 1
+    if num_placeholders != len(image_paths):
+        raise ValueError(
+            f"IMG_HOLDER count ({num_placeholders}) does not match "
+            f"number of image paths ({len(image_paths)})."
+        )
+    parts = []
+    for i, text_seg in enumerate(segments):
+        if text_seg:
+            parts.append(types.Part.from_text(text=text_seg))
+        if i < len(image_paths):
+            image_bytes = Path(image_paths[i]).read_bytes()
+            mime_type = _guess_mime_type(image_paths[i])
+            parts.append(types.Part.from_bytes(data=image_bytes, mime_type=mime_type))
     return parts
 
 

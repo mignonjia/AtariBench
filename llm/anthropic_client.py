@@ -76,21 +76,31 @@ class AnthropicClient:
 
 
 def _build_input_content(prompt_text: str, image_paths: list[str]) -> list[dict[str, object]]:
-    content: list[dict[str, object]] = [{"type": "text", "text": prompt_text}]
-    for image_path in image_paths:
-        image_bytes = Path(image_path).read_bytes()
-        encoded = base64.b64encode(image_bytes).decode("ascii")
-        mime_type = _guess_mime_type(image_path)
-        content.append(
-            {
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": mime_type,
-                    "data": encoded,
-                },
-            }
+    segments = prompt_text.split("IMG_HOLDER")
+    num_placeholders = len(segments) - 1
+    if num_placeholders != len(image_paths):
+        raise ValueError(
+            f"IMG_HOLDER count ({num_placeholders}) does not match "
+            f"number of image paths ({len(image_paths)})."
         )
+    content: list[dict[str, object]] = []
+    for i, text_seg in enumerate(segments):
+        if text_seg:
+            content.append({"type": "text", "text": text_seg})
+        if i < len(image_paths):
+            image_bytes = Path(image_paths[i]).read_bytes()
+            encoded = base64.b64encode(image_bytes).decode("ascii")
+            mime_type = _guess_mime_type(image_paths[i])
+            content.append(
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": mime_type,
+                        "data": encoded,
+                    },
+                }
+            )
     return content
 
 

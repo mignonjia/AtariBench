@@ -88,17 +88,27 @@ def _build_input_content(
     role: str,
 ) -> list[dict[str, str]]:
     text_type = "output_text" if role == "assistant" else "input_text"
-    content = [{"type": text_type, "text": prompt_text}]
-    for image_path in image_paths:
-        image_bytes = Path(image_path).read_bytes()
-        encoded = base64.b64encode(image_bytes).decode("ascii")
-        mime_type = _guess_mime_type(image_path)
-        content.append(
-            {
-                "type": "input_image",
-                "image_url": f"data:{mime_type};base64,{encoded}",
-            }
+    parts = prompt_text.split("IMG_HOLDER")
+    num_placeholders = len(parts) - 1
+    if num_placeholders != len(image_paths):
+        raise ValueError(
+            f"IMG_HOLDER count ({num_placeholders}) does not match "
+            f"number of image paths ({len(image_paths)})."
         )
+    content: list[dict[str, str]] = []
+    for i, text_part in enumerate(parts):
+        if text_part:
+            content.append({"type": text_type, "text": text_part})
+        if i < len(image_paths):
+            image_bytes = Path(image_paths[i]).read_bytes()
+            encoded = base64.b64encode(image_bytes).decode("ascii")
+            mime_type = _guess_mime_type(image_paths[i])
+            content.append(
+                {
+                    "type": "input_image",
+                    "image_url": f"data:{mime_type};base64,{encoded}",
+                }
+            )
     return content
 
 
