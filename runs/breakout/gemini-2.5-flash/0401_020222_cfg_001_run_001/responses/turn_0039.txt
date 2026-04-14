@@ -1,2 +1,0 @@
-thought: The ball is currently located to the left of the paddle and moving downwards. The paddle needs to move left to intercept the ball and prevent it from going off-screen, thus losing a life. Given the ball's current position and direction, a series of 'left' actions will position the paddle correctly.
-move: [left, left, left, left, left, left, left, left, left, left]

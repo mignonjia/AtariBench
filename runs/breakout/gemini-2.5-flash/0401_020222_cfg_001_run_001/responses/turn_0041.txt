@@ -1,2 +1,0 @@
-thought: The ball is currently located to the left of the paddle and moving downwards. The recent history shows a paddle that moved left, so its current position might be somewhat to the left. I need to move the paddle to the left to intercept the ball.
-move: [left, left, left, left, left, left, left]

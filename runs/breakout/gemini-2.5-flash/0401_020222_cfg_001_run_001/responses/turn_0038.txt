@@ -1,2 +1,0 @@
-thought: The ball is currently located above the paddle and moving left. Based on the previous actions, the paddle moved left, so I need to move it right to catch the ball as it comes down. I will issue a series of 'right' commands to position the paddle under the ball's expected landing spot.
-move: [right, right, right, right, right]

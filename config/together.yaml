@@ -1,0 +1,19 @@
+- model_name: deepseek-ai/deepseek-v3.1
+  thinking_mode: off
+  prompt_mode: structured_history
+  history_clips: 3
+  non_zero_reward_clips: 3
+  games: full
+  seed_start: 0
+  num_runs: 10
+
+- model_name: zai-org/glm-5.1
+  thinking_mode: off
+  prompt_mode: structured_history
+  history_clips: 3
+  non_zero_reward_clips: 3
+  games: full
+  seed_start: 0
+  num_runs: 10
+
+# 2046055

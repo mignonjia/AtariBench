@@ -1,2 +1,0 @@
-thought: The ball is currently to the left of the paddle and moving downwards. The paddle has been moving left in the recent history, and is now positioned on the far left. To intercept the ball, the paddle needs to move to the right. I will choose to move right for 8 actions to ensure the paddle moves significantly towards the ball's trajectory.
-move: [right, right, right, right, right, right, right, right]

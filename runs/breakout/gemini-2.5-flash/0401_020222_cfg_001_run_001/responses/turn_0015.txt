@@ -1,2 +1,0 @@
-thought: The current game state shows no ball on the screen. The paddle is on the bottom right. To start playing and earn rewards, I need to serve a ball. The 'start' action will put a ball into play. Since a life was just lost (from the non-zero reward history), I should anticipate the ball appearing from the top of the screen. I will issue a 'start' command to get the game going.
-move: [start]

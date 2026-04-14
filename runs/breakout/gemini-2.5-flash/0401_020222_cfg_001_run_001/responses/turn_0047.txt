@@ -1,2 +1,0 @@
-thought: The previous game ended with a life loss, and a new game has begun. The ball is not on the screen, so I need to serve it using the 'start' action. Since the game is resetting, the paddle is in the center and the ball will appear there, so a single start action is sufficient to get the ball into play. I will then monitor the ball's movement to determine the next paddle actions.
-move: [start]

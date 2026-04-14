@@ -1,2 +1,0 @@
-thought: The ball is currently at a low-left position and moving towards the paddle. The paddle is on the right side of the screen. I need to move the paddle to the left to intercept the ball. I will move left several times to ensure I catch it.
-move: [left, left, left, left, left, left, left, left]

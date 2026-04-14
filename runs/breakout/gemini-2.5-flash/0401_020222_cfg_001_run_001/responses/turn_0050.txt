@@ -1,2 +1,0 @@
-thought: The ball is currently mid-screen, moving downwards and slightly to the left. The paddle is on the far right. To intercept the ball and prevent losing a life, I need to move the paddle significantly to the left. I will issue a sequence of 'left' actions.
-move: [left, left, left, left, left, left, left, left]

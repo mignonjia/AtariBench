@@ -1,2 +1,0 @@
-thought: The ball is currently located near the bottom left of the screen and is moving downwards and to the left. The paddle is on the far left. It's crucial to move the paddle to the right to intercept the ball and prevent it from going past. I'll need a long sequence of 'right' actions to cover the distance.
-move: [right, right, right, right, right, right, right, right, right, right]

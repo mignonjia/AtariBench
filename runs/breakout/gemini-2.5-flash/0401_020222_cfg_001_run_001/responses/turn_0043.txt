@@ -1,2 +1,0 @@
-thought: The ball is currently at roughly the center-right of the screen and moving downwards and slightly to the left. The paddle is on the far right. To intercept the ball and keep it in play, I need to move the paddle to the left. I will issue several 'left' commands to ensure the paddle is positioned correctly.
-move: [left, left, left, left, left, left, left]

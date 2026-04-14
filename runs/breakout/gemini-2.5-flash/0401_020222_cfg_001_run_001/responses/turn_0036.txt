@@ -1,2 +1,0 @@
-thought: The current state shows the paddle and the ball. The ball is currently mid-screen, traveling upwards and to the right, having just hit a brick on the top row, increasing the score to 001. The paddle is on the bottom-right. Since the ball is going up, I don't need to move the paddle immediately. I should plan to move the paddle to the right to meet the ball as it descends. I will choose a short action plan to get quick feedback on how the ball behaves after hitting the wall.
-move: [right, right, right]

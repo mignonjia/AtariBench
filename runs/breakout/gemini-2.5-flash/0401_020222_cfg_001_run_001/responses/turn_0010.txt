@@ -1,2 +1,0 @@
-thought: I need to hit the ball with the paddle to earn rewards. The ball is currently mid-screen, moving diagonally downwards and right. I need to move the paddle to the right to intercept the ball. Since the ball is still relatively high, I can commit to a few "right" actions.
-move: [right, right, right, right]

@@ -1,2 +1,0 @@
-thought: The game just started a new life, and the ball is about to be launched or has just been launched. It appears to be near the center of the screen, moving downwards. The paddle is also near the center. I should use 'noop' to wait for the ball to get closer and then adjust the paddle. Given the recent history of losing a life after attempting to move right and then left, it is best to avoid aggressive moves right after a serve.
-move: [noop, noop, noop, noop, noop, noop, noop, noop, noop, noop]

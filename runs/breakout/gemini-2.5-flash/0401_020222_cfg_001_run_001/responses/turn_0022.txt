@@ -1,2 +1,0 @@
-thought: The current game state shows a ball (red dot) at the top right, moving downwards. The paddle is on the far left. The ball is clearly going to miss the paddle if no action is taken. I need to move the paddle to the right to intercept the ball. Since the ball is still relatively high, I can make a longer sequence of right moves.
-move: [right, right, right, right, right, right, right, right]

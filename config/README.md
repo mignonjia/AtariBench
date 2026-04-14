@@ -17,7 +17,19 @@ This folder contains the config-driven batch inputs for AtariBench.
 Use `debug.yaml` when you want a fast debug run. If you want even faster debug cycles, lower `duration_seconds` in [`common.yaml`](common.yaml).
 
 ```bash
-python batch_run.py --common-config config/common.yaml --runs-config config/debug.yaml
+python batch_run.py --common-config config/common_debug.yaml --runs-config config/together.yaml
+```
+
+Use below command for nohup run:
+
+```bash
+mkdir -p logs && nohup python batch_run.py --common-config config/common.yaml --runs-config config/debug.yaml > logs/batch_debug_$(date -u +%Y%m%d_%H%M%S).log 2>&1 & echo $!
+```
+
+`echo $!` prints the background process ID for the `nohup` job. To kill the whole batch later, use:
+
+```bash
+kill -- -<PID>
 ```
 
 ## Usage - complete run

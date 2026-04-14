@@ -1,2 +1,0 @@
-thought: The ball is currently located near the right side of the screen and is moving downwards. The paddle is also on the right. To intercept the ball and prevent it from falling, I need to move the paddle further to the right. Since the ball is still relatively high, I can make a short plan to move the paddle right, which will also allow for quicker feedback.
-move: [right, right]

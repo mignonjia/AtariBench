@@ -1,2 +1,0 @@
-thought: The game has just started (time 0.00s) and there is no ball on the screen. The score is 0 and I have 5 lives. I need to serve the ball to start playing. The first action must be 'start'. After that, I will need to control the paddle to hit the ball and break bricks.
-move: [start]

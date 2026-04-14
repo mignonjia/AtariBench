@@ -1,2 +1,0 @@
-thought: The current game state shows a paddle at the bottom right. The score is 000 and lives are 2. There is no ball visible on the screen. Therefore, the first action needs to be 'start' to launch a new ball.
-move: [start]

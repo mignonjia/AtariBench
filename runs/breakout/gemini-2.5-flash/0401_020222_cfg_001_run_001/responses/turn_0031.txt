@@ -1,2 +1,0 @@
-thought: The game just restarted, and the ball is not visible on the screen. Therefore, the first action must be "start" to serve a new ball. I'll make a short plan as the ball is not yet in play.
-move: [start, start, start]

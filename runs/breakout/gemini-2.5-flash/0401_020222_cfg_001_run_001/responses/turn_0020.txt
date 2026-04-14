@@ -1,2 +1,0 @@
-thought: The game is currently in a state where there is no ball visible on the screen. The score is 0 and I have 5 lives, which means the game has likely just restarted or I lost a life. The recent history also indicates that I've been losing lives and trying to start new balls. To start making progress and earning rewards, I need to serve a new ball into play. Therefore, the first action must be 'start'. I will perform several 'start' actions to ensure the ball is launched.
-move: [start, start, start, start]
