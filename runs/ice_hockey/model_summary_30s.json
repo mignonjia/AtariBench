@@ -120,8 +120,48 @@
         "thinking_mode": "none",
         "worst_total_reward": -2.0
       }
+    ],
+    "zai-org/glm-5.1": [
+      {
+        "avg_cached_input_tokens": 0.0,
+        "avg_frame_count": 901.0,
+        "avg_input_tokens": 216662.4,
+        "avg_output_tokens": 10934.4,
+        "avg_thinking_tokens": 0.0,
+        "avg_token_usage_missing_turns": 0.0,
+        "avg_token_usage_reported_turns": 130.4,
+        "avg_total_lost_lives": 0.0,
+        "avg_total_reward": -1.0,
+        "avg_total_tokens": 227596.8,
+        "avg_turn_count": 130.4,
+        "best_total_reward": 1.0,
+        "context_cache": false,
+        "frames_per_action": 3,
+        "history_clips": 3,
+        "latest_cached_input_tokens": 0.0,
+        "latest_input_tokens": 201938.0,
+        "latest_output_tokens": 9789.0,
+        "latest_run_dir": "/home/hal-mingjiahuo/AtariBench/runs/ice_hockey/zai-org-glm-5.1/0413_184540_cfg_002_run_010",
+        "latest_thinking_tokens": 0.0,
+        "latest_timestamp": "0413_184540_cfg_002_run_010",
+        "latest_token_usage_missing_turns": 0.0,
+        "latest_token_usage_reported_turns": 120.0,
+        "latest_total_reward": -1.0,
+        "latest_total_tokens": 211727.0,
+        "model_name": "zai-org/glm-5.1",
+        "non_zero_reward_clips": 3,
+        "prompt_mode": "structured_history",
+        "run_count": 10,
+        "setting_key": "prompt_mode=structured_history|context_cache=False|thinking_mode=off|frames_per_action=3|thinking_level=none|thinking_budget=null|history_clips=3|non_zero_reward_clips=3",
+        "stderr_total_lost_lives": 0.0,
+        "stderr_total_reward": 0.2581988897471611,
+        "thinking_budget": null,
+        "thinking_level": "none",
+        "thinking_mode": "off",
+        "worst_total_reward": -2.0
+      }
     ]
   },
   "run_filter": "full_30s",
-  "updated_at": "2026-04-14T01:33:41"
+  "updated_at": "2026-04-14T08:59:16"
 }

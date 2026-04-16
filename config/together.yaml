@@ -16,4 +16,22 @@
   seed_start: 0
   num_runs: 10
 
+- model_name: Qwen/Qwen3.5-397B-A17B
+  thinking_mode: default
+  prompt_mode: structured_history
+  history_clips: 3
+  non_zero_reward_clips: 3
+  games: full
+  seed_start: 0
+  num_runs: 10
+
+- model_name: Qwen/Qwen3.5-9B
+  thinking_mode: default
+  prompt_mode: structured_history
+  history_clips: 3
+  non_zero_reward_clips: 3
+  games: full
+  seed_start: 0
+  num_runs: 10
+
 # 2046055

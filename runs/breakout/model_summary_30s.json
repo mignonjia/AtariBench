@@ -81,6 +81,46 @@
         "worst_total_reward": 2.0
       }
     ],
+    "gemini-3-flash-preview": [
+      {
+        "avg_cached_input_tokens": 879957.4,
+        "avg_frame_count": 901.0,
+        "avg_input_tokens": 2533828.4,
+        "avg_output_tokens": 5865.0,
+        "avg_thinking_tokens": 36526.6,
+        "avg_token_usage_missing_turns": 0.0,
+        "avg_token_usage_reported_turns": 73.2,
+        "avg_total_lost_lives": 3.2,
+        "avg_total_reward": 3.4,
+        "avg_total_tokens": 2576220.0,
+        "avg_turn_count": 73.2,
+        "best_total_reward": 4.0,
+        "context_cache": false,
+        "frames_per_action": 3,
+        "history_clips": 3,
+        "latest_cached_input_tokens": 1162330.0,
+        "latest_input_tokens": 2742622.0,
+        "latest_output_tokens": 5366.0,
+        "latest_run_dir": "/home/hal-mingjiahuo/AtariBench/runs/breakout/gemini-3-flash-preview/0414_055353_cfg_001_run_005",
+        "latest_thinking_tokens": 32528.0,
+        "latest_timestamp": "0414_055353_cfg_001_run_005",
+        "latest_token_usage_missing_turns": 0.0,
+        "latest_token_usage_reported_turns": 69.0,
+        "latest_total_reward": 4.0,
+        "latest_total_tokens": 2780516.0,
+        "model_name": "gemini-3-flash-preview",
+        "non_zero_reward_clips": 3,
+        "prompt_mode": "structured_history",
+        "run_count": 5,
+        "setting_key": "prompt_mode=structured_history|context_cache=False|thinking_mode=low|frames_per_action=3|thinking_level=low|thinking_budget=null|history_clips=3|non_zero_reward_clips=3",
+        "stderr_total_lost_lives": 0.48989794855663554,
+        "stderr_total_reward": 0.24494897427831777,
+        "thinking_budget": null,
+        "thinking_level": "low",
+        "thinking_mode": "low",
+        "worst_total_reward": 3.0
+      }
+    ],
     "gpt-5.4-mini": [
       {
         "avg_cached_input_tokens": 73395.2,
@@ -163,5 +203,5 @@
     ]
   },
   "run_filter": "full_30s",
-  "updated_at": "2026-04-14T05:11:19"
+  "updated_at": "2026-04-14T08:59:15"
 }
