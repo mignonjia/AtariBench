@@ -71,14 +71,19 @@ def _generate_turn_response(
     thinking_mode: str,
     prompt_messages: list[PromptMessage] | None,
 ) -> LlmTurnResponse:
+    contents = _build_contents(
+        types=types,
+        prompt_text=prompt_text,
+        image_paths=image_paths,
+        prompt_messages=prompt_messages,
+    )
+    # print("=" * 50)
+    # for content in contents:
+    #     print("-" * 10)
+    #     print(content)
     response = client.models.generate_content(
         model=model_name,
-        contents=_build_contents(
-            types=types,
-            prompt_text=prompt_text,
-            image_paths=image_paths,
-            prompt_messages=prompt_messages,
-        ),
+        contents=contents,
         config=_build_generate_config(types, model_name, thinking_mode),
     )
     token_usage = _extract_token_usage(response)

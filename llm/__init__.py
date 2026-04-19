@@ -12,6 +12,7 @@ from .common import (
     resolve_model_provider,
     validate_model_thinking_mode,
 )
+from .dashscope_client import DashScopeClient
 from .gemini_client import GeminiClient
 from .openai_client import OpenAIClient
 from .together_client import TogetherClient
@@ -29,11 +30,14 @@ def build_model_client(model_name: str, provider: str = "auto"):
         return AnthropicClient()
     if resolved_provider == "together":
         return TogetherClient()
+    if resolved_provider == "dashscope":
+        return DashScopeClient()
     raise AssertionError(f"Unhandled provider: {resolved_provider}")
 
 
 __all__ = [
     "AnthropicClient",
+    "DashScopeClient",
     "GeminiClient",
     "LlmTurnResponse",
     "OpenAIClient",

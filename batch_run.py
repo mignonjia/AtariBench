@@ -51,7 +51,7 @@ else:
     )
     from .viz import render_run_video
 
-_SUPPORTED_COMPANIES = ("gemini", "openai", "anthropic", "together")
+_SUPPORTED_COMPANIES = ("gemini", "openai", "anthropic", "together", "dashscope")
 _INTERNAL_REQUEST_ENV = "ATARIBENCH_INTERNAL_RUN_REQUEST"
 
 
@@ -435,7 +435,7 @@ def _normalize_company_concurrency_map(raw_value: object) -> dict[str, int] | No
         if normalized_company not in _SUPPORTED_COMPANIES:
             raise ValueError(
                 f"Unsupported company '{company}' in max_concurrency_by_company. "
-                "Use gemini, openai, anthropic, or together."
+                "Use gemini, openai, anthropic, together, or dashscope."
             )
         limit_value = int(limit)
         if limit_value < 1:

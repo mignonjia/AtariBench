@@ -307,11 +307,13 @@ def infer_model_provider(model_name: str) -> str:
         )
     ):
         return "openai"
+    if normalized_name.startswith("qwen"):
+        return "dashscope"
     if "/" in normalized_name:
         return "together"
     raise ValueError(
         f"Could not infer provider from model '{model_name}'. "
-        "Use a Gemini/OpenAI/Anthropic/Together model name or pass --provider explicitly."
+        "Use a Gemini/OpenAI/Anthropic/Together/DashScope model name or pass --provider explicitly."
     )
 
 
@@ -321,6 +323,6 @@ def resolve_model_provider(model_name: str, provider: str = "auto") -> str:
     normalized_provider = provider.strip().lower()
     if normalized_provider == "auto":
         return infer_model_provider(model_name)
-    if normalized_provider in {"gemini", "openai", "anthropic", "together"}:
+    if normalized_provider in {"gemini", "openai", "anthropic", "together", "dashscope"}:
         return normalized_provider
     raise ValueError(f"Unsupported provider: {provider}")

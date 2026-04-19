@@ -1,4 +1,4 @@
-"""Together client adapter used by the Atari runner."""
+"""DashScope (Alibaba) client adapter using the OpenAI-compatible interface."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import base64
 import os
 from pathlib import Path
 
-from .common import LlmTurnResponse, build_token_usage
+from .common import LlmTurnResponse, build_token_usage, read_usage_value
 from .retry import call_with_retries
 
 try:
@@ -14,14 +14,16 @@ try:
 except ImportError:  # Running from inside the AtariBench folder.
     from games.prompt_builder import PromptMessage
 
+_DASHSCOPE_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
 
-class TogetherClient:
-    """Thin wrapper around the official Together SDK."""
+
+class DashScopeClient:
+    """Thin wrapper around DashScope's OpenAI-compatible chat completions API."""
 
     def __init__(self, api_key: str | None = None):
-        self.api_key = api_key or os.getenv("TOGETHER_API_KEY")
+        self.api_key = api_key or os.getenv("DASHSCOPE_API_KEY")
         if not self.api_key:
-            raise RuntimeError("TOGETHER_API_KEY is required to call Together.")
+            raise RuntimeError("DASHSCOPE_API_KEY is required to call DashScope.")
 
     def generate_turn(
         self,
@@ -36,38 +38,38 @@ class TogetherClient:
         del context_cache
 
         try:
-            from together import Together
+            from openai import OpenAI
         except ImportError as exc:
-            raise RuntimeError("together is required for live Together calls.") from exc
+            raise RuntimeError("openai is required for DashScope calls.") from exc
 
-        client = Together(api_key=self.api_key)
-
-        def _call():
-            stream = client.chat.completions.create(
+        client = OpenAI(api_key=self.api_key, base_url=_DASHSCOPE_BASE_URL)
+        response = call_with_retries(
+            lambda: client.chat.completions.create(
                 model=model_name,
                 messages=_build_input_messages(
                     prompt_text=prompt_text,
                     image_paths=image_paths,
                     prompt_messages=prompt_messages,
                 ),
-                stream=True,
                 **_build_request_kwargs(thinking_mode=thinking_mode),
             )
-            chunks = []
-            for token in stream:
-                if hasattr(token, "choices") and token.choices:
-                    delta = token.choices[0].delta
-                    if hasattr(delta, "content") and delta.content:
-                        chunks.append(delta.content)
-            return "".join(chunks)
-
-        text = call_with_retries(_call)
-        if text:
-            return LlmTurnResponse(text=text, token_usage=build_token_usage())
-        return LlmTurnResponse(
-            text="thought: Together returned no text output; defaulting to noop.\nmove: [noop]",
-            token_usage=build_token_usage(),
         )
+        token_usage = _extract_token_usage(response)
+        text = _extract_response_text(response)
+        if text:
+            return LlmTurnResponse(text=text, token_usage=token_usage)
+        return LlmTurnResponse(
+            text="thought: DashScope returned no text output; defaulting to noop.\nmove: [noop]",
+            token_usage=token_usage,
+        )
+
+
+def _build_request_kwargs(*, thinking_mode: str) -> dict[str, object]:
+    normalized_mode = thinking_mode.strip().lower()
+    if normalized_mode in {"off", "none"}:
+        return {"extra_body": {"enable_thinking": False}}
+    # default / on: let the model decide
+    return {}
 
 
 def _build_input_messages(
@@ -117,19 +119,6 @@ def _build_message_content(prompt_text: str, image_paths: list[str]) -> str | li
     return content
 
 
-def _build_request_kwargs(*, thinking_mode: str) -> dict[str, object]:
-    normalized_mode = thinking_mode.strip().lower()
-    if normalized_mode in {"default", "auto"}:
-        return {}
-    if normalized_mode in {"off", "none"}:
-        return {"reasoning": {"enabled": False}}
-    if normalized_mode == "on":
-        return {"reasoning": {"enabled": True}}
-    raise ValueError(
-        "Together models currently support only thinking_mode='default', 'auto', 'off', 'none', or 'on'."
-    )
-
-
 def _guess_mime_type(image_path: str) -> str:
     suffix = Path(image_path).suffix.lower()
     if suffix == ".png":
@@ -139,3 +128,25 @@ def _guess_mime_type(image_path: str) -> str:
     return "application/octet-stream"
 
 
+def _extract_response_text(response) -> str | None:
+    choices = getattr(response, "choices", None) or []
+    if not choices:
+        return None
+    message = getattr(choices[0], "message", None)
+    if message is None:
+        return None
+    content = getattr(message, "content", None)
+    if isinstance(content, str) and content:
+        return content
+    return None
+
+
+def _extract_token_usage(response) -> object:
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return build_token_usage()
+    return build_token_usage(
+        input_tokens=read_usage_value(usage, "prompt_tokens", "input_tokens"),
+        output_tokens=read_usage_value(usage, "completion_tokens", "output_tokens"),
+        total_tokens=read_usage_value(usage, "total_tokens"),
+    )
