@@ -68,6 +68,7 @@ def build_parser() -> argparse.ArgumentParser:
             "visualization.mp4 in the run directory."
         ),
     )
+    parser.add_argument("--seed", type=int, default=None, help="Random seed for the environment.")
     return parser
 
 
@@ -112,7 +113,7 @@ def main(argv: list[str] | None = None) -> int:
             minimal_logging=parsed_args.minimal_logging,
             provider="auto",
             output_dir=str(project_dir / "runs"),
-            seed=None,
+            seed=parsed_args.seed,
             max_actions_per_turn=10,
             frames_per_action=3,
             history_clips=3,

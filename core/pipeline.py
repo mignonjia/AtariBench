@@ -296,6 +296,7 @@ class PipelineRunner:
                 prompt_mode=self.config.prompt_mode,
                 context_cache=self.effective_context_cache,
                 minimal_logging=self.config.minimal_logging,
+                seed=self.config.seed,
                 input_tokens=total_input_tokens,
                 output_tokens=total_output_tokens,
                 total_tokens=total_tokens,
