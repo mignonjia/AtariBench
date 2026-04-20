@@ -31,11 +31,53 @@ class ParsedClipResponse:
 
 _CODE_FENCE_RE = re.compile(r"^```[a-zA-Z0-9_-]*\s*|\s*```$", re.MULTILINE)
 
+# Direction component tokens in canonical order (vertical before horizontal).
+_VERTICALS = ("up", "down")
+_HORIZONTALS = ("right", "left")
+_SUFFIXES = ("fire", "punch", "shoot")
+
+
+def _try_reorder_compound_action(name: str) -> str | None:
+    """Reorder compound direction words to match game action conventions.
+
+    Models sometimes output leftup/rightdown/up-right; games expect upleft/downright/upright.
+    Returns the reordered name, or None if the name can't be decomposed this way.
+    """
+    remaining = name
+    vertical: str | None = None
+    horizontal: str | None = None
+    suffix: str | None = None
+
+    for s in _SUFFIXES:
+        if remaining.endswith(s) and remaining != s:
+            suffix = s
+            remaining = remaining[: -len(s)]
+            break
+
+    for v in _VERTICALS:
+        if v in remaining:
+            vertical = v
+            remaining = remaining.replace(v, "", 1)
+            break
+
+    for h in _HORIZONTALS:
+        if h in remaining:
+            horizontal = h
+            remaining = remaining.replace(h, "", 1)
+            break
+
+    if remaining:
+        return None
+
+    parts = [p for p in (vertical, horizontal, suffix) if p]
+    return "".join(parts) if len(parts) >= 2 else None
+
 
 def normalize_action_name(action: str) -> str:
     """Lowercase and normalize model action strings."""
 
-    normalized = " ".join(action.strip().lower().replace("_", " ").split())
+    stripped = action.strip().strip("\"'")
+    normalized = " ".join(stripped.lower().replace("_", " ").split())
     return normalized
 
 
@@ -57,16 +99,39 @@ def parse_model_response(
     errors: list[str] = []
     allowed_max_actions = min(max_actions, 10)
 
+    # Primary: thought: ... \n [optional number+dot] move:
     thought_match = re.search(
-        r"thought:\s*(.*?)\n\s*move:",
+        r"thought:\s*(.*?)\n[^\S\n]*(?:\d+\.\s*)?move:",
         cleaned,
         flags=re.IGNORECASE | re.DOTALL,
     )
+    # Fallback: "thought" without colon (model omitted it), same newline tolerance
+    if not thought_match:
+        thought_match = re.search(
+            r"thought[^:\w]\s*(.*?)\n[^\S\n]*(?:\d+\.\s*)?move[:\s]",
+            cleaned,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+    # Fallback: thought and move on the same line (no newline between them)
+    if not thought_match:
+        thought_match = re.search(
+            r"thought:\s*(.*?)(?=\s*move:\s*\[)",
+            cleaned,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+    # Bracketed: move: [a, b, c]
     move_match = re.search(
         r"move:\s*\[(.*?)\]",
         cleaned,
         flags=re.IGNORECASE | re.DOTALL,
     )
+    # Fallback: bracket-free "move: a, b, c" (single line, no brackets)
+    if not move_match:
+        move_match = re.search(
+            r"move:\s*([^\[\]\n][^\n]*)",
+            cleaned,
+            flags=re.IGNORECASE,
+        )
 
     thought = ""
     if thought_match:
@@ -98,10 +163,30 @@ def parse_model_response(
         errors.append("Missing required 'move:' section.")
 
     for action_name in action_strings:
-        if action_name not in game_spec.action_map:
-            errors.append(f"Unknown action: {action_name}")
-        else:
+        if action_name in game_spec.action_map:
             action_ids.append(game_spec.action_map[action_name])
+            continue
+
+        # Try removing hyphens: "up-right" → "upright"
+        dehyphenated = action_name.replace("-", "")
+        if dehyphenated in game_spec.action_map:
+            action_ids.append(game_spec.action_map[dehyphenated])
+            continue
+
+        # Try reordering compound direction words: "leftup" → "upleft"
+        reordered = _try_reorder_compound_action(action_name)
+        if reordered and reordered in game_spec.action_map:
+            action_ids.append(game_spec.action_map[reordered])
+            continue
+
+        # Try reorder then dehyphenate: "left-up" → "leftup" → "upleft"
+        if reordered:
+            reordered_dh = reordered.replace("-", "")
+            if reordered_dh in game_spec.action_map:
+                action_ids.append(game_spec.action_map[reordered_dh])
+                continue
+
+        errors.append(f"Unknown action: {action_name}")
 
     return ParsedClipResponse(
         raw_text=raw_text,

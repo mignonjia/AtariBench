@@ -55,15 +55,11 @@ Action Planning Guidelines:
 - Scoring: You get points for changing cubes (25), catching Sam (300), catching
   a green ball (100), luring Coily off the pyramid (500), and completing a round
   (bonus). You earn an extra life for every 10,000 points.
-- Control Note: The controls are diagonal. 'up' corresponds to top-right,
-  'right' to bottom-right, 'left' to top-left, and 'down' to bottom-left. Be
-  careful at the edges of the pyramid, as a wrong move will cause you to fall.
-  For example, when you are on the single top cube at the start of a round:
-    - Using the `left` action (to hop top-left) will cause you to fall off
-      because there is no cube there.
-    - Using the `up` action (to hop top-right) will also cause you to fall.
-    - From the top, only `right` (to the bottom-right cube) and `down` (to the
-      bottom-left cube) are safe initial moves.
+- Edge Safety: Be careful at the edges of the pyramid — jumping in a direction
+  with no cube will cost you a life. For example, when you are on the single top
+  cube at the start of a round, only `bottom-right` and `bottom-left` are safe
+  initial moves. `top-right` and `top-left` from the top cube will cause you to
+  fall off.
 """
 
 FPS_10_PROMPT: str = """
@@ -75,7 +71,7 @@ You are encouraged to make shorter plans if an enemy is close, as shorter plans
 
 An example of response is:
 thought: your thought here
-move: [down, down, right]
+move: [bottom-right, bottom-right]
 """
 
 ACTION_MAP = {
