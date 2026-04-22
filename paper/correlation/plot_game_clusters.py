@@ -388,10 +388,11 @@ for i in range(n_games):
 
 THRESHOLD = 0.5
 fig3, ax3 = plt.subplots(figsize=(7, 6))
-ax3.set_xlim(-1.45, 1.45); ax3.set_ylim(-1.45, 1.45)
+ax3.set_position([0.01, 0.0, 0.98, 0.92])
+ax3.set_xlim(-1.55, 1.65); ax3.set_ylim(-1.15, 1.25)
 ax3.set_aspect("equal"); ax3.axis("off")
 ax3.set_title(f"Games connected when Pearson r > {THRESHOLD}",
-              fontsize=12, fontweight="bold")
+              fontsize=12, fontweight="bold", pad=2)
 
 # Circular layout ordered by cluster then by game name
 angles = np.linspace(0, 2 * np.pi, n_games, endpoint=False)
@@ -423,7 +424,6 @@ for i, g in enumerate(all_games):
              ha=ha, va="center", fontsize=9,
              color=CLUSTER_COLORS[c], fontweight="bold")
 
-plt.tight_layout()
 p3 = ROOT / "paper" / "correlation" / "plot_clusters_graph.png"
 plt.savefig(p3, dpi=150, bbox_inches="tight"); print(f"Saved to {p3}"); plt.close()
 
