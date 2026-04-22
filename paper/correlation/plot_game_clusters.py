@@ -147,21 +147,21 @@ snr_games  = sorted(all_games, key=lambda g: game_snr[g], reverse=True)
 snr_values = [game_snr[g] for g in snr_games]
 colors_bar = ["#1a9850" if v >= SNR_THRESHOLD else "#d73027" for v in snr_values]
 
-fig0s, ax0s = plt.subplots(figsize=(9, 4.5))
+fig0s, ax0s = plt.subplots(figsize=(7, 6))
 bars = ax0s.barh(range(len(snr_games)), snr_values, color=colors_bar,
                  edgecolor="white", height=0.7)
 ax0s.axvline(SNR_THRESHOLD, color="#333333", lw=1.5, ls="--",
              label=f"Threshold = {SNR_THRESHOLD}")
 ax0s.set_yticks(range(len(snr_games)))
-ax0s.set_yticklabels([g.replace("_", " ").title() for g in snr_games], fontsize=8)
+ax0s.set_yticklabels([g.replace("_", " ").title() for g in snr_games], fontsize=11)
 ax0s.invert_yaxis()
-ax0s.set_xlabel("Separability  =  (best − worst mean) / pooled stderr of best & worst", fontsize=9)
-ax0s.set_title("Per-game separability  (green = kept, red = dropped)",
-               fontsize=10, fontweight="bold")
-ax0s.legend(fontsize=8)
+ax0s.set_xlabel("Separability  =  (best − worst mean) / pooled stderr", fontsize=11)
+ax0s.set_title("Per-game separability\n(green = kept, red = dropped)",
+               fontsize=12, fontweight="bold")
+ax0s.legend(fontsize=10)
 for i, v in enumerate(snr_values):
-    ax0s.text(v + 0.05, i, f"{v:.2f}", va="center", fontsize=7.5)
-ax0s.set_xlim(0, max(snr_values) * 1.15)
+    ax0s.text(v + 0.05, i, f"{v:.2f}", va="center", fontsize=10)
+ax0s.set_xlim(0, max(snr_values) * 1.18)
 ax0s.spines[["top", "right"]].set_visible(False)
 plt.tight_layout()
 p0s = ROOT / "paper" / "correlation" / "plot_clusters_separability.png"
@@ -387,15 +387,14 @@ for i in range(n_games):
         corr[i, j] = np.corrcoef(a, b)[0, 1]
 
 THRESHOLD = 0.5
-fig3, ax3 = plt.subplots(figsize=(9, 9))
-ax3.set_xlim(-1.3, 1.3); ax3.set_ylim(-1.3, 1.3)
+fig3, ax3 = plt.subplots(figsize=(7, 6))
+ax3.set_xlim(-1.45, 1.45); ax3.set_ylim(-1.45, 1.45)
 ax3.set_aspect("equal"); ax3.axis("off")
 ax3.set_title(f"Games connected when Pearson r > {THRESHOLD}",
-              fontsize=10, fontweight="bold")
+              fontsize=12, fontweight="bold")
 
 # Circular layout ordered by cluster then by game name
 angles = np.linspace(0, 2 * np.pi, n_games, endpoint=False)
-# Sort games: cluster first, then alphabetical within cluster
 node_order = sorted(range(n_games),
                     key=lambda i: (cluster_ids[i], all_games[i]))
 pos = {node_order[k]: (np.cos(angles[k]), np.sin(angles[k]))
@@ -412,26 +411,18 @@ for i in range(n_games):
         ax3.plot([xi, xj], [yi, yj], color="#888888",
                  lw=1.0 + 2.5 * alpha, alpha=0.35 + 0.45 * alpha, zorder=1)
 
-# Draw nodes
+# Draw nodes — uniform circle marker, color by cluster only
 for i, g in enumerate(all_games):
     xi, yi = pos[i]
-    c   = cluster_ids[i]
-    grp = GAME_TO_GROUP.get(g, "")
+    c = cluster_ids[i]
     ax3.scatter(xi, yi, s=160, color=CLUSTER_COLORS[c],
-                marker=TAX_MARKERS.get(grp, "o"),
-                edgecolors="white", linewidths=1.0, zorder=3)
+                marker="o", edgecolors="white", linewidths=1.0, zorder=3)
     ha  = "left" if xi > 0 else "right"
     off = 0.09 if xi > 0 else -0.09
     ax3.text(xi + off, yi, g.replace("_", " ").title(),
-             ha=ha, va="center", fontsize=7,
+             ha=ha, va="center", fontsize=9,
              color=CLUSTER_COLORS[c], fontweight="bold")
 
-cluster_handles2 = [mpatches.Patch(color=CLUSTER_COLORS[c], label=f"Cluster {c+1}")
-                    for c in range(K)]
-tax_handles2 = [plt.scatter([], [], marker=TAX_MARKERS[g], color="gray",
-                            s=50, label=g) for g in TAXONOMY]
-ax3.legend(handles=cluster_handles2 + tax_handles2,
-           fontsize=7.5, loc="lower right", framealpha=0.85)
 plt.tight_layout()
 p3 = ROOT / "paper" / "correlation" / "plot_clusters_graph.png"
 plt.savefig(p3, dpi=150, bbox_inches="tight"); print(f"Saved to {p3}"); plt.close()
