@@ -98,6 +98,7 @@ def make_row_key(entry):
 
 
 SNR_THRESHOLD = 1.0  # keep games where (best-worst gap) / pooled_stderr >= this
+EXCLUDE_GAMES = {"boxing", "ice_hockey", "demon_attack", "fishing_derby"}
 
 # ── data loading — collect avg + stderr per (model, game) ────────────────────
 entries_data = {}  # (rk, game) -> (avg, stderr, run_count)
@@ -167,7 +168,7 @@ p0s = ROOT / "paper" / "correlation" / "plot_clusters_separability.png"
 plt.savefig(p0s, dpi=150, bbox_inches="tight"); print(f"Saved to {p0s}"); plt.close()
 
 # filter to separable games
-all_games = [g for g in all_games if game_snr[g] >= SNR_THRESHOLD]
+all_games = [g for g in all_games if game_snr[g] >= SNR_THRESHOLD and g not in EXCLUDE_GAMES]
 n_games   = len(all_games)
 game_labels = [g.replace("_", " ").title() for g in all_games]
 print(f"Kept {n_games}/21 games (SNR >= {SNR_THRESHOLD}):")
