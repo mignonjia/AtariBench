@@ -51,7 +51,7 @@ else:
     )
     from .viz import render_run_video
 
-_SUPPORTED_COMPANIES = ("gemini", "openai", "anthropic", "together", "dashscope")
+_SUPPORTED_COMPANIES = ("gemini", "openai", "anthropic", "together", "dashscope", "random")
 _INTERNAL_REQUEST_ENV = "ATARIBENCH_INTERNAL_RUN_REQUEST"
 
 

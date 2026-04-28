@@ -134,6 +134,7 @@ class PipelineRunner:
                     duration_seconds=self.config.duration_seconds,
                     prompt_mode=self.config.prompt_mode,
                 )
+                html_log_path = trajectory.next_turn_html_path()
                 turn_response = self._coerce_turn_response(
                     self.model_client.generate_turn(
                         prompt_text=prompt_package.text,
@@ -142,6 +143,7 @@ class PipelineRunner:
                         thinking_mode=self.config.thinking_mode,
                         prompt_messages=prompt_package.messages,
                         context_cache=self.effective_context_cache,
+                        html_log_path=html_log_path,
                     )
                 )
                 if turn_response.token_usage.reported:
@@ -249,6 +251,7 @@ class PipelineRunner:
                     reward_delta=turn_reward,
                     action_records=action_records,
                     new_game_started=False,
+                    prompt_html_path=str(html_log_path),
                 )
 
                 if should_stop and should_reset_episode:

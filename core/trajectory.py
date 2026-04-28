@@ -141,6 +141,11 @@ class Trajectory:
             raise RuntimeError("No frames recorded yet.")
         return self.frame_records[-1]
 
+    def next_turn_html_path(self) -> Path:
+        """Return the HTML log path for the next turn without recording it."""
+        turn_index = len(self.turn_records) + 1
+        return self.prompts_dir / f"turn_{turn_index:04d}.html"
+
     def record_turn(
         self,
         prompt_text: str,
@@ -158,28 +163,31 @@ class Trajectory:
         reward_delta: float,
         action_records: list[ActionRecord],
         new_game_started: bool = False,
+        prompt_html_path: str | None = None,
     ) -> TurnRecord:
         """Persist a model turn and append it to the trajectory."""
 
         turn_index = len(self.turn_records) + 1
         prompt_path = self.prompts_dir / f"turn_{turn_index:04d}.txt"
-        prompt_html_path = self.prompts_dir / f"turn_{turn_index:04d}.html"
+        html_path = self.prompts_dir / f"turn_{turn_index:04d}.html"
         response_path = self.responses_dir / f"turn_{turn_index:04d}.txt"
         prompt_path.write_text(prompt_text, encoding="utf-8")
-        prompt_html_path.write_text(
-            _render_prompt_html(
-                prompt_text=prompt_text,
-                referenced_image_paths=referenced_image_paths,
-                html_path=prompt_html_path,
-            ),
-            encoding="utf-8",
-        )
+        if prompt_html_path is None:
+            html_path.write_text(
+                _render_prompt_html(
+                    prompt_text=prompt_text,
+                    referenced_image_paths=referenced_image_paths,
+                    html_path=html_path,
+                ),
+                encoding="utf-8",
+            )
+            prompt_html_path = str(html_path)
         response_path.write_text(raw_response, encoding="utf-8")
 
         record = TurnRecord(
             turn_index=turn_index,
             prompt_path=str(prompt_path),
-            prompt_html_path=str(prompt_html_path),
+            prompt_html_path=prompt_html_path,
             response_path=str(response_path),
             prompt_text=prompt_text,
             raw_response=raw_response,

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import html as _html
 import os
 from pathlib import Path
 
@@ -32,6 +34,7 @@ class GeminiClient:
         thinking_mode: str = "default",
         prompt_messages: list[PromptMessage] | None = None,
         context_cache: bool = False,
+        html_log_path: Path | None = None,
     ) -> LlmTurnResponse:
         """Send one multimodal request and return the raw model text plus usage."""
         del context_cache
@@ -57,6 +60,7 @@ class GeminiClient:
                 model_name=model_name,
                 thinking_mode=thinking_mode,
                 prompt_messages=prompt_messages,
+                html_log_path=html_log_path,
             )
         )
 
@@ -70,6 +74,7 @@ def _generate_turn_response(
     model_name: str,
     thinking_mode: str,
     prompt_messages: list[PromptMessage] | None,
+    html_log_path: Path | None = None,
 ) -> LlmTurnResponse:
     contents = _build_contents(
         types=types,
@@ -77,10 +82,8 @@ def _generate_turn_response(
         image_paths=image_paths,
         prompt_messages=prompt_messages,
     )
-    # print("=" * 50)
-    # for content in contents:
-    #     print("-" * 10)
-    #     print(content)
+    if html_log_path is not None:
+        _write_query_html_log(html_log_path, contents)
     response = client.models.generate_content(
         model=model_name,
         contents=contents,
@@ -208,6 +211,91 @@ def _guess_mime_type(image_path: str) -> str:
     if suffix in {".jpg", ".jpeg"}:
         return "image/jpeg"
     return "application/octet-stream"
+
+
+_QUERY_HTML_TEMPLATE = """\
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Query Log</title>
+  <style>
+    body {{
+      background: #f4f1ea;
+      color: #111;
+      font-family: Menlo, Monaco, Consolas, monospace;
+      line-height: 1.35;
+      margin: 0;
+      padding: 16px;
+    }}
+    h1 {{ font-size: 16px; margin: 0 0 12px 0; }}
+    .chat {{ display: flex; flex-direction: column; gap: 14px; }}
+    .row {{ display: flex; width: 100%; }}
+    .row.user {{ justify-content: flex-start; }}
+    .row.model {{ justify-content: flex-end; }}
+    .bubble {{
+      border: 1px solid #d8d1c4;
+      border-radius: 12px;
+      max-width: min(780px, 92%);
+      padding: 12px 14px;
+    }}
+    .row.user .bubble {{ background: #fffaf0; }}
+    .row.model .bubble {{ background: #eef5ff; }}
+    pre {{ margin: 0 0 10px 0; white-space: pre-wrap; word-break: break-word; }}
+    pre:last-child {{ margin-bottom: 0; }}
+    .img-block {{
+      background: rgba(255,255,255,0.8);
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      margin: 10px 0 0 0;
+      padding: 10px;
+    }}
+    img {{
+      border: 1px solid #ddd;
+      display: block;
+      image-rendering: pixelated;
+      max-width: min(680px, 100%);
+    }}
+  </style>
+</head>
+<body>
+  <h1>Query Log</h1>
+  <div class="chat">
+    {body}
+  </div>
+</body>
+</html>"""
+
+
+def _write_query_html_log(html_log_path: Path, contents) -> None:
+    """Write an HTML rendering of the exact contents sent to the Gemini API."""
+    bubbles: list[str] = []
+    for content in contents:
+        role = getattr(content, "role", "user")
+        parts = getattr(content, "parts", []) or []
+        rendered: list[str] = []
+        for part in parts:
+            text = getattr(part, "text", None)
+            if text:
+                rendered.append(f"<pre>{_html.escape(text)}</pre>")
+                continue
+            inline_data = getattr(part, "inline_data", None)
+            if inline_data is not None:
+                data = getattr(inline_data, "data", None)
+                mime_type = getattr(inline_data, "mime_type", "image/png")
+                if data is not None:
+                    b64 = base64.b64encode(data).decode("ascii")
+                    rendered.append(
+                        '<figure class="img-block">'
+                        f'<img src="data:{mime_type};base64,{b64}" alt="image" />'
+                        "</figure>"
+                    )
+        inner = "\n".join(rendered)
+        bubbles.append(
+            f'<div class="row {_html.escape(role)}"><div class="bubble">{inner}</div></div>'
+        )
+    body = "\n    ".join(bubbles)
+    html_log_path.write_text(_QUERY_HTML_TEMPLATE.format(body=body), encoding="utf-8")
 
 
 def _extract_response_text(response) -> str | None:

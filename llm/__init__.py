@@ -1,6 +1,7 @@
 """LLM client exports."""
 
 from .anthropic_client import AnthropicClient
+from .random_client import RandomClient
 from .common import (
     LlmTurnResponse,
     TokenUsage,
@@ -32,11 +33,14 @@ def build_model_client(model_name: str, provider: str = "auto"):
         return TogetherClient()
     if resolved_provider == "dashscope":
         return DashScopeClient()
+    if resolved_provider == "random":
+        return RandomClient()
     raise AssertionError(f"Unhandled provider: {resolved_provider}")
 
 
 __all__ = [
     "AnthropicClient",
+    "RandomClient",
     "DashScopeClient",
     "GeminiClient",
     "LlmTurnResponse",

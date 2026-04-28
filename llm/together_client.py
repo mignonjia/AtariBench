@@ -31,6 +31,7 @@ class TogetherClient:
         thinking_mode: str = "default",
         prompt_messages: list[PromptMessage] | None = None,
         context_cache: bool = False,
+        html_log_path=None,
     ) -> LlmTurnResponse:
         """Send one multimodal request and return the raw model text plus usage."""
         del context_cache

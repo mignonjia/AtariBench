@@ -234,6 +234,9 @@ def describe_effective_thinking_mode(
             "Together models currently support only thinking_mode='default', 'auto', 'off', 'none', or 'on'."
         )
 
+    if resolved_provider == "random":
+        return result  # random agent ignores thinking mode entirely
+
     raise AssertionError(f"Unhandled provider: {resolved_provider}")
 
 
@@ -255,6 +258,8 @@ def validate_model_thinking_mode(model_name: str, thinking_mode: str) -> None:
     normalized_mode = thinking_mode.strip().lower()
     if normalized_mode == "default":
         return
+    if _normalize_model_thinking_key(model_name) == "random":
+        return  # random agent accepts any thinking_mode value
 
     payload = load_model_thinking_config()
     allowed_modes = payload.get(_normalize_model_thinking_key(model_name))
@@ -311,6 +316,8 @@ def infer_model_provider(model_name: str) -> str:
         return "dashscope"
     if "/" in normalized_name:
         return "together"
+    if normalized_name == "random":
+        return "random"
     raise ValueError(
         f"Could not infer provider from model '{model_name}'. "
         "Use a Gemini/OpenAI/Anthropic/Together/DashScope model name or pass --provider explicitly."
@@ -323,6 +330,6 @@ def resolve_model_provider(model_name: str, provider: str = "auto") -> str:
     normalized_provider = provider.strip().lower()
     if normalized_provider == "auto":
         return infer_model_provider(model_name)
-    if normalized_provider in {"gemini", "openai", "anthropic", "together", "dashscope"}:
+    if normalized_provider in {"gemini", "openai", "anthropic", "together", "dashscope", "random"}:
         return normalized_provider
     raise ValueError(f"Unsupported provider: {provider}")
