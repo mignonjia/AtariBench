@@ -8,10 +8,15 @@ import numpy as np
 
 
 ROOT = Path(__file__).resolve().parents[2]
+APPEND_ONLY_SUMMARY_PATH = ROOT / "runs" / "model_summary_30s_gemini_append_only.json"
 
 MODEL_ALIASES = {
     "gemini-2.5-flash": "gemini-2.5-flash",
     "gpt-5.4-mini": "gpt-5.4-mini",
+    "openai:gpt-5.4": "gpt-5.4",
+    "openai:gpt-5.4-mini": "gpt-5.4-mini",
+    "anthropic:claude-opus-4-6": "claude-opus-4-6",
+    "anthropic:claude-sonnet-4-6": "claude-sonnet-4-6",
     "deepseek-ai/deepseek-v3.1": "deepseek-ai/deepseek-v3.1",
     "zai-org/glm-5.1": "zai-org/glm-5.1",
     "gemini-3-flash-preview": "gemini-3-flash-preview",
@@ -24,7 +29,10 @@ MODEL_DISPLAY_NAMES = {
     "gemini-2.5-flash": "Gemini 2.5 Flash",
     "gemini-3-flash-preview": "Gemini 3 Flash",
     "gemini-3.1-pro-preview": "Gemini 3.1 Pro",
+    "gpt-5.4": "GPT-5.4",
     "gpt-5.4-mini": "GPT-5.4 Mini",
+    "claude-opus-4-6": "Claude Opus 4.6",
+    "claude-sonnet-4-6": "Claude Sonnet 4.6",
     "deepseek-ai/deepseek-v3.1": "DeepSeek V3.1",
     "zai-org/glm-5.1": "GLM 5.1",
     "random": "Random",
@@ -34,25 +42,34 @@ MODEL_CANONICAL_ORDER = [
     "gemini-3-flash-preview",
     "gemini-3.1-pro-preview",
     "gemini-2.5-flash",
+    "gpt-5.4",
     "gpt-5.4-mini",
+    "claude-opus-4-6",
+    "claude-sonnet-4-6",
     "deepseek-ai/deepseek-v3.1",
     "zai-org/glm-5.1",
     "random",
 ]
 PROMPT_MODE_ORDER = {"structured_history": 0, "append_only": 1}
+THINKING_MODE_ORDER = {"default": 0, "high": 1, "low": 2, "off": 3, "none": 3}
 THINKING_LEVEL_ORDER = {"high": 0, "low": 1, "none": 2}
 
-EXCLUDE_ROW_KEYS = {
-    "gemini-3.1-pro-preview|structured_history|high",
-    "gemini-3.1-pro-preview|append_only|high",
-}
+EXCLUDE_ROW_KEYS = set()
+EXCLUDE_MODELS = set()
+EXCLUDE_GAMES = {"gopher"}
 
 # Games must have data for all REFERENCE_ROW_KEYS to be included in the plot
 REFERENCE_ROW_KEYS = [
-    "gemini-3-flash-preview|structured_history|high",
-    "gemini-3-flash-preview|structured_history|low",
-    "gemini-2.5-flash|structured_history|none",
-    "gpt-5.4-mini|structured_history|none",
+    "gemini-3-flash-preview|structured_history|default|high",
+    "gemini-3-flash-preview|structured_history|default|low",
+    "gemini-2.5-flash|structured_history|off|none",
+    "gpt-5.4-mini|structured_history|none|none",
+]
+APPEND_ONLY_COMPARISON_STRUCTURED_KEYS = [
+    "gemini-3.1-pro-preview|structured_history|default|high",
+    "gemini-3.1-pro-preview|structured_history|default|low",
+    "gemini-3-flash-preview|structured_history|default|low",
+    "gemini-3-flash-preview|structured_history|default|high",
 ]
 
 
@@ -69,28 +86,34 @@ def make_row_key(entry):
     if canonical is None:
         return None
     prompt_mode = entry.get("prompt_mode") or "structured_history"
+    thinking_mode = entry.get("thinking_mode") or "none"
     thinking_level = entry.get("thinking_level")
     tl = thinking_level if thinking_level and thinking_level != "none" else "none"
-    return f"{canonical}|{prompt_mode}|{tl}"
+    return f"{canonical}|{prompt_mode}|{thinking_mode}|{tl}"
 
 
 def make_label(row_key):
-    canonical, prompt_mode, thinking_level = row_key.split("|")
+    canonical, prompt_mode, thinking_mode, thinking_level = row_key.split("|")
     base = MODEL_DISPLAY_NAMES.get(canonical, canonical)
     parts = []
     if thinking_level not in ("none", ""):
         parts.append(thinking_level.capitalize())
+    elif thinking_mode in ("off", "none"):
+        parts.append("None")
+    if thinking_mode not in ("default", "off", "none", ""):
+        parts.append(f"{thinking_mode.capitalize()} Mode")
     if prompt_mode == "append_only":
         parts.append("AO")
     return f"{base} ({', '.join(parts)})" if parts else base
 
 
 def row_sort_key(row_key):
-    canonical, prompt_mode, thinking_level = row_key.split("|")
+    canonical, prompt_mode, thinking_mode, thinking_level = row_key.split("|")
     ci = MODEL_CANONICAL_ORDER.index(canonical) if canonical in MODEL_CANONICAL_ORDER else 999
     pi = PROMPT_MODE_ORDER.get(prompt_mode, 99)
+    mi = THINKING_MODE_ORDER.get(thinking_mode, 99)
     ti = THINKING_LEVEL_ORDER.get(thinking_level, 99)
-    return (ci, pi, ti)
+    return (ci, pi, mi, ti)
 
 
 def load_entries(paths):
@@ -104,16 +127,20 @@ def load_entries(paths):
 
 def collect_best_rewards(entries):
     rewards = {}
+    run_counts = {}
     for entry in entries:
         row_key = make_row_key(entry)
         game = entry.get("game")
         value = entry.get("avg_total_reward")
-        if row_key is None or game is None or value is None:
+        if row_key is None or row_key.split("|")[0] in EXCLUDE_MODELS:
+            continue
+        if game is None or game in EXCLUDE_GAMES or value is None:
             continue
         key = (row_key, game)
         if key not in rewards or value > rewards[key]:
             rewards[key] = value
-    return rewards
+            run_counts[key] = entry.get("run_count")
+    return rewards, run_counts
 
 
 def add_row_average_column(ax, values, label, fmt, x_pos, header_y):
@@ -183,7 +210,7 @@ def compute_rank_matrix(matrix):
     return rank_matrix
 
 
-def generate_plots(row_keys, reward, games, game_labels, file_suffix, title_suffix=""):
+def generate_plots(row_keys, reward, run_counts, games, game_labels, file_suffix, title_suffix=""):
     n_models = len(row_keys)
     n_games = len(games)
     model_labels = [make_label(rk) for rk in row_keys]
@@ -191,10 +218,14 @@ def generate_plots(row_keys, reward, games, game_labels, file_suffix, title_suff
     summary_header_y = -0.9
 
     matrix = np.full((n_models, n_games), np.nan)
+    count_matrix = np.full((n_models, n_games), np.nan)
     for i, model in enumerate(row_keys):
         for j, game in enumerate(games):
             if (model, game) in reward:
                 matrix[i, j] = reward[(model, game)]
+            count = run_counts.get((model, game))
+            if count is not None:
+                count_matrix[i, j] = count
 
     rank_matrix = compute_rank_matrix(matrix)
     avg_rank_by_model = np.nanmean(rank_matrix, axis=1)
@@ -203,7 +234,7 @@ def generate_plots(row_keys, reward, games, game_labels, file_suffix, title_suff
     cmap_raw = mcolors.LinearSegmentedColormap.from_list("rg", ["#d73027", "#fee08b", "#1a9850"])
     grey_color = "#cccccc"
     fig_width = max(8, n_games * 0.42)
-    fig_height = max(2.6, n_models * 0.55 + 1.4)
+    fig_height = max(2.6, n_models * 0.38 + 1.2)
     title_tag = f" ({title_suffix})" if title_suffix else ""
 
     # ── rank heatmap ──────────────────────────────────────────────────────────
@@ -293,6 +324,52 @@ def generate_plots(row_keys, reward, games, game_labels, file_suffix, title_suff
     print(f"Saved to {p2}")
     plt.close()
 
+    # ── run-count heatmap ────────────────────────────────────────────────────
+    fig_count, ax_count = plt.subplots(figsize=(fig_width, fig_height))
+    ax_count.set_facecolor(grey_color)
+    cmap_count = mcolors.LinearSegmentedColormap.from_list(
+        "run_counts", ["#d73027", "#fee08b", "#1a9850"]
+    )
+    count_vmax = max(9.0, np.nanmax(count_matrix) if not np.all(np.isnan(count_matrix)) else 9.0)
+    im_count = ax_count.imshow(
+        count_matrix, aspect="auto", cmap=cmap_count,
+        vmin=0, vmax=count_vmax, interpolation="nearest",
+    )
+    for i in range(n_models):
+        for j in range(n_games):
+            cv = count_matrix[i, j]
+            if np.isnan(cv):
+                ax_count.add_patch(mpatches.Rectangle((j - 0.5, i - 0.5), 1, 1, color=grey_color, zorder=2))
+                ax_count.text(j, i, "NA", ha="center", va="center", fontsize=8,
+                              color="#888888", fontstyle="italic", zorder=3)
+            else:
+                text_color = "white" if cv < 5 or cv > count_vmax * 0.75 else "black"
+                ax_count.text(j, i, str(int(cv)), ha="center", va="center",
+                              fontsize=6.5, color=text_color, fontweight="bold", zorder=3)
+                if cv < 9:
+                    ax_count.add_patch(
+                        mpatches.Rectangle(
+                            (j - 0.5, i - 0.5), 1, 1,
+                            fill=False, edgecolor="#111111", linewidth=1.2, zorder=4,
+                        )
+                    )
+    ax_count.set_xticks(range(n_games))
+    ax_count.set_xticklabels(game_labels, rotation=40, ha="right", fontsize=7)
+    ax_count.set_yticks(range(n_models))
+    ax_count.set_yticklabels(model_labels, fontsize=8)
+    ax_count.set_title(f"Run Counts by Model and Game{title_tag}",
+                       fontsize=10, fontweight="bold", pad=8)
+    cbar_count = fig_count.colorbar(im_count, ax=ax_count, fraction=0.02, pad=0.01)
+    cbar_count.set_label("Runs", fontsize=7)
+    cbar_count.ax.tick_params(labelsize=7)
+    cbar_count.set_ticks([0, 9, count_vmax])
+    cbar_count.set_ticklabels(["0", "9", str(int(count_vmax))])
+    plt.tight_layout()
+    p_count = ROOT / "paper" / "heatmap" / f"plot_heatmap_runs{file_suffix}.png"
+    plt.savefig(p_count, dpi=150, bbox_inches="tight")
+    print(f"Saved to {p_count}")
+    plt.close()
+
     # ── normalized score heatmap ──────────────────────────────────────────────
     fig3, ax3 = plt.subplots(figsize=(fig_width, fig_height))
     ax3.set_facecolor(grey_color)
@@ -332,7 +409,10 @@ def generate_plots(row_keys, reward, games, game_labels, file_suffix, title_suff
 json_paths = find_json_files()
 print(f"Found {len(json_paths)} JSON files with '30s' in name")
 entries = load_entries(json_paths)
-reward = collect_best_rewards(entries)
+reward, run_counts = collect_best_rewards(entries)
+ao_entries = load_entries([APPEND_ONLY_SUMMARY_PATH])
+ao_reward, ao_run_counts = collect_best_rewards(ao_entries)
+print(f"Append-only data source: {APPEND_ONLY_SUMMARY_PATH}")
 
 all_games = sorted(
     {game for _, game in reward.keys()},
@@ -346,19 +426,43 @@ all_row_keys = sorted(
     key=row_sort_key,
 )
 sh_keys = [rk for rk in all_row_keys if rk.split("|")[1] == "structured_history"]
-ao_keys = [rk for rk in all_row_keys if rk.split("|")[1] == "append_only"]
+ao_keys = sorted(
+    {rk for rk, _ in ao_reward.keys() if rk not in EXCLUDE_ROW_KEYS and rk.split("|")[1] == "append_only"},
+    key=row_sort_key,
+)
+ao_comparison_reward = dict(ao_reward)
+ao_comparison_run_counts = dict(ao_run_counts)
+for rk in APPEND_ONLY_COMPARISON_STRUCTURED_KEYS:
+    for game in games:
+        key = (rk, game)
+        if key in reward:
+            ao_comparison_reward[key] = reward[key]
+        if key in run_counts:
+            ao_comparison_run_counts[key] = run_counts[key]
+ao_comparison_keys = [
+    rk for rk in APPEND_ONLY_COMPARISON_STRUCTURED_KEYS + ao_keys
+    if any((rk, game) in ao_comparison_reward for game in games)
+]
 
 # Main figures: structured_history only, rows ordered by avg rank
 sh_sorted = build_sorted_matrix(sh_keys, reward, games)
-generate_plots(sh_sorted, reward, games, game_labels, file_suffix="", title_suffix="")
+generate_plots(sh_sorted, reward, run_counts, games, game_labels, file_suffix="", title_suffix="")
 
-# Separate figures: append_only only, rows ordered by avg rank
-ao_sorted = build_sorted_matrix(ao_keys, reward, games)
-generate_plots(ao_sorted, reward, games, game_labels, file_suffix="_ao", title_suffix="Append-Only")
+# Separate figures: append_only plus matching structured-history Gemini rows.
+ao_sorted = build_sorted_matrix(ao_comparison_keys, ao_comparison_reward, games)
+generate_plots(
+    ao_sorted,
+    ao_comparison_reward,
+    ao_comparison_run_counts,
+    games,
+    game_labels,
+    file_suffix="_ao",
+    title_suffix="Append-Only vs Structured History",
+)
 
 # ── breakout append-only bar chart ───────────────────────────────────────────
 breakout_scores = [
-    (make_label(rk), reward.get((rk, "breakout"), float("nan")))
+    (make_label(rk), ao_reward.get((rk, "breakout"), float("nan")))
     for rk in ao_keys
 ]
 breakout_scores = [(lbl, v) for lbl, v in breakout_scores if not np.isnan(v)]

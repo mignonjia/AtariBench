@@ -13,6 +13,17 @@ from pathlib import Path
 _HELPER_PROMPT_MODULES = frozenset({"__init__", "common_prompt", "game_clip", "termination"})
 MODEL_SUMMARY_FILENAME = "model_summary.json"
 FULL_RUN_MODEL_SUMMARY_FILENAME = "model_summary_30s.json"
+FULL_RUN_MODEL_SUMMARY_ALLOWED_MODELS = frozenset(
+    {
+        "random",
+        "deepseek-ai/deepseek-v3.1",
+        "zai-org/glm-5.1",
+        "gemini-2.5-flash",
+        "gpt-5.4-mini",
+    }
+)
+NO_THINKING_MODES = frozenset({"off", "none"})
+NO_THINKING_LEVELS = frozenset({"none"})
 
 
 def _discover_canonical_game_keys() -> frozenset[str]:
@@ -153,6 +164,7 @@ def update_runs_model_summary(project_dir: str | Path) -> Path:
                     root=root,
                     per_game_summary_filename=FULL_RUN_MODEL_SUMMARY_FILENAME,
                     run_filter="full_30s",
+                    include_entry=_is_full_run_model_summary_entry,
                 ),
                 indent=2,
                 sort_keys=True,
@@ -230,6 +242,7 @@ def _build_runs_summary_payload(
     *,
     per_game_summary_filename: str,
     run_filter: str,
+    include_entry=None,
 ) -> dict[str, object]:
     entries: list[dict[str, object]] = []
 
@@ -262,6 +275,8 @@ def _build_runs_summary_payload(
                         ),
                     }
                     entry.update(model_summary)
+                    if include_entry is not None and not include_entry(entry):
+                        continue
                     entries.append(entry)
 
     entries.sort(
@@ -291,6 +306,21 @@ def _is_full_canonical_run(summary: dict[str, object]) -> bool:
     if duration_seconds is not None:
         return int(duration_seconds) == 30 and stop_reason == "frame_budget"
     return stop_reason == "frame_budget" and frame_count >= 901.0
+
+
+def _is_full_run_model_summary_entry(entry: dict[str, object]) -> bool:
+    model_name = _coerce_string(entry.get("model_name"), default="")
+    if model_name not in FULL_RUN_MODEL_SUMMARY_ALLOWED_MODELS:
+        return False
+
+    thinking_mode = _coerce_string(entry.get("thinking_mode"), default="none").lower()
+    thinking_level = entry.get("thinking_level")
+    normalized_level = (
+        "none"
+        if thinking_level is None
+        else _coerce_string(thinking_level, default="none").lower()
+    )
+    return thinking_mode in NO_THINKING_MODES and normalized_level in NO_THINKING_LEVELS
 
 
 def _coerce_float(value: object, default: float = 0.0) -> float:

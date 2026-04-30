@@ -5,6 +5,7 @@ runs/
 llm/api.sh
 games/prompts_mix_termination/
 config/sample_runs.yaml
+debug/
 
 .vscode/
 .claude/

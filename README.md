@@ -147,7 +147,8 @@ Cross-game flat summaries live at:
 - `runs/model_summary_30s.json`
 
 `model_summary.json` includes all successful runs for that setting, including shorter debug runs that still finished with `stop_reason=frame_budget`.
-`model_summary_30s.json` keeps the previous benchmark view and only includes full 30-second canonical runs.
+Per-game `model_summary_30s.json` keeps the previous benchmark view and only includes full 30-second canonical runs.
+Top-level `runs/model_summary_30s.json` is the baseline no-thinking benchmark table, limited to random, DeepSeek, GLM, Gemini 2.5 Flash, and GPT-5.4 Mini entries whose thinking mode is `off` or `none` and whose thinking level is unset/none.
 Both summaries are aggregated per setting, not by mixing different prompt/thinking/clip configurations into one average.
 They also include average reward/lost-life standard error plus average and latest token totals so you can estimate variance and per-setting API cost from stored runs.
 They are rebuilt from stored run `summary.json` files on disk, not limited to the runs from the most recent batch.

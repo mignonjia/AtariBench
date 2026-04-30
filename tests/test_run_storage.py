@@ -253,9 +253,11 @@ class RunStorageTests(unittest.TestCase):
             assault_run = assault_root / "gemini-2.5-flash" / "20260324_100000"
             breakout_run_a = breakout_root / "gpt-5.4-mini" / "20260324_110000"
             breakout_run_b = breakout_root / "gpt-5.4-mini" / "20260324_120000"
+            breakout_run_c = breakout_root / "gpt-5.4-mini" / "20260324_130000"
             assault_run.mkdir(parents=True, exist_ok=True)
             breakout_run_a.mkdir(parents=True, exist_ok=True)
             breakout_run_b.mkdir(parents=True, exist_ok=True)
+            breakout_run_c.mkdir(parents=True, exist_ok=True)
             (assault_run / "summary.json").write_text(
                 json.dumps(
                     {
@@ -343,6 +345,35 @@ class RunStorageTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
+            (breakout_run_c / "summary.json").write_text(
+                json.dumps(
+                    {
+                        "duration_seconds": 30,
+                        "model_name": "gpt-5.4-mini",
+                        "prompt_mode": "structured_history",
+                        "context_cache": False,
+                        "frames_per_action": 3,
+                        "thinking_mode": "low",
+                        "thinking_level": "low",
+                        "thinking_budget": None,
+                        "history_clips": 2,
+                        "non_zero_reward_clips": 1,
+                        "total_reward": 8.0,
+                        "total_lost_lives": 0,
+                        "turn_count": 12,
+                        "frame_count": 901,
+                        "input_tokens": 110,
+                        "output_tokens": 45,
+                        "total_tokens": 155,
+                        "thinking_tokens": 9,
+                        "cached_input_tokens": 11,
+                        "token_usage_reported_turns": 12,
+                        "token_usage_missing_turns": 0,
+                        "stop_reason": "frame_budget",
+                    }
+                ),
+                encoding="utf-8",
+            )
 
             update_game_model_summary(tmpdir, "assault")
             update_game_model_summary(tmpdir, "breakout")
@@ -352,7 +383,7 @@ class RunStorageTests(unittest.TestCase):
                 ((Path(tmpdir) / "runs") / "model_summary_30s.json").read_text(encoding="utf-8")
             )
 
-        self.assertEqual(len(payload["entries"]), 3)
+        self.assertEqual(len(payload["entries"]), 4)
         self.assertEqual(payload["run_filter"], "all_successful")
         self.assertEqual(payload["entries"][0]["game"], "assault")
         self.assertEqual(payload["entries"][0]["model_name"], "gemini-2.5-flash")
@@ -379,24 +410,38 @@ class RunStorageTests(unittest.TestCase):
         self.assertEqual(payload["entries"][1]["latest_total_tokens"], 190.0)
         self.assertEqual(payload["entries"][1]["latest_thinking_tokens"], 25.0)
         self.assertEqual(payload["entries"][1]["latest_cached_input_tokens"], 100.0)
-        self.assertEqual(payload["entries"][2]["game"], "breakout")
-        self.assertEqual(payload["entries"][2]["model_name"], "gpt-5.4-mini")
-        self.assertEqual(payload["entries"][2]["prompt_mode"], "structured_history")
-        self.assertFalse(payload["entries"][2]["context_cache"])
-        self.assertEqual(payload["entries"][2]["frames_per_action"], 3)
-        self.assertEqual(payload["entries"][2]["thinking_mode"], "off")
-        self.assertEqual(payload["entries"][2]["history_clips"], 2)
-        self.assertEqual(payload["entries"][2]["non_zero_reward_clips"], 1)
-        self.assertEqual(payload["entries"][2]["stderr_total_reward"], 0.0)
-        self.assertEqual(payload["entries"][2]["stderr_total_lost_lives"], 0.0)
-        self.assertEqual(payload["entries"][2]["avg_total_tokens"], 155.0)
-        self.assertEqual(payload["entries"][2]["avg_thinking_tokens"], 9.0)
-        self.assertEqual(payload["entries"][2]["avg_cached_input_tokens"], 11.0)
+        structured_off_entry = next(
+            entry
+            for entry in payload["entries"]
+            if entry["game"] == "breakout"
+            and entry["model_name"] == "gpt-5.4-mini"
+            and entry["prompt_mode"] == "structured_history"
+            and entry["thinking_mode"] == "off"
+        )
+        structured_low_entry = next(
+            entry
+            for entry in payload["entries"]
+            if entry["game"] == "breakout"
+            and entry["model_name"] == "gpt-5.4-mini"
+            and entry["prompt_mode"] == "structured_history"
+            and entry["thinking_mode"] == "low"
+        )
+        self.assertFalse(structured_off_entry["context_cache"])
+        self.assertEqual(structured_off_entry["frames_per_action"], 3)
+        self.assertEqual(structured_off_entry["history_clips"], 2)
+        self.assertEqual(structured_off_entry["non_zero_reward_clips"], 1)
+        self.assertEqual(structured_off_entry["stderr_total_reward"], 0.0)
+        self.assertEqual(structured_off_entry["stderr_total_lost_lives"], 0.0)
+        self.assertEqual(structured_off_entry["avg_total_tokens"], 155.0)
+        self.assertEqual(structured_off_entry["avg_thinking_tokens"], 9.0)
+        self.assertEqual(structured_off_entry["avg_cached_input_tokens"], 11.0)
+        self.assertEqual(structured_low_entry["thinking_level"], "low")
         self.assertEqual(len(payload_30s["entries"]), 2)
         self.assertEqual(payload_30s["run_filter"], "full_30s")
         self.assertEqual(payload_30s["entries"][0]["game"], "assault")
         self.assertEqual(payload_30s["entries"][1]["game"], "breakout")
         self.assertEqual(payload_30s["entries"][1]["prompt_mode"], "structured_history")
+        self.assertEqual(payload_30s["entries"][1]["thinking_mode"], "off")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 """
-Game-vs-game correlation map (21x21).
+Game-vs-game correlation map.
 
-Each game is represented as a vector of 7 models' normalized scores.
+Each game is represented as a vector of per-game normalized model scores.
 Pairwise Pearson correlation uses only the model entries where both games
 have non-NaN data, so missing entries (e.g. Gemini 3.1 Pro Low on 3 games)
 are handled gracefully.
@@ -12,6 +12,7 @@ Produces three figures:
   3. Summary bar chart: within-group vs between-group avg correlation
 """
 import json
+import os
 from pathlib import Path
 
 import matplotlib.colors as mcolors
@@ -32,7 +33,7 @@ TAXONOMY = {
         "seaquest", "time_pilot", "robotank",
     ],
     "Sports": ["boxing", "ice_hockey", "fishing_derby", "tennis"],
-    "Action": ["breakout", "freeway", "gopher", "journey_escape"],
+    "Action": ["breakout", "freeway", "journey_escape"],
     "Maze":   ["pacman", "qbert"],
 }
 GROUP_COLORS = {
@@ -47,6 +48,10 @@ GAME_TO_GROUP = {g: grp for grp, games in TAXONOMY.items() for g in games}
 MODEL_ALIASES = {
     "gemini-2.5-flash": "gemini-2.5-flash",
     "gpt-5.4-mini": "gpt-5.4-mini",
+    "openai:gpt-5.4": "gpt-5.4",
+    "openai:gpt-5.4-mini": "gpt-5.4-mini",
+    "anthropic:claude-opus-4-6": "claude-opus-4-6",
+    "anthropic:claude-sonnet-4-6": "claude-sonnet-4-6",
     "deepseek-ai/deepseek-v3.1": "deepseek-ai/deepseek-v3.1",
     "zai-org/glm-5.1": "zai-org/glm-5.1",
     "gemini-3-flash-preview": "gemini-3-flash-preview",
@@ -54,10 +59,38 @@ MODEL_ALIASES = {
     "google:gemini-3.1-pro-preview": "gemini-3.1-pro-preview",
     "random": "random",
 }
-EXCLUDE_ROW_KEYS = {
-    "gemini-3.1-pro-preview|structured_history|high",
-    "gemini-3.1-pro-preview|append_only|high",
-}
+MODEL_CANONICAL_ORDER = [
+    "gemini-3-flash-preview",
+    "gemini-3.1-pro-preview",
+    "gemini-2.5-flash",
+    "gpt-5.4",
+    "gpt-5.4-mini",
+    "claude-opus-4-6",
+    "claude-sonnet-4-6",
+    "deepseek-ai/deepseek-v3.1",
+    "zai-org/glm-5.1",
+    "random",
+]
+PROMPT_MODE_ORDER = {"structured_history": 0, "append_only": 1}
+THINKING_MODE_ORDER = {"default": 0, "high": 1, "low": 2, "off": 3, "none": 3}
+THINKING_LEVEL_ORDER = {"high": 0, "low": 1, "none": 2}
+EXCLUDE_ROW_KEYS = set()
+EXCLUDE_GAMES = {"gopher"}
+
+CLUSTER_DISTANCE = os.environ.get("ATARIBENCH_CORR_DISTANCE", "signed").lower()
+CLUSTER_LINKAGE = os.environ.get("ATARIBENCH_CORR_LINKAGE", "average").lower()
+CLUSTER_SUFFIX = os.environ.get("ATARIBENCH_CORR_SUFFIX")
+if CLUSTER_SUFFIX is None:
+    CLUSTER_SUFFIX = "" if (CLUSTER_DISTANCE, CLUSTER_LINKAGE) == ("signed", "average") else f"_{CLUSTER_DISTANCE}_{CLUSTER_LINKAGE}"
+if CLUSTER_SUFFIX and not CLUSTER_SUFFIX.startswith("_"):
+    CLUSTER_SUFFIX = f"_{CLUSTER_SUFFIX}"
+
+TICK_FONT = 11
+CELL_FONT = 8
+TITLE_FONT = 15
+LEGEND_FONT = 12
+CBAR_FONT = 12
+DEND_FONT = 11
 
 
 def make_row_key(entry):
@@ -65,10 +98,20 @@ def make_row_key(entry):
     if canonical is None:
         return None
     pm = entry.get("prompt_mode") or "structured_history"
+    tm = entry.get("thinking_mode") or "none"
     tl = entry.get("thinking_level")
     tl = tl if tl and tl != "none" else "none"
-    rk = f"{canonical}|{pm}|{tl}"
+    rk = f"{canonical}|{pm}|{tm}|{tl}"
     return None if rk in EXCLUDE_ROW_KEYS else rk
+
+
+def row_sort_key(row_key):
+    canonical, prompt_mode, thinking_mode, thinking_level = row_key.split("|")
+    ci = MODEL_CANONICAL_ORDER.index(canonical) if canonical in MODEL_CANONICAL_ORDER else 999
+    pi = PROMPT_MODE_ORDER.get(prompt_mode, 99)
+    mi = THINKING_MODE_ORDER.get(thinking_mode, 99)
+    ti = THINKING_LEVEL_ORDER.get(thinking_level, 99)
+    return (ci, pi, mi, ti)
 
 
 # ── data loading ─────────────────────────────────────────────────────────────
@@ -82,28 +125,22 @@ for p in (ROOT / "runs").rglob("*.json"):
         rk = make_row_key(e)
         game = e.get("game")
         val = e.get("avg_total_reward")
-        if rk is None or game is None or val is None:
+        if rk is None or game is None or game in EXCLUDE_GAMES or val is None:
             continue
         key = (rk, game)
         if key not in reward or val > reward[key]:
             reward[key] = val
 
-CORR_MODELS = {
-    "gemini-2.5-flash|structured_history|none",
-    "deepseek-ai/deepseek-v3.1|structured_history|none",
-    "zai-org/glm-5.1|structured_history|none",
-    "gpt-5.4-mini|structured_history|none",
-    "gemini-3-flash-preview|structured_history|low",
-    "gemini-3-flash-preview|structured_history|high",
-}
-
 sh_keys = sorted(
-    {rk for rk, _ in reward.keys() if rk in CORR_MODELS}
+    {rk for rk, _ in reward.keys() if rk.split("|")[1] == "structured_history"},
+    key=row_sort_key,
 )
 all_games = sorted({g for _, g in reward.keys()})
 n_models = len(sh_keys)
 n_games  = len(all_games)
-print(f"Models ({n_models}): {sh_keys}")
+print(f"Models used ({n_models} total):")
+for row_key in sh_keys:
+    print(f"  - {row_key}")
 print(f"Games  ({n_games}):  {all_games}")
 
 # ── build raw score matrix [n_models × n_games] ─────────────────────────────
@@ -113,34 +150,26 @@ for i, rk in enumerate(sh_keys):
         if (rk, game) in reward:
             matrix[i, j] = reward[(rk, game)]
 
-# ── rank matrix: rank models within each game (1 = best, ties share avg rank)
-rank_matrix = np.full_like(matrix, np.nan)
+# ── normalized score matrix: normalize models within each game to [0, 1]
+norm_matrix = np.full_like(matrix, np.nan)
 for j in range(n_games):
     col = matrix[:, j]
     valid_idx = np.where(~np.isnan(col))[0]
-    if len(valid_idx) < 2:
+    if len(valid_idx) == 0:
         continue
-    scores = col[valid_idx]
-    # scipy-style average rank: argsort descending, assign avg rank for ties
-    order = np.argsort(-scores)
-    ranks = np.empty(len(scores))
-    i2 = 0
-    while i2 < len(order):
-        j2 = i2
-        while j2 + 1 < len(order) and scores[order[j2 + 1]] == scores[order[i2]]:
-            j2 += 1
-        avg_rank = (i2 + j2) / 2.0 + 1  # 1-based
-        for k in range(i2, j2 + 1):
-            ranks[order[k]] = avg_rank
-        i2 = j2 + 1
-    rank_matrix[valid_idx, j] = ranks
+    col_min = col[valid_idx].min()
+    shifted = col + max(0.0, -col_min)
+    col_max = shifted[valid_idx].max()
+    if col_max == 0:
+        col_max = 1.0
+    norm_matrix[valid_idx, j] = np.clip(shifted[valid_idx] / col_max, 0.0, 1.0)
 
-# ── pairwise Pearson correlation between games (on ranks) ────────────────────
+# ── pairwise Pearson correlation between games (on normalized scores) ────────
 corr = np.full((n_games, n_games), np.nan)
 n_overlap = np.zeros((n_games, n_games), dtype=int)
 for i in range(n_games):
     for j in range(n_games):
-        xi, xj = rank_matrix[:, i], rank_matrix[:, j]
+        xi, xj = norm_matrix[:, i], norm_matrix[:, j]
         both = ~np.isnan(xi) & ~np.isnan(xj)
         n = both.sum()
         n_overlap[i, j] = n
@@ -166,21 +195,21 @@ def draw_heatmap(ax, ordered_games, title, show_values=True):
                    interpolation="nearest")
     labels = [g.replace("_", " ").title() for g in ordered_games]
     ax.set_xticks(range(n))
-    ax.set_xticklabels(labels, rotation=45, ha="right", fontsize=6.5)
+    ax.set_xticklabels(labels, rotation=45, ha="right", fontsize=TICK_FONT)
     ax.set_yticks(range(n))
-    ax.set_yticklabels(labels, fontsize=6.5)
-    ax.set_title(title, fontsize=10, fontweight="bold", pad=8)
+    ax.set_yticklabels(labels, fontsize=TICK_FONT)
+    ax.set_title(title, fontsize=TITLE_FONT, fontweight="bold", pad=10)
     if show_values:
         for i in range(n):
             for j in range(n):
                 v = sub[i, j]
                 if np.isnan(v):
                     ax.text(j, i, "NA", ha="center", va="center",
-                            fontsize=4.5, color="#888888", fontstyle="italic")
+                            fontsize=CELL_FONT, color="#888888", fontstyle="italic")
                 else:
                     tc = "white" if abs(v) > 0.6 else "black"
                     ax.text(j, i, f"{v:.2f}", ha="center", va="center",
-                            fontsize=4.5, color=tc, fontweight="bold")
+                            fontsize=CELL_FONT, color=tc, fontweight="bold")
     return im, sub
 
 
@@ -209,19 +238,19 @@ def draw_group_separators(ax, ordered_games):
 taxonomy_order = [g for grp in ["Shooter", "Sports", "Action", "Maze"]
                     for g in TAXONOMY[grp] if g in all_games]
 
-fig1, ax1 = plt.subplots(figsize=(9, 8.5))
+fig1, ax1 = plt.subplots(figsize=(14, 13))
 im1, _ = draw_heatmap(ax1, taxonomy_order,
                       "Game–Game Correlation (taxonomy order)")
 draw_group_separators(ax1, taxonomy_order)
 
 legend_patches = [mpatches.Patch(color=c, label=g)
                   for g, c in GROUP_COLORS.items()]
-ax1.legend(handles=legend_patches, loc="upper right", fontsize=7,
-           framealpha=0.9, title="Taxonomy", title_fontsize=7)
+ax1.legend(handles=legend_patches, loc="upper right", fontsize=LEGEND_FONT,
+           framealpha=0.9, title="Taxonomy", title_fontsize=LEGEND_FONT)
 
 cbar1 = fig1.colorbar(im1, ax=ax1, fraction=0.03, pad=0.02)
-cbar1.set_label("Pearson r", fontsize=8)
-cbar1.ax.tick_params(labelsize=7)
+cbar1.set_label("Pearson r", fontsize=CBAR_FONT)
+cbar1.ax.tick_params(labelsize=CBAR_FONT)
 
 plt.tight_layout()
 p1 = ROOT / "paper" / "correlation" / "plot_corr_taxonomy.png"
@@ -233,19 +262,36 @@ plt.close()
 # ════════════════════════════════════════════════════════════════════════════
 # Figure 2 — hierarchical clustering heatmap + dendrogram
 # ════════════════════════════════════════════════════════════════════════════
-# Convert correlation to distance; fill NaN diagonal→1 for distance
-corr_filled = np.where(np.isnan(corr), 0.0, corr)
-np.fill_diagonal(corr_filled, 1.0)
-dist = np.clip(1.0 - corr_filled, 0.0, 2.0)
-np.fill_diagonal(dist, 0.0)
-condensed = squareform(dist, checks=False)
+def build_cluster_linkage():
+    if CLUSTER_DISTANCE == "signed":
+        corr_filled = np.where(np.isnan(corr), 0.0, corr)
+        np.fill_diagonal(corr_filled, 1.0)
+        dist = np.clip(1.0 - corr_filled, 0.0, 2.0)
+        np.fill_diagonal(dist, 0.0)
+        condensed = squareform(dist, checks=False)
+        return linkage(condensed, method=CLUSTER_LINKAGE)
+    if CLUSTER_DISTANCE == "abs":
+        corr_filled = np.where(np.isnan(corr), 0.0, corr)
+        np.fill_diagonal(corr_filled, 1.0)
+        dist = np.clip(1.0 - np.abs(corr_filled), 0.0, 1.0)
+        np.fill_diagonal(dist, 0.0)
+        condensed = squareform(dist, checks=False)
+        return linkage(condensed, method=CLUSTER_LINKAGE)
+    if CLUSTER_DISTANCE == "euclidean":
+        game_features = np.nan_to_num(norm_matrix.T, nan=np.nanmean(norm_matrix))
+        return linkage(game_features, method=CLUSTER_LINKAGE)
+    raise ValueError(
+        "ATARIBENCH_CORR_DISTANCE must be one of signed, abs, euclidean; "
+        f"got {CLUSTER_DISTANCE!r}"
+    )
 
-Z = linkage(condensed, method="average")
+
+Z = build_cluster_linkage()
 dend_order = dendrogram(Z, no_plot=True)["leaves"]
 cluster_games = [all_games[i] for i in dend_order]
 
-fig2 = plt.figure(figsize=(12, 9.5))
-gs = gridspec.GridSpec(1, 2, width_ratios=[1, 4], wspace=0.04)
+fig2 = plt.figure(figsize=(18, 14))
+gs = gridspec.GridSpec(1, 2, width_ratios=[2.1, 4], wspace=0.14)
 ax_dend = fig2.add_subplot(gs[0])
 ax_heat = fig2.add_subplot(gs[1])
 
@@ -254,39 +300,42 @@ dendrogram(
     Z, orientation="left", ax=ax_dend,
     labels=[g.replace("_", " ").title() for g in all_games],
     color_threshold=0.6 * max(Z[:, 2]),
-    leaf_font_size=6.5,
+    leaf_font_size=DEND_FONT,
 )
 ax_dend.invert_yaxis()
-ax_dend.set_xlabel("Distance", fontsize=7)
-ax_dend.tick_params(axis="y", labelsize=6.5)
+ax_dend.set_xlabel("Distance", fontsize=CBAR_FONT)
+ax_dend.tick_params(axis="y", labelsize=DEND_FONT, pad=4)
 # Color dendrogram leaf labels by group
 for tick in ax_dend.get_yticklabels():
     raw = tick.get_text().lower().replace(" ", "_")
     tick.set_color(GROUP_COLORS.get(GAME_TO_GROUP.get(raw, ""), "black"))
 ax_dend.spines[["top", "right", "left"]].set_visible(False)
 
+cluster_title = (
+    "Game–Game Correlation "
+    f"({CLUSTER_DISTANCE} distance, {CLUSTER_LINKAGE} linkage)"
+)
 im2, _ = draw_heatmap(ax_heat, cluster_games,
-                      "Game–Game Correlation (hierarchical clustering order)",
+                      cluster_title,
                       show_values=True)
+ax_heat.tick_params(axis="y", left=False, labelleft=False)
 # Color heat tick labels by group (no separator lines here)
-for tick, g in zip(ax_heat.get_yticklabels(), cluster_games):
-    tick.set_color(GROUP_COLORS.get(GAME_TO_GROUP.get(g, ""), "black"))
 for tick, g in zip(ax_heat.get_xticklabels(), cluster_games):
     tick.set_color(GROUP_COLORS.get(GAME_TO_GROUP.get(g, ""), "black"))
 
 cbar2 = fig2.colorbar(im2, ax=ax_heat, fraction=0.025, pad=0.02)
-cbar2.set_label("Pearson r", fontsize=8)
-cbar2.ax.tick_params(labelsize=7)
+cbar2.set_label("Pearson r", fontsize=CBAR_FONT)
+cbar2.ax.tick_params(labelsize=CBAR_FONT)
 
 legend_patches2 = [mpatches.Patch(color=c, label=g)
                    for g, c in GROUP_COLORS.items()]
-ax_heat.legend(handles=legend_patches2, loc="upper right", fontsize=7,
-               framealpha=0.9, title="Taxonomy", title_fontsize=7)
+ax_heat.legend(handles=legend_patches2, loc="upper right", fontsize=LEGEND_FONT,
+               framealpha=0.9, title="Taxonomy", title_fontsize=LEGEND_FONT)
 
 plt.suptitle("Hierarchical Clustering of Games by Model-Performance Correlation",
-             fontsize=11, fontweight="bold", y=1.01)
+             fontsize=18, fontweight="bold", y=1.01)
 plt.tight_layout()
-p2 = ROOT / "paper" / "correlation" / "plot_corr_clustered.png"
+p2 = ROOT / "paper" / "correlation" / f"plot_corr_clustered{CLUSTER_SUFFIX}.png"
 plt.savefig(p2, dpi=150, bbox_inches="tight")
 print(f"Saved to {p2}")
 plt.close()
@@ -345,13 +394,13 @@ for part in ["cmedians", "cmins", "cmaxes", "cbars"]:
     parts[part].set_linewidth(1.2)
 ax_w.axhline(0, color="#aaaaaa", lw=0.8, ls="--")
 ax_w.set_xticks(list(positions))
-ax_w.set_xticklabels(groups, fontsize=9)
-ax_w.set_ylabel("Pearson r", fontsize=9)
-ax_w.set_title("Within-group pairwise correlation", fontsize=10, fontweight="bold")
+ax_w.set_xticklabels(groups, fontsize=10)
+ax_w.set_ylabel("Pearson r", fontsize=10)
+ax_w.set_title("Within-group pairwise correlation", fontsize=12, fontweight="bold")
 ax_w.set_ylim(-1.05, 1.05)
 for i, grp in enumerate(groups):
     m = np.mean(within_vals[grp]) if within_vals[grp] else np.nan
-    ax_w.text(i, -0.95, f"μ={m:.2f}", ha="center", fontsize=7.5, color="#333333")
+    ax_w.text(i, -0.95, f"μ={m:.2f}", ha="center", fontsize=9, color="#333333")
 
 # Right: grouped bar of mean ± std for all cross-group pairs
 ax_b = axes[1]
@@ -372,9 +421,9 @@ bars = ax_b.bar(x, cross_means, yerr=cross_stds, capsize=4,
                 color=cross_colors, alpha=0.75, edgecolor="#555555", width=0.6)
 ax_b.axhline(0, color="#aaaaaa", lw=0.8, ls="--")
 ax_b.set_xticks(x)
-ax_b.set_xticklabels(cross_labels, fontsize=7.5)
-ax_b.set_ylabel("Mean Pearson r", fontsize=9)
-ax_b.set_title("Between-group mean correlation (±std)", fontsize=10, fontweight="bold")
+ax_b.set_xticklabels(cross_labels, fontsize=9)
+ax_b.set_ylabel("Mean Pearson r", fontsize=10)
+ax_b.set_title("Between-group mean correlation (±std)", fontsize=12, fontweight="bold")
 ax_b.set_ylim(-1.05, 1.05)
 
 # Reference line: global within-group mean
@@ -382,10 +431,10 @@ all_within = [v for vals in within_vals.values() for v in vals]
 global_within_mean = np.mean(all_within)
 ax_b.axhline(global_within_mean, color="#222222", lw=1.2, ls=":",
              label=f"Global within-group mean ({global_within_mean:.2f})")
-ax_b.legend(fontsize=7.5)
+ax_b.legend(fontsize=9)
 
 plt.suptitle("Correlation Structure: Within vs Between Taxonomy Groups",
-             fontsize=11, fontweight="bold")
+             fontsize=14, fontweight="bold")
 plt.tight_layout()
 p3 = ROOT / "paper" / "correlation" / "plot_corr_groups.png"
 plt.savefig(p3, dpi=150, bbox_inches="tight")
@@ -408,7 +457,7 @@ plt.close()
 #   Track & React  — intercept or time a moving object / opponent
 #                    (breakout, tennis, fishing_derby, ice_hockey, boxing)
 #   Evasion        — survive by avoiding threats; no primary shooting
-#                    (freeway, journey_escape, gopher)
+#                    (freeway, journey_escape)
 #   Route Planning — strategic pathfinding through a fixed environment
 #                    (pacman, qbert)
 GAME_ATTRS = {
@@ -430,7 +479,6 @@ GAME_ATTRS = {
     "ice_hockey":     ("Track & React",      "B+A",       "Sparse", "Low",  "Med"),
     "tennis":         ("Track & React",      "B",         "Sparse", "Low",  "Med"),
     "freeway":        ("Evasion",            "V",         "Sparse", "High", "High"),
-    "gopher":         ("Evasion",            "H+A",       "Dense",  "High", "High"),
     "journey_escape": ("Evasion",            "B",         "Dense",  "High", "High"),
     "pacman":         ("Route Planning",     "B",         "Dense",  "High", "High"),
     "qbert":          ("Route Planning",     "B",         "Dense",  "High", "Low"),
@@ -459,7 +507,7 @@ def same_vs_diff_corr(attr_idx):
 
 fig4, axes4 = plt.subplots(1, len(ATTR_INDICES), figsize=(14, 4.5), sharey=True)
 fig4.suptitle("Does sharing a capability attribute predict higher correlation?",
-              fontsize=11, fontweight="bold")
+              fontsize=14, fontweight="bold")
 
 print("\n=== Capability-axis same vs different correlation ===")
 for ax, attr_idx in zip(axes4, ATTR_INDICES):
@@ -475,25 +523,25 @@ for ax, attr_idx in zip(axes4, ATTR_INDICES):
         vp[part].set_linewidth(1.2)
     ax.axhline(0, color="#aaaaaa", lw=0.8, ls="--")
     ax.set_xticks([0, 1])
-    ax.set_xticklabels(["Same", "Diff"], fontsize=9)
-    ax.set_title(ATTR_NAMES[attr_idx], fontsize=9, fontweight="bold")
+    ax.set_xticklabels(["Same", "Diff"], fontsize=10)
+    ax.set_title(ATTR_NAMES[attr_idx], fontsize=11, fontweight="bold")
     ax.set_ylim(-1.05, 1.05)
     ms, md = np.mean(same), np.mean(diff)
-    ax.text(0, -0.92, f"μ={ms:.2f}", ha="center", fontsize=7.5)
-    ax.text(1, -0.92, f"μ={md:.2f}", ha="center", fontsize=7.5)
+    ax.text(0, -0.92, f"μ={ms:.2f}", ha="center", fontsize=9)
+    ax.text(1, -0.92, f"μ={md:.2f}", ha="center", fontsize=9)
     # Annotate Δ
     ax.text(0.5, 0.96, f"Δ={ms - md:+.2f}", ha="center", va="top",
-            transform=ax.transAxes, fontsize=8,
+            transform=ax.transAxes, fontsize=10,
             color="#1a9850" if ms > md else "#d73027", fontweight="bold")
     print(f"  {ATTR_NAMES[attr_idx]:20s}: same μ={ms:.3f} (n={len(same)}), "
           f"diff μ={md:.3f} (n={len(diff)}), Δ={ms-md:+.3f}")
 
-axes4[0].set_ylabel("Pearson r", fontsize=9)
+axes4[0].set_ylabel("Pearson r", fontsize=10)
 legend_h = [
     mpatches.Patch(color="#4393c3", alpha=0.7, label="Same attribute"),
     mpatches.Patch(color="#d6604d", alpha=0.7, label="Different attribute"),
 ]
-axes4[-1].legend(handles=legend_h, fontsize=8, loc="upper right")
+axes4[-1].legend(handles=legend_h, fontsize=9, loc="upper right")
 
 plt.tight_layout()
 p4 = ROOT / "paper" / "correlation" / "plot_corr_capability.png"

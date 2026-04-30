@@ -1,18 +1,19 @@
 """
-Cluster games by model-rank profile.
+Cluster games by per-game normalized model-score profile.
 
-Each game is a 4-D vector of model ranks (rank 1 = best model on that game).
+Each game is a vector of model/thinking-setting normalized scores.
 Games that cluster together are ones where the same models tend to rank
 high/low — i.e. they appear to test the same underlying capability.
 
 Produces:
-  1. K-means cluster heatmap  — rank profile per cluster, games annotated
+  1. K-means cluster heatmap  — normalized score profile per cluster, games annotated
   2. PCA scatter              — 2-D projection of games, colored by cluster
                                 and shaped by taxonomy group
   3. Silhouette sweep         — choose k automatically
   4. Positive-correlation subgraph — edges only where r > threshold
 """
 import json
+import os
 from pathlib import Path
 
 import matplotlib.patches as mpatches
@@ -32,6 +33,10 @@ ROOT = Path(__file__).resolve().parents[2]
 MODEL_ALIASES = {
     "gemini-2.5-flash": "gemini-2.5-flash",
     "gpt-5.4-mini": "gpt-5.4-mini",
+    "openai:gpt-5.4": "gpt-5.4",
+    "openai:gpt-5.4-mini": "gpt-5.4-mini",
+    "anthropic:claude-opus-4-6": "claude-opus-4-6",
+    "anthropic:claude-sonnet-4-6": "claude-sonnet-4-6",
     "deepseek-ai/deepseek-v3.1": "deepseek-ai/deepseek-v3.1",
     "zai-org/glm-5.1": "zai-org/glm-5.1",
     "gemini-3-flash-preview": "gemini-3-flash-preview",
@@ -39,33 +44,41 @@ MODEL_ALIASES = {
     "google:gemini-3.1-pro-preview": "gemini-3.1-pro-preview",
     "random": "random",
 }
-EXCLUDE_ROW_KEYS = {
-    "gemini-3.1-pro-preview|structured_history|high",
-    "gemini-3.1-pro-preview|append_only|high",
+MODEL_DISPLAY_NAMES = {
+    "gemini-2.5-flash": "Gemini 2.5 Flash",
+    "gemini-3-flash-preview": "Gemini 3 Flash",
+    "gemini-3.1-pro-preview": "Gemini 3.1 Pro",
+    "gpt-5.4": "GPT-5.4",
+    "gpt-5.4-mini": "GPT-5.4 Mini",
+    "claude-opus-4-6": "Claude Opus 4.6",
+    "claude-sonnet-4-6": "Claude Sonnet 4.6",
+    "deepseek-ai/deepseek-v3.1": "DeepSeek V3.1",
+    "zai-org/glm-5.1": "GLM 5.1",
+    "random": "Random",
 }
-CORR_MODELS = {
-    "gemini-2.5-flash|structured_history|none",
-    "deepseek-ai/deepseek-v3.1|structured_history|none",
-    "zai-org/glm-5.1|structured_history|none",
-    "gpt-5.4-mini|structured_history|none",
-    "gemini-3-flash-preview|structured_history|low",
-    "gemini-3-flash-preview|structured_history|high",
-}
-MODEL_LABELS = {
-    "gemini-2.5-flash|structured_history|none":          "Gemini 2.5 Flash",
-    "deepseek-ai/deepseek-v3.1|structured_history|none": "DeepSeek V3.1",
-    "zai-org/glm-5.1|structured_history|none":           "GLM 5.1",
-    "gpt-5.4-mini|structured_history|none":              "GPT-5.4 Mini",
-    "gemini-3-flash-preview|structured_history|low":     "Gemini 3 Flash (Low)",
-    "gemini-3-flash-preview|structured_history|high":    "Gemini 3 Flash (High)",
-}
+MODEL_CANONICAL_ORDER = [
+    "gemini-3-flash-preview",
+    "gemini-3.1-pro-preview",
+    "gemini-2.5-flash",
+    "gpt-5.4",
+    "gpt-5.4-mini",
+    "claude-opus-4-6",
+    "claude-sonnet-4-6",
+    "deepseek-ai/deepseek-v3.1",
+    "zai-org/glm-5.1",
+    "random",
+]
+PROMPT_MODE_ORDER = {"structured_history": 0, "append_only": 1}
+THINKING_MODE_ORDER = {"default": 0, "high": 1, "low": 2, "off": 3, "none": 3}
+THINKING_LEVEL_ORDER = {"high": 0, "low": 1, "none": 2}
+EXCLUDE_ROW_KEYS = set()
 
 TAXONOMY = {
     "Shooter": ["air_raid", "assault", "beam_rider", "demon_attack",
                 "laser_gates", "name_this_game", "phoenix", "riverraid",
                 "seaquest", "time_pilot", "robotank"],
     "Sports":  ["boxing", "ice_hockey", "fishing_derby", "tennis"],
-    "Action":  ["breakout", "freeway", "gopher", "journey_escape"],
+    "Action":  ["breakout", "freeway", "journey_escape"],
     "Maze":    ["pacman", "qbert"],
 }
 GAME_TO_GROUP = {g: grp for grp, gs in TAXONOMY.items() for g in gs}
@@ -80,7 +93,7 @@ SKILL_GROUPS = {
                          "time_pilot"],
     "Track & React":    ["boxing", "breakout", "fishing_derby", "ice_hockey",
                          "tennis"],
-    "Evasion":          ["freeway", "gopher", "journey_escape"],
+    "Evasion":          ["freeway", "journey_escape"],
     "Route Planning":   ["pacman", "qbert"],
 }
 GAME_TO_SKILL = {g: sk for sk, gs in SKILL_GROUPS.items() for g in gs}
@@ -91,14 +104,41 @@ def make_row_key(entry):
     if canonical is None:
         return None
     pm = entry.get("prompt_mode") or "structured_history"
+    tm = entry.get("thinking_mode") or "none"
     tl = entry.get("thinking_level")
     tl = tl if tl and tl != "none" else "none"
-    rk = f"{canonical}|{pm}|{tl}"
+    rk = f"{canonical}|{pm}|{tm}|{tl}"
     return None if rk in EXCLUDE_ROW_KEYS else rk
 
 
+def make_label(row_key):
+    canonical, prompt_mode, thinking_mode, thinking_level = row_key.split("|")
+    base = MODEL_DISPLAY_NAMES.get(canonical, canonical)
+    parts = []
+    if thinking_level not in ("none", ""):
+        parts.append(thinking_level.capitalize())
+    elif thinking_mode in ("off", "none"):
+        parts.append("None")
+    if thinking_mode not in ("default", "off", "none", ""):
+        parts.append(f"{thinking_mode.capitalize()} Mode")
+    if prompt_mode == "append_only":
+        parts.append("AO")
+    return f"{base} ({', '.join(parts)})" if parts else base
+
+
+def row_sort_key(row_key):
+    canonical, prompt_mode, thinking_mode, thinking_level = row_key.split("|")
+    ci = MODEL_CANONICAL_ORDER.index(canonical) if canonical in MODEL_CANONICAL_ORDER else 999
+    pi = PROMPT_MODE_ORDER.get(prompt_mode, 99)
+    mi = THINKING_MODE_ORDER.get(thinking_mode, 99)
+    ti = THINKING_LEVEL_ORDER.get(thinking_level, 99)
+    return (ci, pi, mi, ti)
+
+
 SNR_THRESHOLD = 1.0  # keep games where (best-worst gap) / pooled_stderr >= this
-EXCLUDE_GAMES = {"boxing", "ice_hockey", "demon_attack", "fishing_derby"}
+ZERO_STDERR_SEPARABILITY = 30.0
+GLOBAL_EXCLUDE_GAMES = {"gopher"}
+CLUSTER_EXCLUDE_GAMES = {"ice_hockey"}
 
 # ── data loading — collect avg + stderr per (model, game) ────────────────────
 entries_data = {}  # (rk, game) -> (avg, stderr, run_count)
@@ -113,7 +153,13 @@ for p in (ROOT / "runs").rglob("*.json"):
         avg = e.get("avg_total_reward")
         se  = e.get("stderr_total_reward") or 0.0
         n   = e.get("run_count") or 1
-        if rk not in CORR_MODELS or game is None or avg is None:
+        if (
+            rk is None
+            or rk.split("|")[1] != "structured_history"
+            or game is None
+            or game in GLOBAL_EXCLUDE_GAMES
+            or avg is None
+        ):
             continue
         key = (rk, game)
         if key not in entries_data or n > entries_data[key][2]:
@@ -121,10 +167,13 @@ for p in (ROOT / "runs").rglob("*.json"):
 
 reward = {k: v[0] for k, v in entries_data.items()}
 
-sh_keys   = sorted({rk for rk, _ in entries_data.keys()})
+sh_keys   = sorted({rk for rk, _ in entries_data.keys()}, key=row_sort_key)
 all_games = sorted({g  for _, g in entries_data.keys()})
 n_models  = len(sh_keys)
-model_labels = [MODEL_LABELS[rk] for rk in sh_keys]
+model_labels = [make_label(rk) for rk in sh_keys]
+print(f"Models used ({n_models} total):")
+for label, row_key in zip(model_labels, sh_keys):
+    print(f"  - {label}: {row_key}")
 
 # ── per-game separability: (best_mean - worst_mean) / pooled_stderr ──────────
 # Keeps a game if the best and worst model are distinguishable above noise.
@@ -140,7 +189,7 @@ for game in all_games:
     worst_se = min(pairs, key=lambda x:  x[0])[1]   # stderr of bottom model
     gap = max(avgs) - min(avgs)
     pooled_se = np.sqrt(best_se**2 + worst_se**2)
-    game_snr[game] = gap / pooled_se if pooled_se > 0 else 99.0
+    game_snr[game] = gap / pooled_se if pooled_se > 0 else ZERO_STDERR_SEPARABILITY
 
 # ── Figure 0 — separability bar chart ────────────────────────────────────────
 snr_games  = sorted(all_games, key=lambda g: game_snr[g], reverse=True)
@@ -168,13 +217,20 @@ p0s = ROOT / "paper" / "correlation" / "plot_clusters_separability.png"
 plt.savefig(p0s, dpi=150, bbox_inches="tight"); print(f"Saved to {p0s}"); plt.close()
 
 # filter to separable games
-all_games = [g for g in all_games if game_snr[g] >= SNR_THRESHOLD and g not in EXCLUDE_GAMES]
+total_games_before_cluster_filter = len(all_games)
+all_games = [
+    g for g in all_games
+    if game_snr[g] >= SNR_THRESHOLD and g not in CLUSTER_EXCLUDE_GAMES
+]
 n_games   = len(all_games)
 game_labels = [g.replace("_", " ").title() for g in all_games]
-print(f"Kept {n_games}/21 games (SNR >= {SNR_THRESHOLD}):")
+print(f"Kept {n_games}/{total_games_before_cluster_filter} games (SNR >= {SNR_THRESHOLD}):")
 print(f"  Kept:    {all_games}")
 dropped = [g for g in sorted(game_snr) if game_snr[g] < SNR_THRESHOLD]
-print(f"  Dropped: {dropped}")
+excluded = [g for g in sorted(game_snr) if g in CLUSTER_EXCLUDE_GAMES and game_snr[g] >= SNR_THRESHOLD]
+print(f"  Dropped by SNR: {dropped}")
+print(f"  Excluded by config: {excluded}")
+print(f"  Globally excluded: {sorted(GLOBAL_EXCLUDE_GAMES)}")
 
 # ── raw score matrix [n_models × n_games] ────────────────────────────────────
 matrix = np.full((n_models, n_games), np.nan)
@@ -183,26 +239,21 @@ for i, rk in enumerate(sh_keys):
         if (rk, game) in reward:
             matrix[i, j] = reward[(rk, game)]
 
-rank_matrix = np.full_like(matrix, np.nan)
+norm_matrix = np.full_like(matrix, np.nan)
 for j in range(n_games):
     col = matrix[:, j]
     valid_idx = np.where(~np.isnan(col))[0]
-    if len(valid_idx) < 2:
+    if len(valid_idx) == 0:
         continue
-    scores = col[valid_idx]
-    order  = np.argsort(-scores)
-    i2 = 0
-    while i2 < len(order):
-        j2 = i2
-        while j2 + 1 < len(order) and scores[order[j2 + 1]] == scores[order[i2]]:
-            j2 += 1
-        avg_rank = (i2 + j2) / 2.0 + 1
-        for kk in range(i2, j2 + 1):
-            rank_matrix[valid_idx[order[kk]], j] = avg_rank
-        i2 = j2 + 1
+    col_min = col[valid_idx].min()
+    shifted = col + max(0.0, -col_min)
+    col_max = shifted[valid_idx].max()
+    if col_max == 0:
+        col_max = 1.0
+    norm_matrix[valid_idx, j] = np.clip(shifted[valid_idx] / col_max, 0.0, 1.0)
 
 # Game feature matrix X: shape [n_games × n_models]
-X = rank_matrix.T  # each row = one game, each col = one model's rank
+X = norm_matrix.T  # each row = one game, each col = one model's normalized score
 
 # ── Figure 1 — silhouette sweep to choose k ──────────────────────────────────
 K_RANGE = range(2, 8)
@@ -228,27 +279,36 @@ p0 = ROOT / "paper" / "correlation" / "plot_clusters_sweep.png"
 plt.savefig(p0, dpi=150, bbox_inches="tight"); print(f"Saved to {p0}"); plt.close()
 
 best_k = min(int(K_RANGE[int(np.argmax(sil_scores))]), 5)  # cap at 5 to avoid singletons
+requested_k = os.environ.get("ATARIBENCH_CLUSTER_K")
+if requested_k is None:
+    K = best_k
+    file_suffix = ""
+else:
+    K = int(requested_k)
+    file_suffix = f"_k{K}"
+    if K not in K_RANGE:
+        raise ValueError(f"ATARIBENCH_CLUSTER_K must be in {list(K_RANGE)}, got {K}")
 print(f"Best k by silhouette: {best_k}  (scores: {dict(zip(K_RANGE, [f'{s:.3f}' for s in sil_scores]))})")
+print(f"Using k={K}")
 
-# ── run final k-means with best k ────────────────────────────────────────────
-K = best_k
+# ── run final k-means ────────────────────────────────────────────────────────
 km_final = KMeans(n_clusters=K, random_state=42, n_init=20)
 cluster_ids = km_final.fit_predict(X)  # shape [n_games]
 
-# Sort clusters by mean rank of best model (so cluster 0 = easiest for top model)
-cluster_mean_rank = [X[cluster_ids == c].mean() for c in range(K)]
-cluster_order = np.argsort(cluster_mean_rank)  # low mean rank = models agree on ordering
+# Sort clusters by mean normalized score (so cluster 0 = strongest overall profile)
+cluster_mean_score = [X[cluster_ids == c].mean() for c in range(K)]
+cluster_order = np.argsort(-np.array(cluster_mean_score))
 relabel = {old: new for new, old in enumerate(cluster_order)}
 cluster_ids = np.array([relabel[c] for c in cluster_ids])
 
 CLUSTER_COLORS = plt.cm.Set2(np.linspace(0, 0.9, K))
 
-# ── Figure 2 — rank profile heatmap per cluster ──────────────────────────────
-# Sort games within each cluster by their mean rank across models
+# ── Figure 2 — normalized score profile heatmap per cluster ──────────────────
+# Sort games within each cluster by their mean normalized score across models
 sorted_game_idx = []
 for c in range(K):
     in_c = np.where(cluster_ids == c)[0]
-    in_c_sorted = in_c[np.argsort(X[in_c].mean(axis=1))]
+    in_c_sorted = in_c[np.argsort(-X[in_c].mean(axis=1))]
     sorted_game_idx.extend(in_c_sorted)
 
 sorted_games  = [all_games[i]  for i in sorted_game_idx]
@@ -258,15 +318,15 @@ sorted_ids    = cluster_ids[sorted_game_idx]
 
 fig1, ax1 = plt.subplots(figsize=(7, 9))
 im = ax1.imshow(sorted_X, aspect="auto",
-                cmap="RdYlGn_r", vmin=1, vmax=n_models, interpolation="nearest")
+                cmap="RdYlGn", vmin=0, vmax=1, interpolation="nearest")
 
 for i in range(n_games):
     for j in range(n_models):
         rv = sorted_X[i, j]
         if not np.isnan(rv):
-            tc = "white" if rv in (1, n_models) else "black"
-            ax1.text(j, i, f"{rv:.0f}", ha="center", va="center",
-                     fontsize=8, color=tc, fontweight="bold")
+            tc = "white" if rv < 0.2 or rv > 0.85 else "black"
+            ax1.text(j, i, f"{rv:.2f}", ha="center", va="center",
+                     fontsize=6.5, color=tc, fontweight="bold")
 
 ax1.set_xticks(range(n_models))
 ax1.set_xticklabels(model_labels, rotation=30, ha="right", fontsize=8)
@@ -305,15 +365,15 @@ ax1.text(-0.6, -1.0, "Tax", ha="center", va="center",
          fontsize=6, color="gray", clip_on=False)
 
 cbar = fig1.colorbar(im, ax=ax1, fraction=0.025, pad=0.08)
-cbar.set_label("Model rank (1=best)", fontsize=8)
-cbar.set_ticks(range(1, n_models + 1))
-cbar.set_ticklabels([str(r) for r in range(1, n_models + 1)])
+cbar.set_label("Normalized score", fontsize=8)
+cbar.set_ticks([0, 0.5, 1])
+cbar.set_ticklabels(["Low", "Mid", "High"])
 cbar.ax.tick_params(labelsize=7)
 
-ax1.set_title(f"Game clusters by rank profile  (k={K}, k-means)",
+ax1.set_title(f"Game clusters by normalized score profile  (k={K}, k-means)",
               fontsize=10, fontweight="bold", pad=10)
 plt.tight_layout()
-p1 = ROOT / "paper" / "correlation" / "plot_clusters_heatmap.png"
+p1 = ROOT / "paper" / "correlation" / f"plot_clusters_heatmap{file_suffix}.png"
 plt.savefig(p1, dpi=150, bbox_inches="tight"); print(f"Saved to {p1}"); plt.close()
 
 # ── Figure 3 — PCA scatter ───────────────────────────────────────────────────
@@ -350,7 +410,7 @@ for c in range(K):
 
 ax2.set_xlabel(f"PC1 ({var[0]*100:.1f}% var)", fontsize=9)
 ax2.set_ylabel(f"PC2 ({var[1]*100:.1f}% var)", fontsize=9)
-ax2.set_title("PCA of games by rank profile", fontsize=10, fontweight="bold")
+ax2.set_title("PCA of games by normalized score profile", fontsize=10, fontweight="bold")
 
 # PCA loadings as arrows
 scale = 1.5
@@ -369,7 +429,7 @@ ax2.legend(handles=cluster_handles + tax_handles,
            fontsize=7, loc="upper left", ncol=2, framealpha=0.85)
 ax2.axhline(0, color="#cccccc", lw=0.8); ax2.axvline(0, color="#cccccc", lw=0.8)
 plt.tight_layout()
-p2 = ROOT / "paper" / "correlation" / "plot_clusters_pca.png"
+p2 = ROOT / "paper" / "correlation" / f"plot_clusters_pca{file_suffix}.png"
 plt.savefig(p2, dpi=150, bbox_inches="tight"); print(f"Saved to {p2}"); plt.close()
 
 # ── Figure 4 — positive-correlation subgraph ─────────────────────────────────
@@ -377,7 +437,7 @@ plt.savefig(p2, dpi=150, bbox_inches="tight"); print(f"Saved to {p2}"); plt.clos
 corr = np.full((n_games, n_games), np.nan)
 for i in range(n_games):
     for j in range(n_games):
-        xi, xj = rank_matrix[:, i], rank_matrix[:, j]
+        xi, xj = norm_matrix[:, i], norm_matrix[:, j]
         both = ~np.isnan(xi) & ~np.isnan(xj)
         if both.sum() < 2:
             continue
@@ -424,13 +484,12 @@ for i, g in enumerate(all_games):
              ha=ha, va="center", fontsize=9,
              color=CLUSTER_COLORS[c], fontweight="bold")
 
-p3 = ROOT / "paper" / "correlation" / "plot_clusters_graph.png"
+p3 = ROOT / "paper" / "correlation" / f"plot_clusters_graph{file_suffix}.png"
 plt.savefig(p3, dpi=150, bbox_inches="tight"); print(f"Saved to {p3}"); plt.close()
 
-# ── Figure 5 — model deviation from global rank per cluster ─────────────────
-# For each (model, cluster) cell: show rank delta vs that model's global avg.
-# Red = model underperforms its average here; green = overperforms.
-global_mean_rank = rank_matrix.mean(axis=1)  # [n_models]
+# ── Figure 5 — model deviation from global normalized score per cluster ─────
+# For each (model, cluster) cell: show normalized-score delta vs that model's global avg.
+global_mean_score = np.nanmean(norm_matrix, axis=1)  # [n_models]
 
 delta_matrix = np.zeros((n_models, K))
 cluster_sizes = []
@@ -438,8 +497,8 @@ for c in range(K):
     idx = [i for i in range(n_games) if cluster_ids[i] == c]
     cluster_sizes.append(len(idx))
     for mi in range(n_models):
-        cluster_ranks = rank_matrix[mi, idx]
-        delta_matrix[mi, c] = np.nanmean(cluster_ranks) - global_mean_rank[mi]
+        cluster_scores = norm_matrix[mi, idx]
+        delta_matrix[mi, c] = np.nanmean(cluster_scores) - global_mean_score[mi]
 
 GAME_ATTRS_LOCAL = {
     "air_raid":       ("Shoot&Dodge",   "Dense",  "Low",   "High"),
@@ -459,7 +518,6 @@ GAME_ATTRS_LOCAL = {
     "ice_hockey":     ("Track&React",   "Sparse", "Low",   "Med"),
     "tennis":         ("Track&React",   "Sparse", "Low",   "Med"),
     "freeway":        ("Evasion",       "Sparse", "High",  "High"),
-    "gopher":         ("Evasion",       "Dense",  "High",  "High"),
     "journey_escape": ("Evasion",       "Dense",  "High",  "High"),
     "pacman":         ("RoutePlan",     "Dense",  "High",  "High"),
     "qbert":          ("RoutePlan",     "Dense",  "High",  "Low"),
@@ -493,7 +551,7 @@ ax_d.set_xticks(range(K))
 ax_d.set_xticklabels(cluster_xlabels, fontsize=8)
 ax_d.set_yticks(range(n_models))
 ax_d.set_yticklabels(model_labels, fontsize=8)
-ax_d.set_title("Rank deviation from global avg\n(red = worse than usual, green = better)",
+ax_d.set_title("Norm-score deviation from global avg\n(red = worse than usual, green = better)",
                fontsize=9, fontweight="bold")
 for mi in range(n_models):
     for c in range(K):
@@ -502,7 +560,7 @@ for mi in range(n_models):
         ax_d.text(c, mi, f"{v:+.2f}", ha="center", va="center",
                   fontsize=8.5, color=tc, fontweight="bold")
 cbar5 = fig5.colorbar(im5, ax=ax_d, fraction=0.04, pad=0.03)
-cbar5.set_label("Δ rank", fontsize=7); cbar5.ax.tick_params(labelsize=7)
+cbar5.set_label("Δ normalized score", fontsize=7); cbar5.ax.tick_params(labelsize=7)
 
 # Right: cluster attribute summary + interpretation
 ax_t = axes5[1]
@@ -549,7 +607,7 @@ ax_t.set_title("Cluster attribute summary & interpretation",
 plt.suptitle("Why do the clusters form? — model capability gaps per game group",
              fontsize=11, fontweight="bold")
 plt.tight_layout()
-p5 = ROOT / "paper" / "correlation" / "plot_clusters_explanation.png"
+p5 = ROOT / "paper" / "correlation" / f"plot_clusters_explanation{file_suffix}.png"
 plt.savefig(p5, dpi=150, bbox_inches="tight"); print(f"Saved to {p5}"); plt.close()
 
 # ── console summary ───────────────────────────────────────────────────────────
@@ -561,9 +619,9 @@ for c in range(K):
     for g in members:
         sk = GAME_TO_SKILL.get(g, "?")
         skill_breakdown[sk] = skill_breakdown.get(sk, 0) + 1
-    best_model  = model_labels[int(np.argmin(centroid))]
-    worst_model = model_labels[int(np.argmax(centroid))]
+    best_model  = model_labels[int(np.argmax(centroid))]
+    worst_model = model_labels[int(np.argmin(centroid))]
     print(f"  C{c+1} ({len(members)} games): {members}")
-    print(f"       centroid ranks: { {ml: f'{r:.1f}' for ml, r in zip(model_labels, centroid)} }")
+    print(f"       centroid norm scores: { {ml: f'{r:.2f}' for ml, r in zip(model_labels, centroid)} }")
     print(f"       best model: {best_model}  worst: {worst_model}")
     print(f"       skill groups: {skill_breakdown}")

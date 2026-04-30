@@ -19,6 +19,10 @@ ROOT = Path(__file__).resolve().parents[2]
 MODEL_ALIASES = {
     "gemini-2.5-flash": "gemini-2.5-flash",
     "gpt-5.4-mini": "gpt-5.4-mini",
+    "openai:gpt-5.4": "gpt-5.4",
+    "openai:gpt-5.4-mini": "gpt-5.4-mini",
+    "anthropic:claude-opus-4-6": "claude-opus-4-6",
+    "anthropic:claude-sonnet-4-6": "claude-sonnet-4-6",
     "deepseek-ai/deepseek-v3.1": "deepseek-ai/deepseek-v3.1",
     "zai-org/glm-5.1": "zai-org/glm-5.1",
     "gemini-3-flash-preview": "gemini-3-flash-preview",
@@ -26,32 +30,44 @@ MODEL_ALIASES = {
     "google:gemini-3.1-pro-preview": "gemini-3.1-pro-preview",
     "random": "random",
 }
+MODEL_DISPLAY_NAMES = {
+    "gemini-2.5-flash": "Gemini 2.5 Flash",
+    "gemini-3-flash-preview": "Gemini 3 Flash",
+    "gemini-3.1-pro-preview": "Gemini 3.1 Pro",
+    "gpt-5.4": "GPT-5.4",
+    "gpt-5.4-mini": "GPT-5.4 Mini",
+    "claude-opus-4-6": "Claude Opus 4.6",
+    "claude-sonnet-4-6": "Claude Sonnet 4.6",
+    "deepseek-ai/deepseek-v3.1": "DeepSeek V3.1",
+    "zai-org/glm-5.1": "GLM 5.1",
+    "random": "Random",
+}
+MODEL_CANONICAL_ORDER = [
+    "gemini-3-flash-preview",
+    "gemini-3.1-pro-preview",
+    "gemini-2.5-flash",
+    "gpt-5.4",
+    "gpt-5.4-mini",
+    "claude-opus-4-6",
+    "claude-sonnet-4-6",
+    "deepseek-ai/deepseek-v3.1",
+    "zai-org/glm-5.1",
+    "random",
+]
+PROMPT_MODE_ORDER = {"structured_history": 0, "append_only": 1}
+THINKING_MODE_ORDER = {"default": 0, "high": 1, "low": 2, "off": 3, "none": 3}
+THINKING_LEVEL_ORDER = {"high": 0, "low": 1, "none": 2}
 EXCLUDE_ROW_KEYS = {
-    "gemini-3.1-pro-preview|structured_history|high",
-    "gemini-3.1-pro-preview|append_only|high",
+    "gemini-3.1-pro-preview|structured_history|default|high",
+    "gemini-3.1-pro-preview|append_only|default|high",
 }
-CORR_MODELS = {
-    "gemini-2.5-flash|structured_history|none",
-    "deepseek-ai/deepseek-v3.1|structured_history|none",
-    "zai-org/glm-5.1|structured_history|none",
-    "gpt-5.4-mini|structured_history|none",
-    "gemini-3-flash-preview|structured_history|low",
-    "gemini-3-flash-preview|structured_history|high",
-}
-MODEL_LABELS = {
-    "gemini-2.5-flash|structured_history|none":          "Gemini 2.5 Flash",
-    "deepseek-ai/deepseek-v3.1|structured_history|none": "DeepSeek V3.1",
-    "zai-org/glm-5.1|structured_history|none":           "GLM 5.1",
-    "gpt-5.4-mini|structured_history|none":              "GPT-5.4 Mini",
-    "gemini-3-flash-preview|structured_history|low":     "Gemini 3 Flash (Low)",
-    "gemini-3-flash-preview|structured_history|high":    "Gemini 3 Flash (High)",
-}
+EXCLUDE_GAMES = {"gopher"}
 
 ATTACK_KEYWORDS = ("fire", "shoot", "punch", "bonk")
 
 ALL_GAMES = [
     "air_raid", "assault", "beam_rider", "boxing", "breakout", "demon_attack",
-    "fishing_derby", "freeway", "gopher", "ice_hockey", "journey_escape",
+    "fishing_derby", "freeway", "ice_hockey", "journey_escape",
     "laser_gates", "name_this_game", "pacman", "phoenix", "qbert",
     "riverraid", "robotank", "seaquest", "tennis", "time_pilot",
 ]
@@ -63,10 +79,47 @@ def make_row_key(summary: dict) -> str | None:
     if canonical is None:
         return None
     pm = summary.get("prompt_mode") or "structured_history"
+    tm = summary.get("thinking_mode") or "none"
     tl = summary.get("thinking_level")
     tl = tl if tl and tl != "none" else "none"
-    rk = f"{canonical}|{pm}|{tl}"
+    rk = f"{canonical}|{pm}|{tm}|{tl}"
     return None if rk in EXCLUDE_ROW_KEYS else rk
+
+
+def make_label(row_key):
+    canonical, prompt_mode, thinking_mode, thinking_level = row_key.split("|")
+    base = MODEL_DISPLAY_NAMES.get(canonical, canonical)
+    parts = []
+    if thinking_level not in ("none", ""):
+        parts.append(thinking_level.capitalize())
+    elif thinking_mode in ("off", "none"):
+        parts.append("None")
+    if thinking_mode not in ("default", "off", "none", ""):
+        parts.append(f"{thinking_mode.capitalize()} Mode")
+    if prompt_mode == "append_only":
+        parts.append("AO")
+    return f"{base} ({', '.join(parts)})" if parts else base
+
+
+def row_sort_key(row_key):
+    canonical, prompt_mode, thinking_mode, thinking_level = row_key.split("|")
+    ci = MODEL_CANONICAL_ORDER.index(canonical) if canonical in MODEL_CANONICAL_ORDER else 999
+    pi = PROMPT_MODE_ORDER.get(prompt_mode, 99)
+    mi = THINKING_MODE_ORDER.get(thinking_mode, 99)
+    ti = THINKING_LEVEL_ORDER.get(thinking_level, 99)
+    return (ci, pi, mi, ti)
+
+
+def infer_summary_from_path(run_dir: Path, game: str, model_name: str) -> dict:
+    thinking_mode = "none" if model_name == "gpt-5.4-mini" else "off"
+    return {
+        "game": game,
+        "model_name": model_name,
+        "prompt_mode": "structured_history",
+        "thinking_mode": thinking_mode,
+        "thinking_level": None,
+        "stop_reason": "frame_budget",
+    }
 
 
 def is_attack(action: str) -> bool:
@@ -79,6 +132,8 @@ def is_attack(action: str) -> bool:
 acc: dict[tuple, dict] = {}
 
 for game in ALL_GAMES:
+    if game in EXCLUDE_GAMES:
+        continue
     game_dir = ROOT / "runs" / game
     if not game_dir.exists():
         continue
@@ -88,15 +143,18 @@ for game in ALL_GAMES:
         for run_dir in model_dir.iterdir():
             if not run_dir.is_dir():
                 continue
-            summary_path = run_dir / "summary.json"
             turns_path   = run_dir / "turns.jsonl"
-            if not summary_path.exists() or not turns_path.exists():
+            if not turns_path.exists():
                 continue
 
-            with summary_path.open() as f:
-                summary = json.load(f)
+            summary_path = run_dir / "summary.json"
+            if summary_path.exists():
+                with summary_path.open() as f:
+                    summary = json.load(f)
+            else:
+                summary = infer_summary_from_path(run_dir, game, model_dir.name)
             rk = make_row_key(summary)
-            if rk not in CORR_MODELS:
+            if rk is None:
                 continue
             if summary.get("stop_reason") != "frame_budget":
                 continue  # skip incomplete runs
@@ -105,13 +163,13 @@ for game in ALL_GAMES:
             if key not in acc:
                 acc[key] = {"plan_lengths": [], "attack_fracs": [], "rewards": []}
 
-            acc[key]["rewards"].append(float(summary.get("total_reward", 0)))
-
             # read turns
             plan_lengths, attack_fracs = [], []
+            total_reward = 0.0
             with turns_path.open() as f:
                 for line in f:
                     turn = json.loads(line)
+                    total_reward += float(turn.get("reward_delta") or 0.0)
                     actions = turn.get("planned_action_strings") or []
                     if not actions:
                         continue
@@ -120,15 +178,21 @@ for game in ALL_GAMES:
                     attack_fracs.append(n_attack / len(actions))
 
             if plan_lengths:
+                if summary_path.exists():
+                    total_reward = float(summary.get("total_reward", total_reward))
+                acc[key]["rewards"].append(total_reward)
                 acc[key]["plan_lengths"].append(np.mean(plan_lengths))
                 acc[key]["attack_fracs"].append(np.mean(attack_fracs))
 
 # ── build matrices ────────────────────────────────────────────────────────────
-sh_keys   = sorted(CORR_MODELS)
-all_games = ALL_GAMES
+sh_keys   = sorted({rk for rk, _ in acc.keys()}, key=row_sort_key)
+all_games = [g for g in ALL_GAMES if g not in EXCLUDE_GAMES and any((rk, g) in acc for rk in sh_keys)]
 n_models, n_games = len(sh_keys), len(all_games)
-model_labels = [MODEL_LABELS[rk] for rk in sh_keys]
+model_labels = [make_label(rk) for rk in sh_keys]
 game_labels  = [g.replace("_", " ").title() for g in all_games]
+
+if n_models == 0 or n_games == 0:
+    raise RuntimeError("No action data found. Need local turns.jsonl files to run action analysis.")
 
 plan_matrix   = np.full((n_models, n_games), np.nan)
 attack_matrix = np.full((n_models, n_games), np.nan)
