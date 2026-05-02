@@ -1,0 +1,79 @@
+\subsection{Game Separability and Capability Clustering}
+
+Not all games in the benchmark are equally informative for distinguishing model capabilities.
+A game where every model achieves a similar score provides little signal for ranking, and
+including such games in downstream analysis risks introducing noise.
+We therefore measure a per-game \emph{separability score} defined as the gap between the
+best and worst model's mean reward, divided by the pooled standard error of those two estimates:
+\begin{equation}
+    \text{sep}(g) = \frac{\mu_{\max}(g) - \mu_{\min}(g)}{\sqrt{\sigma^2_{\max}(g) + \sigma^2_{\min}(g)}},
+\end{equation}
+where $\mu$ and $\sigma$ are the sample mean and standard error across runs for game $g$.
+A score below one indicates that the best and worst models cannot be distinguished above
+measurement noise.
+
+Figure~\ref{fig:separability} reports this metric for all 21 games.
+Four games---Boxing, Ice Hockey, Demon Attack, and Fishing Derby---fall below the threshold,
+indicating that differences in model performance on these games are not reliably distinguishable
+from run-to-run variance.
+We exclude these four games from further analysis, retaining 17 games for clustering.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.85\linewidth]{fig/plot_clusters_separability.png}
+    \caption{Per-game separability score. Games below the dashed threshold (sep $< 1$) are excluded from cluster analysis as model differences are indistinguishable from noise.}
+    \label{fig:separability}
+\end{figure}
+
+\paragraph{Game Clusters.}
+We apply $k$-means clustering to the 17 retained games, treating each game as a vector of
+model ranks across the six evaluated models.
+The optimal number of clusters ($k=3$) is selected by silhouette score.
+Figure~\ref{fig:clusters} shows the resulting graph, where edge weight reflects positive
+pairwise rank correlation between games.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.85\linewidth]{fig/plot_clusters_graph.png}
+    \caption{Game clusters based on model rank profiles. Each node is a game; edges indicate Pearson correlation $r > 0.5$ between game rank vectors. Node color denotes cluster membership.}
+    \label{fig:clusters}
+\end{figure}
+
+The three clusters reveal distinct capability dimensions that cut across traditional genre boundaries.
+
+\paragraph{Cluster 1: Dense-reward reactive games.}
+The largest cluster (10 games: Air Raid, Beam Rider, Breakout, Journey Escape, Laser Gates,
+Name This Game, Phoenix, Qbert, Robotank, Seaquest) is unified by \emph{dense reward signals}---every
+game in this cluster provides frequent per-frame feedback.
+Gemini 3 Flash, particularly in low-thinking mode, dominates this cluster (average rank 1.6,
+$\Delta = -1.46$ relative to its global mean), while DeepSeek V3.1 performs worst
+($\Delta = +1.09$).
+The advantage of low over high thinking mode within the same model suggests that
+minimal deliberation is sufficient---and faster reactive responses are preferable---when
+reward is dense and the correct action is recoverable from the immediate frame.
+
+\paragraph{Cluster 2: Action-discipline games.}
+The second cluster (4 games: Gopher, Pac-Man, Tennis, Time Pilot) groups games that
+\emph{punish blind action spamming} and reward deliberate, position-aware behavior.
+DeepSeek V3.1 achieves the best average rank ($\Delta = -1.76$), Gemini 2.5 Flash is second
+($\Delta = -0.96$), and Gemini 3 Flash Low---dominant in Cluster 1---collapses ($\Delta = +2.69$).
+Action log analysis shows that success requires \emph{positioning before acting}.
+In Gopher, Gemini 2.5 Flash (score 54) first moves into position (1,235 left + 1,151 right)
+and then strikes selectively (20.7\% bonk rate), while DeepSeek and GLM spam bonk at 65.7\%
+without aligning above the target.
+In Tennis, DeepSeek wins with simple lateral ball-tracking (76\% left/right moves),
+while GPT stalls with 38\% no-ops and GLM wastes 25\% of turns re-serving.
+The shared failure mode is over-committing to a single action---fire, serve, or no-op---instead
+of first establishing positional alignment.
+
+\paragraph{Cluster 3: Linear navigation games.}
+The smallest cluster (3 games: Assault, Freeway, Riverraid) is defined by a strong and
+idiosyncratic advantage of GLM 5.1, which ranks first on all three games
+($\Delta = -2.99$), while Gemini 3 Flash (both variants) performs worst ($\Delta \approx +1.6$).
+All three games share a \emph{linear spatial structure}: Assault presents orderly enemy waves along
+a fixed axis, Freeway requires timing lane gaps in a vertical corridor, and Riverraid constrains
+movement to a scrolling river path.
+GLM 5.1's direct action patterns---observed to include high fire rates on Assault and Riverraid and
+consistent upward movement on Freeway---happen to align well with the predictable structure of these
+environments, whereas the more exploratory reasoning of Gemini 3 Flash may overfit to
+complexity that is not present.

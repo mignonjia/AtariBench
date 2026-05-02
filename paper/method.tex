@@ -1,0 +1,107 @@
+\section{Method}
+
+AtariBench is a benchmark for evaluating \emph{vision-language models} (VLMs) as closed-loop game-playing agents in fast, visually dynamic environments. The benchmark is built around three principles. First, all tasks are instantiated through a single standardized environment interface, so differences in performance are attributable to the model and the harness rather than task-specific wrappers. Second, the game suite is intentionally diverse and explicitly classified along capability-relevant axes such as control topology, reward density, and temporal precision. Third, the evaluation pipeline is fully specified: observations, prompts, action parsing, execution timing, memory, and stopping conditions are all fixed by the benchmark.
+
+\subsection{Benchmark Overview}
+
+At a high level, AtariBench defines a benchmark run as a repeated interaction loop between a VLM-based agent and an Atari environment. At each decision point, the agent receives a multimodal prompt containing the current frame, structured task instructions, and benchmark-managed memory from earlier interaction history. The model returns a short reasoning trace and a bounded sequence of actions. Those actions are parsed, executed in the environment for a fixed number of frames, and logged back into the trajectory before the next query. Scores are then aggregated over a fixed interaction budget.
+
+This framing is important for two reasons. First, AtariBench evaluates \emph{agents}, not isolated perception or one-step prediction. Second, the benchmark keeps the harness fixed across models, so comparison focuses on whether a model can perceive, remember, and control effectively under the same interface and timing constraints.
+
+\subsection{Standardized Environment Interface}
+
+We implement AtariBench on top of the Arcade Learning Environment (ALE)~\citep{ale} via Gymnasium~\citep{gymnasium,openai_gym}. ALE provides a common control interface across Atari 2600 games, which is a key property for benchmark design: every game is exposed through the same reset/step API, returns observations in the same format, and reports rewards and episode metadata through a shared interaction contract. This allows AtariBench to evaluate many games under a single agent protocol without introducing game-specific environment logic.
+
+Concretely, each interaction step is mediated by \texttt{env.step(action\_id)}, which returns an RGB observation, a scalar reward, termination flags, and environment metadata. We render RGB frames at the native Atari resolution of $210\times160$ pixels. Environments are configured with \texttt{frameskip=1} and \texttt{repeat\_action\_probability=0.0}, so the benchmark observes exact frame-by-frame dynamics and removes ALE sticky-action stochasticity. The harness then groups every three ALE frames into one high-level action decision, yielding a 10~Hz control loop over a 30~FPS visual stream. This choice preserves fast object motion while keeping the action budget manageable for current VLMs.
+
+Each run is evaluated under a fixed wall-clock-equivalent gameplay budget, typically 30 seconds in our main setting. The benchmark continues across within-game episode boundaries until that budget is exhausted. When a game ends early, the environment is reset and the run proceeds from the next frame, so the evaluation measures reward accumulated over a fixed interaction budget rather than reward from a single episode only. This produces a uniform and reproducible stopping rule across games with different native life systems and episode lengths.
+
+\subsection{Game Suite and Taxonomy}
+
+AtariBench currently includes 21 Atari games spanning shooters, sports, action games, and maze/navigation games. The suite is not intended to be an arbitrary collection of ALE titles. Instead, we select games that satisfy three practical benchmark criteria: (i) the environment contains visible object dynamics that must be tracked online, (ii) success depends on timely closed-loop control rather than static perception alone, and (iii) meaningful reward events occur within short horizons so that performance can be measured reliably within a fixed budget.
+
+To make the benchmark analytically useful, we classify games along several orthogonal axes beyond genre. These include primary skill requirement (e.g., aiming, route planning, interception, scrolling navigation), action topology (horizontal, vertical, both axes, and optional fire/attack actions), reward density, visual load, and tempo sensitivity. We also record the dominant \emph{episode structure} of each game, such as whether failure and restart are primarily organized around lives, elapsed time, or score-triggered transitions. This taxonomy is important because it makes clear that AtariBench is not a single monolithic score: different games stress different mixtures of perception, control, planning, and reaction time.
+
+\begin{table}[ht]
+\centering
+\small
+\caption{AtariBench game taxonomy. Action: H=horizontal, V=vertical, B=both, A=fire/attack/throw. ``Terminate'' summarizes the dominant in-game episode structure encountered during evaluation (e.g., life-based, time-based, or reward-triggered progression), while all benchmark runs are scored under the same fixed time budget. Reward density and visual load are qualitative summaries. Tempo reflects the degree of timing precision required for competent play.}
+\label{tab:game_choice}
+\begin{tabular}{lccccccc}
+\toprule
+\textbf{Game}  & \textbf{Primary Skill} & \textbf{\#Obj} & \textbf{Action} & \textbf{Terminate} & \textbf{Reward} & \textbf{Visual} & \textbf{Tempo} \\
+ &  &  &  &  & \textbf{density} & \textbf{load} &  \\
+\midrule
+\multicolumn{8}{c}{\it Shooter} \\
+\midrule
+AirRaid                & Aiming \& Avoidance         & 2 & H{+}A & Time    & Dense  & Low  & High \\
+Assault                & Aiming \& Avoidance         & 3 & H{+}A & Lives   & Dense  & Low  & High \\
+BeamRider              & Aiming \& Avoidance         & 2 & H{+}A & Lives   & Dense  & High & High \\
+DemonAttack            & Aiming \& Avoidance         & 2 & H{+}A & Lives   & Dense  & Low  & High \\
+LaserGates             & Multi-task Navigation       & 2 & B{+}A & Lives   & Dense  & High & High \\
+NameThisGame           & Precision Interception      & 4 & H{+}A & Time    & Dense  & Low  & High \\
+Phoenix                & Aiming \& Avoidance         & 2 & H{+}A & Lives   & Dense  & Low  & High \\
+RiverRaid              & Scrolling Navigation        & 3 & H{+}A & Lives   & Dense  & High & High \\
+Seaquest               & Multi-task Navigation       & 3 & B{+}A & Lives   & Dense  & High & High \\
+TimePilot              & 360 degree Navigation       & 2 & B{+}A & Time    & Sparse & High & High \\
+Robotank               & First-person Navigation     & 2 & B{+}A & Time    & Dense  & High & High \\
+\midrule
+\multicolumn{8}{c}{\it Sports} \\
+\midrule
+Boxing                 & Rhythmic Combat             & 2 & B{+}A & Time    & Dense  & Low  & High \\
+IceHockey              & Positional Strategy         & 1 & B{+}A & Rewards & Sparse & Low  & Med/High \\
+FishingDerby           & Depth Targeting             & 1 & B{+}A & Time    & Dense  & High & High \\
+\textbf{Tennis}        & Predictive Timing           & 1 & B     & Rewards & Sparse & Low  & Med/High \\
+\midrule
+\multicolumn{8}{c}{\it Action} \\
+\midrule
+\textbf{Breakout}      & Rebound Control             & 1 & H     & Lives   & Dense  & Low  & Med/High \\
+Freeway                & Gap Identification          & 2 & V     & Time    & Sparse & High & High \\
+Gopher                 & Reactive Pathing            & 2 & H{+}A & Lives   & Dense  & High & High \\
+JourneyEscape          & Scrolling Navigation        & 1 & B     & Time    & Dense  & High & High \\
+\midrule
+\multicolumn{8}{c}{\it Maze} \\
+\midrule
+\textbf{PacMan}        & Route Planning              & 2 & B     & Lives   & Dense  & High & High \\
+Qbert                  & Route Planning              & 1 & B     & Lives   & Dense  & High & Low  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Agent Definition and Interaction Protocol}
+
+AtariBench evaluates \emph{agents}, not isolated one-shot predictions. In our benchmark, an agent is defined by the combination of a VLM, a fixed multimodal prompt template, a game-specific action vocabulary, a memory harness, and a deterministic execution policy that maps parsed model outputs into ALE actions. This definition is important because the harness is part of the benchmark: it standardizes how perception, language, memory, and control are coupled during evaluation.
+
+\subsubsection{Observations and Prompt Construction}
+At each decision point, the agent receives a multimodal prompt with four components: (i) a game-specific instruction block describing the objective and action semantics, (ii) structured historical context derived from the current run, (iii) a textual description of the fixed time-budget rule, and (iv) the current game frame. The prompt format is shared across games, while game-specific prompt modules provide the action map and the concise task description. This yields a controlled protocol in which all games follow the same interaction template but retain their own task semantics.
+
+\subsubsection{Action Space and Model Output}
+Each game exposes a normalized textual action vocabulary derived from the ALE action set used by that title. The model is required to produce a short free-form \texttt{thought} followed by a bounded list of executable actions. The harness parses the output, normalizes action names, validates them against the game-specific action map, and executes the resulting sequence in order. Invalid outputs are handled conservatively by falling back to a no-op action, which keeps evaluation robust while preserving the raw response for later analysis.
+
+\subsubsection{Closed-Loop Execution}
+The benchmark is strictly closed loop. After the model proposes an action sequence, each action is executed in the environment for a fixed number of frames, intermediate states are recorded, and the resulting trajectory is appended to the run history before the next query is issued. The agent therefore acts on the consequences of its own prior behavior rather than on independent samples. This setup distinguishes AtariBench from static visual QA or offline planning tasks and makes it a direct test of real-time multimodal control.
+
+\subsubsection{Trajectory Logging and Reproducibility}
+For every turn, the pipeline stores the full prompt, raw model response, parsed actions, referenced frames, token-usage metadata when available, and per-action outcomes. Final summaries record the model identifier, thinking mode, prompt mode, action frequency, reward, lives lost, and token statistics. This logging design makes each run auditable and supports exact reconstruction of the agent-environment interaction sequence.
+
+\subsection{Memory and Feedback Harnesses}
+
+To support sequential decision making under partial observability, we augment the current observation with lightweight memory derived from the agent's own trajectory. In the default \texttt{structured\_history} mode, each prompt contains the current frame together with two curated forms of episodic context: a short recent-history buffer and a sparse archive of reward-relevant events. The benchmark also supports an \texttt{append\_only} transcript mode, but our main harness uses the structured variant because it keeps context compact while preserving the most decision-relevant events.
+
+\subsubsection{Memory}
+
+Our memory harness contains two components. First, we include a \emph{recent history} consisting of the most recent $K$ turn-level clips. Second, we include a \emph{non-zero-reward history} consisting of the most recent $R$ clips that produced non-zero reward. In our implementation, life-loss events are also inserted into this reward-relevant memory even when the scalar reward is zero, because losing a life is an important gameplay failure that changes downstream decision making even without an immediate score penalty.
+
+Each clip corresponds to one completed model turn and stores: (i) the starting frame, (ii) the list of actions proposed by the model, and (iii) the sequence of resulting frames after those actions are executed. This representation provides the model with compact temporal evidence about what it recently did, what happened next, and which earlier situations were associated with success or failure. The recent-history buffer emphasizes short-horizon continuity, while the reward-history buffer highlights sparse but informative events that help the model infer game mechanics and effective strategies.
+
+\subsubsection{Textual Reward Feedback}
+
+In addition to visual clips, AtariBench exposes environment feedback through a simple textual channel attached to each action outcome. After each executed action, the pipeline emits short deterministic annotations whenever a salient event occurs. Positive rewards are verbalized as positive-score feedback, negative rewards as negative-score feedback, and life-loss events are described explicitly as losing a life followed by a restart. If no salient event occurs, no extra feedback text is added.
+
+This mechanism converts sparse environment signals into language that can be consumed directly by the VLM alongside images. Importantly, this is not free-form self-reflection generated by the model. It is benchmark-side feedback produced deterministically from the environment transition. The purpose is to expose reward structure and failure events in a modality that is easy for current VLMs to integrate with visual context, especially in high-FPS settings where the consequences of an action may be easy to miss from raw frames alone.
+
+\subsubsection{Append only prompt mode}
+
+AtariBench also supports an alternative \texttt{append\_only} prompt mode. Rather than organizing past interaction into separate recent-history and reward-history blocks, this mode keeps the full trajectory as a chronological multimodal transcript. The initial user turn contains the game instructions, the time-budget rule, and the first frame. Each later assistant turn is the model's previous response, and each following user turn contains the resulting states, images, and benchmark-generated reward or life-loss feedback.
+
+This mode is closer to a standard multimodal chat setting: the model receives the interaction history in temporal order and must recover useful structure from the transcript itself. At serving time, AtariBench sends this context as structured chat messages. We use \texttt{append\_only} as a comparison baseline, while \texttt{structured\_history} remains our default because it keeps prompts more compact and highlights the most decision-relevant past events.

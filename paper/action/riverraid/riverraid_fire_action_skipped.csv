@@ -1,0 +1,11 @@
+source,path,reason
+ataribench_videos/structured_history/runs/riverraid,/home/hal-mingjiahuo/AtariBench/ataribench_videos/structured_history/runs/riverraid/google-gemini-3-flash-preview/xm_riverraid_google-gemini-3-flash-preview_low_9,missing_or_invalid_summary
+ataribench_videos/structured_history/runs/riverraid,/home/hal-mingjiahuo/AtariBench/ataribench_videos/structured_history/runs/riverraid/google-gemini-3.1-pro-preview/xm_riverraid_google-gemini-3.1-pro-preview_low_0,missing_or_invalid_summary
+ataribench_videos/structured_history/runs/riverraid,/home/hal-mingjiahuo/AtariBench/ataribench_videos/structured_history/runs/riverraid/google-gemini-3.1-pro-preview/xm_riverraid_google-gemini-3.1-pro-preview_low_0_2,missing_or_invalid_summary
+ataribench_videos/structured_history/runs/riverraid,/home/hal-mingjiahuo/AtariBench/ataribench_videos/structured_history/runs/riverraid/google-gemini-3.1-pro-preview/xm_riverraid_google-gemini-3.1-pro-preview_low_0_3,missing_or_invalid_summary
+ataribench_videos/structured_history/runs/riverraid,/home/hal-mingjiahuo/AtariBench/ataribench_videos/structured_history/runs/riverraid/google-gemini-3.1-pro-preview/xm_riverraid_google-gemini-3.1-pro-preview_low_0_4,missing_or_invalid_summary
+ataribench_videos/structured_history/runs/riverraid,/home/hal-mingjiahuo/AtariBench/ataribench_videos/structured_history/runs/riverraid/google-gemini-3.1-pro-preview/xm_riverraid_google-gemini-3.1-pro-preview_low_1,missing_or_invalid_summary
+ataribench_videos/structured_history/runs/riverraid,/home/hal-mingjiahuo/AtariBench/ataribench_videos/structured_history/runs/riverraid/google-gemini-3.1-pro-preview/xm_riverraid_google-gemini-3.1-pro-preview_low_1_2,missing_or_invalid_summary
+ataribench_videos/structured_history/runs/riverraid,/home/hal-mingjiahuo/AtariBench/ataribench_videos/structured_history/runs/riverraid/google-gemini-3.1-pro-preview/xm_riverraid_google-gemini-3.1-pro-preview_low_1_3,missing_or_invalid_summary
+ataribench_videos/structured_history/runs/riverraid,/home/hal-mingjiahuo/AtariBench/ataribench_videos/structured_history/runs/riverraid/google-gemini-3.1-pro-preview/xm_riverraid_google-gemini-3.1-pro-preview_low_1_4,missing_or_invalid_summary
+runs/riverraid,/home/hal-mingjiahuo/AtariBench/runs/riverraid/deepseek-ai-deepseek-v3.1/0420_042356_cfg_001_run_010,missing_or_invalid_summary

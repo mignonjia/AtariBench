@@ -1,0 +1,112 @@
+\section{Experiments}
+
+\subsection{Results}
+In this section, we present the evaluation results for four distinct large language models: Gemini 2.5 Flash (without thinking), GPT-5.4-Mini, Deepseek-V3.1, and GLM 5.1. To ensure the statistical robustness of our findings, each experimental setting was rigorously repeated for 10 independent runs. See detailed results in Figure~\ref{fig:main}.
+% , Grok 4, Qwen3.
+We found that Gemini 2.5 Flash outperformed other models by winning 13 out of 21 evaluated games, demonstrating a notable advantage in Atari games. 
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\linewidth]{fig/plot_heatmap_norm.png}
+    \label{fig:main}
+    \caption{Model Performance Across Atari Games.}
+\end{figure}
+
+% 5 human players
+% \subsection{Evaluation Results}
+% \begin{table}[ht]
+%     \centering
+%     \caption{Model performances on five Atari games.}
+%     \begin{tabular}{c|c|c|c|c|c|c}
+%     \toprule
+%           \textbf{model} & Thinking & Assault & Breakout & Tennis & Freeway & Pacman \\\midrule
+%         gemini-2.5-falsh & True &  6.6 (± 2.6) &4.1 (± 2.3) &-3.0 (± 0.0) & \textbf{5.0 (± 0.0)} & \textbf{31.7 (± 15.9)} \\
+%             & False & 6.7 (± 1.6) &3.3 (± 1.8) &-2.8 (± 0.4) &3.8 (± 0.4) &28.8 (± 17.8) \\
+%          gemini-2.5-pro & True &6.4 (± 3.9)  &4.6 (± 1.4) &-2.9 (± 0.3) &4.3 (± 0.7) &19.4 (± 8.2) \\
+%             & False & \textbf{7.0 (± 2.5)} & \textbf{6.2 (± 2.9)} & \textbf{-2.7 (± 0.5)} &3.6 (± 0.7) &18.0 (± 8.9) \\\bottomrule
+%     \end{tabular}
+%     \label{tab:placeholder}
+% \end{table}
+
+
+We then perform correlation analysis on a dataset comprising model performance metrics across various Atari 2600 games.
+We analyzed the averaged reward achieved by various models considering both with and without thinking mode. Each game's performances on these models are represented using a vector, and we compute the pairwise Pearson correlation among these vectors.
+
+This correlation analysis revealed significant inter-game dependencies (when greater than 0.8). Breakout, Tennis, and Ice Hockey exhibited strong correlations, likely due to their shared demand for tracking small, fast-moving objects. PacMan and Freeway also showed high correlation A key finding across all cases was the superior performance of models without the ``thinking'' component. Additionally, JourneyEscape and LaserGates correlated significantly, attributable to their common obstacle avoidance mechanics. These insights highlight shared skill requirements and performance trends across the analyzed Atari games.
+
+\subsection{Strategy Sensitivity}
+
+We further analyze how model performance varies under different implicit strategies. We classify model behavior into three categories based on their reasoning traces: \emph{reward-seeking}, \emph{neutral}, and \emph{survival-focused}. To obtain these labels, we prompt an LLM to analyze 100 sampled reasoning traces per setting and assign a dominant strategy.
+
+Table~\ref{tab:strategy_analysis} compares two representative games, \texttt{DemonAttack} and \texttt{Phoenix}. In \texttt{DemonAttack}, we explicitly prompt the model to prioritize survival, while in \texttt{Phoenix}, we evaluate both the default (neutral) prompt and an additional survival-oriented instruction. We observe that survival-focused behavior consistently leads to higher average rewards across both games. Moreover, adding a simple one-sentence instruction that encourages survival can significantly shift the model's strategy distribution and improve performance.
+
+Interestingly, the sensitivity to strategy varies across models. For example, the \texttt{flash} model shows a stronger alignment with survival-focused behavior under explicit prompting, whereas the \texttt{pro} model exhibits a more mixed strategy distribution. These results highlight a unique aspect of game-based evaluation: model performance is not solely determined by perception or reasoning ability, but is also highly sensitive to the induced strategy. This suggests that aligning model objectives with task-specific strategies is crucial for achieving strong performance in interactive environments.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{l|ccc|ccc|ccc}
+\small
+\toprule
+& \multicolumn{3}{c|}{DemonAttack (survival)} 
+& \multicolumn{3}{c|}{Phoenix (neutral)} 
+& \multicolumn{3}{c}{Phoenix (survival)} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7} \cmidrule(lr){8-10}
+Model 
+& Reward & Survival & Avg 
+& Reward & Survival & Avg 
+& Reward & Survival & Avg \\
+& seeking & focused & Reward 
+& seeking & focused & Reward 
+& seeking & focused & Reward \\
+\midrule
+gemini-2.5-flash 
+& 33 & 64 & 8.07 
+& 76 & 19 & 7.13 
+& 68 & 25 & 7.83 \\
+gemini-2.5-pro   
+& 63 & 31 & 6.97 
+& 59 & 34 & 7.27 
+& 80 & 16 & 7.40 \\
+\bottomrule
+\end{tabular}
+\caption{Strategy analysis across \texttt{DemonAttack} and \texttt{Phoenix}. We report the number of reasoning traces classified as reward-seeking or survival-focused (out of 100), along with the average reward. Explicitly encouraging survival shifts model behavior and often improves performance.}
+\label{tab:strategy_analysis}
+\end{table}
+
+
+
+
+
+% \begin{figure}[ht]
+%     \centering
+%     \includegraphics[width=0.7\linewidth]{fig/corr.png}
+%     \caption{Correlation among games.}
+%     \label{fig:corr}
+% \end{figure}
+
+
+\subsection{Qualitative analysis}
+This section showcases representative failure cases across the evaluated games and offers qualitative insights that point to clear directions for improving the models.
+
+\paragraph{Spatial-Temporal Understanding.}
+
+As discussed in Section~\ref{sec:multi_choice_eval}, models can correctly identify salient objects and their relative spatial relationships, yet they often fail to reason about motion. In Breakout, for instance (Fig.~\ref{fig:breakout_perception}), the model infers a movement direction that contradicts the ground truth. This weakness in spatiotemporal understanding limits performance on broader video-understanding tasks that require accurate motion perception, such as activity recognition, object trajectory tracking, and event understanding in dynamic scenes.
+
+
+\paragraph{Long context.}
+
+We also evaluate one game from each genre using the \texttt{append\_only} prompting format, which more closely follows the long-context chat interface used by modern LLMs. At the beginning of an episode, models can often use the accumulated transcript effectively and produce sensible actions. However, as the interaction history grows, performance degrades: the model increasingly repeats the same thoughts and action sequences regardless of the newly appended observations and feedback. This suggests that current models struggle to continually update their internal state from long multimodal transcripts, even when relevant evidence is explicitly present in context. Improving robustness to long-horizon accumulated context remains an important direction for building stronger game-playing and video-understanding agents.
+
+
+\paragraph{Text and Image Attention.}
+We observe that models can over-rely on textual context even when visual evidence is available, leading to incorrect decisions. In a Breakout example, the model concludes that the paddle is positioned to the left, explicitly citing prior textual history (e.g., a previous ``left'' action), rather than grounding its judgment in the current frame. This results in actions that are inconsistent with the actual visual state. Notably, this failure occurs despite the image tokens dominating the input (e.g., $\sim$90\% of tokens), suggesting a mismatch between input composition and attention allocation: the model attends disproportionately to text while under-utilizing visual information. Overall, the example highlights a limitation in VLMs that they may fail to reliably ground their reasoning in visual inputs when text are present.
+
+
+
+% \paragraph{Reasoning and Planning.}
+
+
+
+
+
+
