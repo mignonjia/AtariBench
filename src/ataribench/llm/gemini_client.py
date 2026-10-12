@@ -1,0 +1,330 @@
+"""Gemini client adapter used by the Atari runner."""
+
+from __future__ import annotations
+
+import base64
+import html as _html
+import os
+from pathlib import Path
+
+from .common import LlmTurnResponse, build_token_usage, describe_effective_thinking_mode, read_usage_value
+from .retry import RetryableResponseError, call_with_retries
+
+from ..games.prompt_builder import PromptMessage
+
+DEFAULT_GEMINI_TIMEOUT_MS = 60_000
+
+
+class GeminiClient:
+    """Thin wrapper around the official Gemini SDK."""
+
+    def __init__(self, api_key: str | None = None):
+        self.api_key = api_key or os.getenv("GEMINI_API_KEY")
+        if not self.api_key:
+            raise RuntimeError("GEMINI_API_KEY is required to call Gemini.")
+
+    def generate_turn(
+        self,
+        prompt_text: str,
+        image_paths: list[str],
+        model_name: str,
+        thinking_mode: str = "default",
+        prompt_messages: list[PromptMessage] | None = None,
+        context_cache: bool = False,
+        html_log_path: Path | None = None,
+    ) -> LlmTurnResponse:
+        """Send one multimodal request and return the raw model text plus usage."""
+        del context_cache
+
+        try:
+            from google import genai
+            from google.genai import types
+        except ImportError as exc:
+            raise RuntimeError(
+                "google-genai is required for live Gemini calls."
+            ) from exc
+
+        client = genai.Client(
+            api_key=self.api_key,
+            http_options=_build_http_options(types),
+        )
+        return call_with_retries(
+            lambda: _generate_turn_response(
+                client=client,
+                types=types,
+                prompt_text=prompt_text,
+                image_paths=image_paths,
+                model_name=model_name,
+                thinking_mode=thinking_mode,
+                prompt_messages=prompt_messages,
+                html_log_path=html_log_path,
+            )
+        )
+
+
+def _generate_turn_response(
+    *,
+    client,
+    types,
+    prompt_text: str,
+    image_paths: list[str],
+    model_name: str,
+    thinking_mode: str,
+    prompt_messages: list[PromptMessage] | None,
+    html_log_path: Path | None = None,
+) -> LlmTurnResponse:
+    contents = _build_contents(
+        types=types,
+        prompt_text=prompt_text,
+        image_paths=image_paths,
+        prompt_messages=prompt_messages,
+    )
+    if html_log_path is not None:
+        _write_query_html_log(html_log_path, contents)
+    response = client.models.generate_content(
+        model=model_name,
+        contents=contents,
+        config=_build_generate_config(
+            types,
+            model_name,
+            thinking_mode,
+        ),
+    )
+    token_usage = _extract_token_usage(response)
+    text = _extract_response_text(response)
+    if text:
+        return LlmTurnResponse(text=text, token_usage=token_usage)
+    raise RetryableResponseError(_empty_response_error_message(response))
+
+
+def _empty_response_error_message(response) -> str:
+    finish_reasons = []
+    candidates = getattr(response, "candidates", None) or []
+    for candidate in candidates:
+        finish_reason = getattr(candidate, "finish_reason", None)
+        if finish_reason is not None:
+            finish_reasons.append(str(finish_reason))
+
+    prompt_feedback = getattr(response, "prompt_feedback", None)
+    details = []
+    if finish_reasons:
+        details.append(f"finish_reason={','.join(finish_reasons)}")
+    if prompt_feedback:
+        details.append(f"prompt_feedback={prompt_feedback}")
+    summary = "; ".join(details) if details else "empty response"
+    return f"Gemini returned no text output. Metadata: {summary}"
+
+
+def _build_contents(types, prompt_text: str, image_paths: list[str], prompt_messages: list[PromptMessage] | None):
+    if not prompt_messages:
+        return [types.Content(role="user", parts=_build_parts(types, prompt_text, image_paths))]
+    contents = []
+    for message in prompt_messages:
+        role = "model" if message.role == "assistant" else "user"
+        contents.append(
+            types.Content(
+                role=role,
+                parts=_build_parts(types, message.text, message.image_paths),
+            )
+        )
+    return contents
+
+
+def _build_parts(types, prompt_text: str, image_paths: list[str]):
+    segments = prompt_text.split("IMG_HOLDER")
+    num_placeholders = len(segments) - 1
+    if num_placeholders != len(image_paths):
+        raise ValueError(
+            f"IMG_HOLDER count ({num_placeholders}) does not match "
+            f"number of image paths ({len(image_paths)})."
+        )
+    parts = []
+    for i, text_seg in enumerate(segments):
+        if text_seg:
+            parts.append(types.Part.from_text(text=text_seg))
+        if i < len(image_paths):
+            image_bytes = Path(image_paths[i]).read_bytes()
+            mime_type = _guess_mime_type(image_paths[i])
+            parts.append(types.Part.from_bytes(data=image_bytes, mime_type=mime_type))
+    return parts
+
+
+def _build_generate_config(types, model_name: str, thinking_mode: str):
+    metadata = describe_effective_thinking_mode(model_name=model_name, thinking_mode=thinking_mode)
+    if metadata["thinking_mode"] in {"default", "auto", "none"}:
+        return None
+    if metadata["thinking_budget"] is not None:
+        return types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(
+                thinking_budget=metadata["thinking_budget"],
+                include_thoughts=False,
+            )
+        )
+    thinking_levels = {
+        "low": types.ThinkingLevel.LOW,
+        "medium": types.ThinkingLevel.MEDIUM,
+        "high": types.ThinkingLevel.HIGH,
+        "minimal": types.ThinkingLevel.MINIMAL,
+    }
+    if metadata["thinking_level"] in thinking_levels:
+        return types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(
+                thinking_level=thinking_levels[metadata["thinking_level"]],
+                include_thoughts=False,
+            )
+        )
+    raise AssertionError(f"Unhandled thinking mode metadata: {metadata}")
+
+
+def _build_http_options(types):
+    timeout_ms = _resolve_timeout_ms()
+    return types.HttpOptions(timeout=timeout_ms)
+
+
+def _resolve_timeout_ms() -> int:
+    raw_value = os.getenv("ATARIBENCH_GEMINI_TIMEOUT_MS", str(DEFAULT_GEMINI_TIMEOUT_MS))
+    try:
+        timeout_ms = int(raw_value)
+    except ValueError:
+        return DEFAULT_GEMINI_TIMEOUT_MS
+    return max(timeout_ms, 1)
+
+
+def _guess_mime_type(image_path: str) -> str:
+    suffix = Path(image_path).suffix.lower()
+    if suffix == ".png":
+        return "image/png"
+    if suffix in {".jpg", ".jpeg"}:
+        return "image/jpeg"
+    return "application/octet-stream"
+
+
+_QUERY_HTML_TEMPLATE = """\
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Query Log</title>
+  <style>
+    body {{
+      background: #f4f1ea;
+      color: #111;
+      font-family: Menlo, Monaco, Consolas, monospace;
+      line-height: 1.35;
+      margin: 0;
+      padding: 16px;
+    }}
+    h1 {{ font-size: 16px; margin: 0 0 12px 0; }}
+    .chat {{ display: flex; flex-direction: column; gap: 14px; }}
+    .row {{ display: flex; width: 100%; }}
+    .row.user {{ justify-content: flex-start; }}
+    .row.model {{ justify-content: flex-end; }}
+    .bubble {{
+      border: 1px solid #d8d1c4;
+      border-radius: 12px;
+      max-width: min(780px, 92%);
+      padding: 12px 14px;
+    }}
+    .row.user .bubble {{ background: #fffaf0; }}
+    .row.model .bubble {{ background: #eef5ff; }}
+    pre {{ margin: 0 0 10px 0; white-space: pre-wrap; word-break: break-word; }}
+    pre:last-child {{ margin-bottom: 0; }}
+    .img-block {{
+      background: rgba(255,255,255,0.8);
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      margin: 10px 0 0 0;
+      padding: 10px;
+    }}
+    img {{
+      border: 1px solid #ddd;
+      display: block;
+      image-rendering: pixelated;
+      max-width: min(680px, 100%);
+    }}
+  </style>
+</head>
+<body>
+  <h1>Query Log</h1>
+  <div class="chat">
+    {body}
+  </div>
+</body>
+</html>"""
+
+
+def _write_query_html_log(html_log_path: Path, contents) -> None:
+    """Write an HTML rendering of the exact contents sent to the Gemini API."""
+    bubbles: list[str] = []
+    for content in contents:
+        role = getattr(content, "role", "user")
+        parts = getattr(content, "parts", []) or []
+        rendered: list[str] = []
+        for part in parts:
+            text = getattr(part, "text", None)
+            if text:
+                rendered.append(f"<pre>{_html.escape(text)}</pre>")
+                continue
+            inline_data = getattr(part, "inline_data", None)
+            if inline_data is not None:
+                data = getattr(inline_data, "data", None)
+                mime_type = getattr(inline_data, "mime_type", "image/png")
+                if data is not None:
+                    b64 = base64.b64encode(data).decode("ascii")
+                    rendered.append(
+                        '<figure class="img-block">'
+                        f'<img src="data:{mime_type};base64,{b64}" alt="image" />'
+                        "</figure>"
+                    )
+        inner = "\n".join(rendered)
+        bubbles.append(
+            f'<div class="row {_html.escape(role)}"><div class="bubble">{inner}</div></div>'
+        )
+    body = "\n    ".join(bubbles)
+    html_log_path.write_text(_QUERY_HTML_TEMPLATE.format(body=body), encoding="utf-8")
+
+
+def _extract_response_text(response) -> str | None:
+    direct_text = getattr(response, "text", None)
+    if direct_text:
+        return direct_text
+
+    candidates = getattr(response, "candidates", None) or []
+    for candidate in candidates:
+        content = getattr(candidate, "content", None)
+        parts = getattr(content, "parts", None) or []
+        text_parts = [getattr(part, "text", None) for part in parts]
+        filtered = [part for part in text_parts if part]
+        if filtered:
+            return "\n".join(filtered)
+    return None
+
+
+def _extract_token_usage(response) -> object:
+    usage_metadata = getattr(response, "usage_metadata", None)
+    if usage_metadata is None:
+        return build_token_usage()
+    return build_token_usage(
+        input_tokens=read_usage_value(
+            usage_metadata,
+            "prompt_token_count",
+            "input_token_count",
+        ),
+        output_tokens=read_usage_value(
+            usage_metadata,
+            "candidates_token_count",
+            "output_token_count",
+        ),
+        total_tokens=read_usage_value(
+            usage_metadata,
+            "total_token_count",
+        ),
+        thinking_tokens=read_usage_value(
+            usage_metadata,
+            "thoughts_token_count",
+        ),
+        cached_input_tokens=read_usage_value(
+            usage_metadata,
+            "cached_content_token_count",
+        ),
+    )

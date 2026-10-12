@@ -1,0 +1,65 @@
+# OS/editor files
+.DS_Store
+.vscode/
+.claude/
+.codex/
+openspec/
+
+# Python cache/build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+*.egg
+eggs/
+
+# Local environment glue and secrets
+llm/api.sh
+src/ataribench/llm/api.sh
+
+# Generated run data and local experiment outputs
+runs/
+runs_local/
+debug/
+mignonjia_ataribench/
+computer_use/
+paper/
+
+# Historical non-fixed-horizon data and generated analysis; keep the script.
+/experiments/non-fix-horizon-termination/*
+!/experiments/non-fix-horizon-termination/analyze_full_traj.py
+
+# Ignored prompt variants and generated prompt guides
+src/ataribench/games/prompts/guidelines/
+src/ataribench/games/prompts_mix_termination/
+
+# Local config examples not part of the maintained batch set
+config/sample_runs.yaml
+
+# Logs and large binary/model artifacts
+*.log
+*.pkl
+*.jpg
+*.jpeg
+*.png
+!docs/assets/append_only_failure.png
+!docs/assets/breakout_perception.png
+!docs/assets/text_feedback_breakout.png
+!docs/assets/workflow.png
+*.gif
+*.mp4
+!docs/assets/videos/*.mp4
+*.safetensors
+*.pt
+*.pth
+
+# Vim swap files
+*.swo
+*.swp

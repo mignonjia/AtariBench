@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AtariBench</title>
+    <meta
+      name="description"
+      content="AtariBench leaderboard and benchmark overview for multimodal LLM agents in Atari."
+    />
+    <link rel="canonical" href="https://mignonjia.github.io/AtariBench/" />
+    <link rel="stylesheet" href="styles.css?v=20261012-videos" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="AtariBench home">AtariBench</a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="#leaderboard">Leaderboard</a>
+        <a href="#method">Method</a>
+        <a href="#findings">Findings</a>
+        <a href="#gameplay">Gameplay</a>
+        <a href="#citation">Citation</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">NeurIPS 2026 · Evaluations and Datasets</p>
+          <h1 id="hero-title">AtariBench</h1>
+          <p class="hero-subtitle">
+            A benchmark for testing whether multimodal LLMs can ground actions in fast Atari gameplay.
+          </p>
+          <div class="hero-actions" aria-label="Project links">
+            <a class="button primary" href="#leaderboard">Leaderboard</a>
+            <a class="button" href="neurips_2026.pdf">Paper</a>
+            <a class="button" href="https://github.com/mignonjia/AtariBench">Code</a>
+            <a class="button" href="#citation">BibTeX</a>
+          </div>
+          <dl class="hero-stats" aria-label="Benchmark summary">
+            <div>
+              <dt id="stat-models">-</dt>
+              <dd>model settings</dd>
+            </div>
+            <div>
+              <dt id="stat-games">-</dt>
+              <dd>Atari games</dd>
+            </div>
+          </dl>
+        </div>
+
+        <aside class="hero-media" aria-label="Gameplay montage">
+          <div class="montage" id="hero-montage"></div>
+        </aside>
+      </section>
+
+      <section class="section leaderboard-section" id="leaderboard" aria-labelledby="leaderboard-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Leaderboard</p>
+            <h2 id="leaderboard-title">Model Ranking</h2>
+          </div>
+        </div>
+        <p class="section-note leaderboard-note" id="metric-note"></p>
+
+        <div class="toolbar" aria-label="Leaderboard filters">
+          <label>
+            <span>Model</span>
+            <input id="model-filter" type="search" placeholder="Search model" />
+          </label>
+          <label>
+            <span>Prompt</span>
+            <select id="prompt-filter">
+              <option value="all">All</option>
+              <option value="structured_history">Structured history</option>
+              <option value="append_only">Append only</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="table-wrap">
+          <table class="leaderboard-table combined-table">
+            <thead id="leaderboard-head"></thead>
+            <tbody id="leaderboard-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section method-section" id="method" aria-labelledby="method-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Benchmark loop</p>
+            <h2 id="method-title">Frame, Prompt, Act, Repeat</h2>
+          </div>
+        </div>
+        <div class="workflow-layout">
+          <figure class="workflow-figure">
+            <img src="assets/workflow.png" alt="AtariBench workflow from gaming environment to VLM agent." />
+          </figure>
+          <div class="pipeline">
+            <div><strong>Observe</strong><span>Atari frame sequence</span></div>
+            <div><strong>Prompt</strong><span>structured history or append-only context</span></div>
+            <div><strong>Act</strong><span>model emits joystick actions</span></div>
+            <div><strong>Score</strong><span>reward, frames, turns, tokens, video</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section findings-section" id="findings" aria-labelledby="findings-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">What AtariBench tests</p>
+            <h2 id="findings-title">From Video Understanding to Control</h2>
+          </div>
+          <p class="section-note">
+            Models observe frame sequences, receive game-specific prompts, emit joystick actions, and are scored from closed-loop trajectories across 20 Atari games.
+          </p>
+        </div>
+
+        <div class="capability-grid" aria-label="Evaluated capabilities">
+          <article class="capability-card">
+            <span>01</span>
+            <h3>Spatiotemporal reasoning</h3>
+            <p>Track object trajectories, speed, and direction from short high-FPS frame sequences.</p>
+          </article>
+          <article class="capability-card">
+            <span>02</span>
+            <h3>Sequential decisions</h3>
+            <p>Convert the current visual state into the next joystick action under tight feedback loops.</p>
+          </article>
+          <article class="capability-card">
+            <span>03</span>
+            <h3>Visual grounding</h3>
+            <p>Update actions from newly appended frames instead of relying on stale text history.</p>
+          </article>
+        </div>
+
+        <div class="failure-heading">
+          <h3>Observed failure modes: Models miss motion cues that are obvious to humans.</h3>
+          <p>
+            Check our paper additional diagnostic examples and failure-mode breakdowns.
+          </p>
+        </div>
+
+        <div class="failure-grid">
+          <article class="failure-card">
+            <figure>
+              <img src="assets/breakout_perception.png" alt="Breakout frames showing a ball trajectory and an incorrect motion-direction inference." />
+            </figure>
+            <div>
+              <h3>Motion direction can be wrong even when objects are visible.</h3>
+              <p>In Breakout, the model identifies the ball and paddle but infers a direction that contradicts the ground-truth trajectory.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="gameplay" aria-labelledby="gameplay-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Gameplay</p>
+            <h2 id="gameplay-title">Representative Runs</h2>
+          </div>
+          <p class="section-note">
+            Atari 2600 games are the property of their respective copyright holders. Gameplay clips are shown for research illustration only.
+          </p>
+        </div>
+        <div class="video-grid" id="video-grid"></div>
+      </section>
+
+      <section class="section citation-section" id="citation" aria-labelledby="citation-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Citation</p>
+            <h2 id="citation-title">BibTeX</h2>
+          </div>
+        </div>
+        <pre><code>@inproceedings{huo2026ataribench,
+  title = {Evaluating Spatiotemporal Reasoning of Vision-Language Models in Atari Gameplay},
+  author = {Huo, Mingjia and Fu, Yao and Chang, Bo and Wang, Yaqing and Zhu, Dawei and Zhang, Dylan and Yi, Xinyang and Hong, Lichan and Chi, Ed H. and Zhang, Hao and Tang, Jiaxi},
+  booktitle = {The Fortieth Annual Conference on Neural Information Processing Systems Evaluations and Datasets Track},
+  year = {2026}
+}</code></pre>
+      </section>
+    </main>
+
+    <script src="app.js?v=20261012-videos-2"></script>
+  </body>
+</html>

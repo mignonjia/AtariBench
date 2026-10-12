@@ -1,0 +1,395 @@
+"""Main model-driven Atari loop."""
+
+from __future__ import annotations
+
+import dataclasses
+from pathlib import Path
+from typing import Any, Callable
+
+from ..games.env import capture_frame, create_env, detect_life_loss, extract_env_info
+from ..games.prompt_builder import build_prompt
+from ..games.registry import GameSpec
+from ..llm import LlmTurnResponse, describe_effective_thinking_mode
+from .clip import ParsedClipResponse, parse_model_response
+from .trajectory import ActionRecord, Trajectory
+
+EnvFactory = Callable[[], Any]
+
+
+@dataclasses.dataclass(frozen=True)
+class PipelineConfig:
+    """Runtime configuration for one pipeline run."""
+
+    duration_seconds: int = 30
+    max_actions_per_turn: int = 10
+    frames_per_action: int = 3
+    history_clips: int | None = 3
+    non_zero_reward_clips: int | None = 3
+    prompt_mode: str = "structured_history"
+    text_feedback_mode: str = "full"
+    context_cache: bool = False
+    model_name: str = "gemini-2.5-flash"
+    thinking_mode: str = "default"
+    seed: int | None = None
+    output_dir: str | Path = "runs"
+    nest_output_by_game: bool = True
+    run_label: str | None = None
+    minimal_logging: bool = False
+
+
+class PipelineRunner:
+    """Run a model policy against one Atari game."""
+
+    def __init__(
+        self,
+        game_spec: GameSpec,
+        model_client: Any,
+        config: PipelineConfig,
+        env_factory: EnvFactory | None = None,
+        frame_writer=None,
+    ):
+        self.game_spec = game_spec
+        self.model_client = model_client
+        self.config = config
+        self.env_factory = env_factory or (
+            lambda: create_env(self.game_spec.env_id, seed=self.config.seed)
+        )
+        self.frame_writer = frame_writer
+        self._validate_config()
+
+    @property
+    def frame_budget(self) -> int:
+        return self.config.duration_seconds * self.game_spec.fps
+
+    @property
+    def effective_history_clips(self) -> int:
+        if self.config.prompt_mode == "append_only":
+            return -1
+        assert self.config.history_clips is not None
+        return int(self.config.history_clips)
+
+    @property
+    def effective_non_zero_reward_clips(self) -> int:
+        if self.config.prompt_mode == "append_only":
+            return -1
+        assert self.config.non_zero_reward_clips is not None
+        return int(self.config.non_zero_reward_clips)
+
+    @property
+    def effective_context_cache(self) -> bool:
+        return bool(self.config.context_cache and self.config.prompt_mode == "append_only")
+
+    def run(self) -> dict[str, Any]:
+        """Execute the pipeline and return the summary."""
+
+        env = self.env_factory()
+        thinking_metadata = describe_effective_thinking_mode(
+            model_name=self.config.model_name,
+            thinking_mode=self.config.thinking_mode,
+        )
+        trajectory = Trajectory(
+            base_output_dir=self.config.output_dir,
+            game_key=self.game_spec.game_key,
+            frame_writer=self.frame_writer,
+            include_game_key=self.config.nest_output_by_game,
+            run_label=self.config.run_label,
+        )
+        total_reward = 0.0
+        total_lost_lives = 0
+        total_input_tokens = 0
+        total_output_tokens = 0
+        total_tokens = 0
+        total_thinking_tokens = 0
+        total_cached_input_tokens = 0
+        token_usage_reported_turns = 0
+        token_usage_missing_turns = 0
+        stop_reason = "unknown"
+
+        try:
+            _, current_info = self._reset_and_record_initial_frame(
+                env,
+                trajectory,
+                local_frame_index=0,
+            )
+            initial_env_frame = current_info.frame_number or 0
+            previous_lives = current_info.lives
+
+            while True:
+                latest_frame = trajectory.latest_frame()
+                if latest_frame.local_frame_index >= self.frame_budget:
+                    stop_reason = "frame_budget"
+                    break
+
+                prompt_package = build_prompt(
+                    game_spec=self.game_spec,
+                    trajectory=trajectory,
+                    history_clips=self.effective_history_clips,
+                    non_zero_reward_clips=self.effective_non_zero_reward_clips,
+                    duration_seconds=self.config.duration_seconds,
+                    prompt_mode=self.config.prompt_mode,
+                    max_actions_per_turn=self.config.max_actions_per_turn,
+                    text_feedback_mode=self.config.text_feedback_mode,
+                )
+                html_log_path = trajectory.next_turn_html_path()
+                turn_response = self._coerce_turn_response(
+                    self.model_client.generate_turn(
+                        prompt_text=prompt_package.text,
+                        image_paths=prompt_package.image_paths,
+                        model_name=self.config.model_name,
+                        thinking_mode=self.config.thinking_mode,
+                        prompt_messages=prompt_package.messages,
+                        context_cache=self.effective_context_cache,
+                        html_log_path=html_log_path,
+                    )
+                )
+                if turn_response.token_usage.reported:
+                    token_usage_reported_turns += 1
+                else:
+                    token_usage_missing_turns += 1
+                total_input_tokens += turn_response.token_usage.input_tokens or 0
+                total_output_tokens += turn_response.token_usage.output_tokens or 0
+                total_tokens += turn_response.token_usage.total_tokens or 0
+                total_thinking_tokens += turn_response.token_usage.thinking_tokens or 0
+                total_cached_input_tokens += turn_response.token_usage.cached_input_tokens or 0
+                parsed_response = self._parse_response_or_fallback(turn_response.text)
+
+                action_records: list[ActionRecord] = []
+                turn_reward = 0.0
+                turn_start_frame = latest_frame.local_frame_index
+                turn_start_path = latest_frame.frame_path
+
+                should_stop = False
+                should_reset_episode = False
+                for action_name, action_id in zip(
+                    parsed_response.action_strings,
+                    parsed_response.action_ids,
+                ):
+                    start_frame_index = trajectory.latest_frame().local_frame_index
+                    action_reward = 0.0
+                    action_lost_life = False
+                    end_info_payload: dict[str, Any] = {}
+
+                    for _ in range(self.config.frames_per_action):
+                        observation, reward, terminated, truncated, info = env.step(
+                            action_id
+                        )
+                        total_reward += float(reward)
+                        turn_reward += float(reward)
+                        action_reward += float(reward)
+
+                        normalized_info = extract_env_info(info)
+                        life_loss = detect_life_loss(previous_lives, normalized_info.lives)
+                        if life_loss:
+                            total_lost_lives += life_loss
+                            action_lost_life = True
+                        previous_lives = normalized_info.lives
+
+                        next_frame_index = trajectory.latest_frame().local_frame_index + 1
+                        frame = capture_frame(env, observation)
+                        trajectory.record_frame(
+                            frame=frame,
+                            reward=float(reward),
+                            info=info,
+                            local_frame_index=next_frame_index,
+                        )
+                        end_info_payload = dict(info)
+
+                        env_frames_elapsed = (
+                            (normalized_info.frame_number or initial_env_frame)
+                            - initial_env_frame
+                        )
+                        local_frames_elapsed = trajectory.latest_frame().local_frame_index
+                        if terminated:
+                            stop_reason = "frame_budget"
+                            should_stop = True
+                            should_reset_episode = True
+                        elif truncated:
+                            stop_reason = "frame_budget"
+                            should_stop = True
+                            should_reset_episode = True
+                        elif env_frames_elapsed >= self.frame_budget:
+                            stop_reason = "frame_budget"
+                            should_stop = True
+                        elif local_frames_elapsed >= self.frame_budget:
+                            stop_reason = "frame_budget"
+                            should_stop = True
+                        if should_stop:
+                            break
+
+                    action_records.append(
+                        ActionRecord(
+                            action_name=action_name,
+                            action_id=action_id,
+                            start_frame_index=start_frame_index,
+                            end_frame_index=trajectory.latest_frame().local_frame_index,
+                            reward_delta=action_reward,
+                            lost_life=action_lost_life,
+                            end_frame_path=trajectory.latest_frame().frame_path,
+                            end_info=end_info_payload,
+                        )
+                    )
+                    if should_stop:
+                        break
+
+                trajectory.record_turn(
+                    prompt_text=prompt_package.text,
+                    raw_response=turn_response.text,
+                    parsed_response=parsed_response,
+                    referenced_image_paths=prompt_package.image_paths,
+                    input_tokens=turn_response.token_usage.input_tokens,
+                    output_tokens=turn_response.token_usage.output_tokens,
+                    total_tokens=turn_response.token_usage.total_tokens,
+                    thinking_tokens=turn_response.token_usage.thinking_tokens,
+                    cached_input_tokens=turn_response.token_usage.cached_input_tokens,
+                    start_frame_index=turn_start_frame,
+                    start_frame_path=turn_start_path,
+                    executed_frame_end=trajectory.latest_frame().local_frame_index,
+                    reward_delta=turn_reward,
+                    action_records=action_records,
+                    new_game_started=False,
+                    prompt_html_path=str(html_log_path),
+                )
+
+                if should_stop and should_reset_episode:
+                    next_local_frame_index = trajectory.latest_frame().local_frame_index + 1
+                    if next_local_frame_index > self.frame_budget:
+                        stop_reason = "frame_budget"
+                        break
+
+                    _, current_info = self._reset_and_record_initial_frame(
+                        env,
+                        trajectory,
+                        local_frame_index=next_local_frame_index,
+                    )
+                    previous_lives = current_info.lives
+                    initial_env_frame = current_info.frame_number or 0
+                    trajectory.replace_last_turn(
+                        dataclasses.replace(
+                            trajectory.turn_records[-1],
+                            new_game_started=True,
+                        )
+                    )
+                    continue
+
+                if should_stop:
+                    break
+
+                if trajectory.latest_frame().local_frame_index >= self.frame_budget:
+                    stop_reason = "frame_budget"
+                    break
+
+            return trajectory.finalize(
+                stop_reason=stop_reason,
+                total_reward=total_reward,
+                total_lost_lives=total_lost_lives,
+                duration_seconds=self.config.duration_seconds,
+                skip_seconds=self.game_spec.skip_seconds,
+                total_duration_seconds=self.config.duration_seconds + self.game_spec.skip_seconds,
+                model_name=self.config.model_name,
+                thinking_mode=thinking_metadata["thinking_mode"],
+                thinking_budget=thinking_metadata["thinking_budget"],
+                thinking_level=thinking_metadata["thinking_level"],
+                frames_per_action=self.config.frames_per_action,
+                history_clips=self.effective_history_clips,
+                non_zero_reward_clips=self.effective_non_zero_reward_clips,
+                prompt_mode=self.config.prompt_mode,
+                text_feedback_mode=self.config.text_feedback_mode,
+                context_cache=self.effective_context_cache,
+                minimal_logging=self.config.minimal_logging,
+                max_actions_per_turn=self.config.max_actions_per_turn,
+                seed=self.config.seed,
+                input_tokens=total_input_tokens,
+                output_tokens=total_output_tokens,
+                total_tokens=total_tokens,
+                thinking_tokens=total_thinking_tokens,
+                cached_input_tokens=total_cached_input_tokens,
+                token_usage_reported_turns=token_usage_reported_turns,
+                token_usage_missing_turns=token_usage_missing_turns,
+            )
+        finally:
+            close = getattr(env, "close", None)
+            if callable(close):
+                close()
+
+    def _reset_and_record_initial_frame(
+        self,
+        env: Any,
+        trajectory: Trajectory,
+        local_frame_index: int,
+    ):
+        observation, info = self._reset_env(env)
+        observation, info = self._apply_skip_seconds(env, observation, info)
+        frame = capture_frame(env, observation)
+        frame_record = trajectory.record_frame(
+            frame=frame,
+            reward=0.0,
+            info=info,
+            local_frame_index=local_frame_index,
+        )
+        return frame_record.local_frame_index, extract_env_info(info)
+
+    def _reset_env(self, env: Any):
+        try:
+            return env.reset(seed=self.config.seed)
+        except TypeError:
+            if self.config.seed is None:
+                return env.reset()
+            return env.reset(seed=self.config.seed)
+
+    def _apply_skip_seconds(self, env: Any, observation: Any, info: dict[str, Any]):
+        skip_frames = max(int(round(self.game_spec.skip_seconds * self.game_spec.fps)), 0)
+        if skip_frames <= 0:
+            return observation, info
+
+        startup_action_id = self.game_spec.action_map.get(
+            "noop",
+            next(iter(self.game_spec.action_map.values())),
+        )
+        current_observation = observation
+        current_info = info
+
+        for _ in range(skip_frames):
+            current_observation, _, terminated, truncated, current_info = env.step(startup_action_id)
+            if terminated or truncated:
+                current_observation, current_info = self._reset_env(env)
+
+        return current_observation, current_info
+
+    def _parse_response(self, raw_response: str) -> ParsedClipResponse:
+        return parse_model_response(
+            raw_text=raw_response,
+            game_spec=self.game_spec,
+            max_actions=self.config.max_actions_per_turn,
+        )
+
+    def _validate_config(self) -> None:
+        if self.config.text_feedback_mode not in {"full", "none"}:
+            raise ValueError("text_feedback_mode must be 'full' or 'none'.")
+        if not 1 <= self.config.max_actions_per_turn <= 10:
+            raise ValueError("max_actions_per_turn must be between 1 and 10.")
+        self.game_spec.render_game_prompt(
+            max_actions_per_turn=self.config.max_actions_per_turn,
+        )
+
+    def _parse_response_or_fallback(self, raw_response: str) -> ParsedClipResponse:
+        parsed_response = self._parse_response(raw_response)
+        if not parsed_response.errors:
+            return parsed_response
+
+        noop_action_id = self.game_spec.action_map["noop"]
+        fallback_thought = (
+            "The model response could not be parsed cleanly, so this turn "
+            "defaults to a single noop action."
+        )
+        return ParsedClipResponse(
+            raw_text=raw_response,
+            thought=fallback_thought,
+            action_strings=["noop"],
+            action_ids=[noop_action_id],
+            errors=list(parsed_response.errors),
+        )
+
+    def _coerce_turn_response(self, response: str | LlmTurnResponse) -> LlmTurnResponse:
+        if isinstance(response, LlmTurnResponse):
+            return response
+        return LlmTurnResponse(text=str(response))

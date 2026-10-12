@@ -1,0 +1,53 @@
+# Config Directory
+
+This folder contains the config-driven batch inputs for AtariBench.
+
+## Files
+
+- [`common.yaml`](common.yaml): shared batch defaults such as game selections, retries, concurrency caps, duration, rendering settings, and optional `minimal_logging`
+- [`runs.yaml`](runs.yaml): the full set of batch run definitions
+- [`debug.yaml`](debug.yaml): a smaller debug batch for quick iteration
+
+### Params
+- `games` can be a single game key, `full` (all 20 games), or a list mixing those values.
+- Allowed `thinking_mode` values are model-specific; see [`../src/ataribench/llm/model_thinking.json`](../src/ataribench/llm/model_thinking.json) for all options.
+
+## Usage - debug
+
+Use `debug.yaml` when you want a fast debug run. If you want even faster debug cycles, lower `duration_seconds` in [`common.yaml`](common.yaml).
+
+```bash
+ataribench-batch --common-config config/common.yaml --runs-config config/debug.yaml
+```
+
+Use below command for nohup run:
+
+```bash
+mkdir -p logs && nohup ataribench-batch --common-config config/common.yaml --runs-config config/debug.yaml > logs/batch_debug_$(date -u +%Y%m%d_%H%M%S).log 2>&1 & echo $!
+```
+
+`echo $!` prints the background process ID for the `nohup` job. To kill the whole batch later, use:
+
+```bash
+kill -- -<PID>
+```
+
+## Usage - complete run
+
+Use `runs.yaml` when you want the full batch, and double check `duration_seconds=30` before launch. 
+This file contains the settings of all models, and you only need to maintain yours. Use the `num_runs` to 3 for a first pass. For later runs, also need to change `seed_start`.
+
+```bash
+ataribench-batch --common-config config/common.yaml --runs-config config/runs.yaml
+```
+
+You can also add option `--minimal-logging` to only keep `summary.json`, `turns.jsonl`, and `visualization.mp4` in each run directory after rendering. This is sufficient to generate the result files `model_summary_30s.json` in `runs` folder.
+
+```bash
+ataribench-batch --common-config config/common.yaml --runs-config config/runs.yaml --minimal-logging
+```
+
+
+## Logging
+
+Complete logging writes frames, prompts, responses, `turns.jsonl`, `summary.json`, and `visualization.mp4` under `runs/`. Minimal logging keeps only `turns.jsonl`, `summary.json`, and `visualization.mp4`. See the Output section in the top-level README for the current artifact layout.

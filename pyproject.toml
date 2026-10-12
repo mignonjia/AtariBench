@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ataribench"
+version = "0.1.0"
+description = "Compact Atari runner for multimodal LLM experiments."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { file = "LICENSE" }
+dependencies = [
+    "ale-py",
+    "anthropic",
+    "google-genai",
+    "gymnasium",
+    "openai",
+    "Pillow",
+    "PyYAML",
+    "together",
+]
+
+[project.urls]
+Homepage = "https://mignonjia.github.io/AtariBench/"
+Repository = "https://github.com/mignonjia/AtariBench"
+
+[project.scripts]
+ataribench-run = "ataribench.main:main"
+ataribench-batch = "ataribench.batch_run:main"
+ataribench-visualize = "ataribench.visualize:main"
+ataribench-clean = "ataribench.cleanup_invalid_runs:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+ataribench = ["llm/model_thinking.json"]

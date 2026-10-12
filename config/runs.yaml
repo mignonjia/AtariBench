@@ -1,0 +1,42 @@
+- model_name: gemini-3-flash-preview
+  thinking_mode: low
+  prompt_mode: structured_history
+  history_clips: 3
+  non_zero_reward_clips: 3
+  games: full
+  seed_start: 0
+  num_runs: 10
+
+- model_name: gemini-3.1-pro-preview
+  thinking_mode: low
+  prompt_mode: structured_history
+  history_clips: 3
+  non_zero_reward_clips: 3
+  games: full
+  seed_start: 0
+  num_runs: 10
+
+- model_name: gemini-3.1-pro-preview
+  thinking_mode: low
+  prompt_mode: append_only
+  games: full
+  seed_start: 0
+  num_runs: 10
+
+- model_name: gpt-5.4
+  thinking_mode: low
+  prompt_mode: structured_history
+  history_clips: 3
+  non_zero_reward_clips: 3
+  games: full
+  seed_start: 0
+  num_runs: 10
+
+- model_name: claude-sonnet-4-6
+  thinking_mode: low
+  prompt_mode: structured_history
+  history_clips: 3
+  non_zero_reward_clips: 3
+  games: full
+  seed_start: 0
+  num_runs: 10
