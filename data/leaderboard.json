@@ -1,0 +1,2433 @@
+{
+  "generated_from": [
+    "NeurIPS 2026 paper, Figures 3 and 7"
+  ],
+  "metric": "Average per-game rank across 20 games for VLMs/Random and 16 available games for RL (Sample Factory APPO). Cells show normalized scores (0-100); missing RL results are shown as a dash.",
+  "protocol": {
+    "runs_per_game": 10,
+    "ale_seeds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "benchmark_seconds": 30,
+    "vlm_frames_per_action": 3,
+    "rl_action_repeat": 4,
+    "sticky_actions": false
+  },
+  "games": [
+    "air_raid",
+    "assault",
+    "beam_rider",
+    "boxing",
+    "breakout",
+    "demon_attack",
+    "fishing_derby",
+    "freeway",
+    "gopher",
+    "journey_escape",
+    "laser_gates",
+    "name_this_game",
+    "pacman",
+    "phoenix",
+    "qbert",
+    "riverraid",
+    "robotank",
+    "seaquest",
+    "tennis",
+    "time_pilot"
+  ],
+  "leaderboard": [
+    {
+      "row_key": "rl|structured_history|none|none",
+      "label": "RL (APPO)",
+      "model": "RL",
+      "model_key": "rl",
+      "think": "None",
+      "prompt_mode": "structured_history",
+      "thinking_mode": "none",
+      "thinking_level": "none",
+      "score": 98.90594838971859,
+      "avg_rank": 1.1875,
+      "avg_rank_overlap_16": 1.1875,
+      "games": 16,
+      "per_game": {
+        "assault": {
+          "reward": 380.1,
+          "normalized_score": 100.0,
+          "rank": 1
+        },
+        "beam_rider": {
+          "reward": 220.0,
+          "normalized_score": 98.0392156862745,
+          "rank": 2
+        },
+        "boxing": {
+          "reward": 51.1,
+          "normalized_score": 100.0,
+          "rank": 1
+        },
+        "breakout": {
+          "reward": 7.0,
+          "normalized_score": 100.0,
+          "rank": 1
+        },
+        "demon_attack": {
+          "reward": 70.0,
+          "normalized_score": 100.0,
+          "rank": 1
+        },
+        "fishing_derby": {
+          "reward": 9.0,
+          "normalized_score": 100.0,
+          "rank": 1
+        },
+        "freeway": {
+          "reward": 4.0,
+          "normalized_score": 100.0,
+          "rank": 1
+        },
+        "gopher": {
+          "reward": 158.0,
+          "normalized_score": 100.0,
+          "rank": 1
+        },
+        "name_this_game": {
+          "reward": 305.0,
+          "normalized_score": 100.0,
+          "rank": 1
+        },
+        "phoenix": {
+          "reward": 326.0,
+          "normalized_score": 84.4559585492228,
+          "rank": 3
+        },
+        "qbert": {
+          "reward": 830.0,
+          "normalized_score": 100.0,
+          "rank": 1
+        },
+        "riverraid": {
+          "reward": 1983.0,
+          "normalized_score": 100.0,
+          "rank": 1
+        },
+        "robotank": {
+          "reward": 3.9,
+          "normalized_score": 100.0,
+          "rank": 1
+        },
+        "seaquest": {
+          "reward": 244.0,
+          "normalized_score": 100.0,
+          "rank": 1
+        },
+        "tennis": {
+          "reward": 1.1,
+          "normalized_score": 100.0,
+          "rank": 1
+        },
+        "time_pilot": {
+          "reward": 1090.0,
+          "normalized_score": 100.0,
+          "rank": 1
+        }
+      },
+      "rank": 1
+    },
+    {
+      "row_key": "gemini-3.1-pro-preview|structured_history|default|low",
+      "label": "Gemini 3.1 Pro (Low)",
+      "model": "Gemini 3.1 Pro",
+      "model_key": "gemini-3.1-pro-preview",
+      "think": "Low",
+      "prompt_mode": "structured_history",
+      "thinking_mode": "default",
+      "thinking_level": "low",
+      "score": 52.918853828634084,
+      "avg_rank": 6.75,
+      "avg_rank_overlap_16": 7.0625,
+      "games": 20,
+      "per_game": {
+        "air_raid": {
+          "reward": 297.5,
+          "normalized_score": 96.7479674796748,
+          "rank": 4
+        },
+        "assault": {
+          "reward": 130.2,
+          "normalized_score": 34.254143646408835,
+          "rank": 15
+        },
+        "beam_rider": {
+          "reward": 224.4,
+          "normalized_score": 100.0,
+          "rank": 1
+        },
+        "boxing": {
+          "reward": -6.6,
+          "normalized_score": 0.8591065292096219,
+          "rank": 19
+        },
+        "breakout": {
+          "reward": 5.1,
+          "normalized_score": 72.85714285714285,
+          "rank": 3
+        },
+        "demon_attack": {
+          "reward": 54.0,
+          "normalized_score": 77.14285714285714,
+          "rank": 3
+        },
+        "fishing_derby": {
+          "reward": -7.8,
+          "normalized_score": 17.647058823529417,
+          "rank": 6
+        },
+        "freeway": {
+          "reward": 1.6,
+          "normalized_score": 40.0,
+          "rank": 16
+        },
+        "gopher": {
+          "reward": 4.0,
+          "normalized_score": 2.5316455696202533,
+          "rank": 13
+        },
+        "journey_escape": {
+          "reward": -1630.0,
+          "normalized_score": 83.83084577114428,
+          "rank": 4
+        },
+        "laser_gates": {
+          "reward": 510.5,
+          "normalized_score": 62.25609756097561,
+          "rank": 9
+        },
+        "name_this_game": {
+          "reward": 234.0,
+          "normalized_score": 76.72131147540983,
+          "rank": 7
+        },
+        "pacman": {
+          "reward": 23.6,
+          "normalized_score": 77.12418300653594,
+          "rank": 5
+        },
+        "phoenix": {
+          "reward": 386.0,
+          "normalized_score": 100.0,
+          "rank": 1
+        },
+        "qbert": {
+          "reward": 457.5,
+          "normalized_score": 55.12048192771084,
+          "rank": 4
+        },
+        "riverraid": {
+          "reward": 618.0,
+          "normalized_score": 31.164901664145233,
+          "rank": 7
+        },
+        "robotank": {
+          "reward": 1.9,
+          "normalized_score": 48.71794871794872,
+          "rank": 4
+        },
+        "seaquest": {
+          "reward": 66.0,
+          "normalized_score": 27.049180327868854,
+          "rank": 4
+        },
+        "tennis": {
+          "reward": -1.9,
+          "normalized_score": 26.829268292682933,
+          "rank": 8
+        },
+        "time_pilot": {
+          "reward": 300.0,
+          "normalized_score": 27.522935779816514,
+          "rank": 2
+        }
+      },
+      "rank": 2
+    },
+    {
+      "row_key": "gpt-5.4|structured_history|default|high",
+      "label": "GPT-5.4 (High)",
+      "model": "GPT-5.4",
+      "model_key": "gpt-5.4",
+      "think": "High",
+      "prompt_mode": "structured_history",
+      "thinking_mode": "default",
+      "thinking_level": "high",
+      "score": 52.549577118249125,
+      "avg_rank": 7.25,
+      "avg_rank_overlap_16": 8.3125,
+      "games": 20,
+      "per_game": {
+        "air_raid": {
+          "reward": 305.0,
+          "normalized_score": 99.1869918699187,
+          "rank": 2
+        },
+        "assault": {
+          "reward": 134.4,
+          "normalized_score": 35.35911602209944,
+          "rank": 14
+        },
+        "beam_rider": {
+          "reward": 176.0,
+          "normalized_score": 78.4313725490196,
+          "rank": 10
+        },
+        "boxing": {
+          "reward": -2.3,
+          "normalized_score": 8.24742268041237,
+          "rank": 5
+        },
+        "breakout": {
+          "reward": 5.0,
+          "normalized_score": 71.42857142857143,
+          "rank": 4
+        },
+        "demon_attack": {
+          "reward": 44.0,
+          "normalized_score": 62.857142857142854,
+          "rank": 13
+        },
+        "fishing_derby": {
+          "reward": -7.111111111111111,
+          "normalized_score": 21.023965141612205,
+          "rank": 3
+        },
+        "freeway": {
+          "reward": 2.4,
+          "normalized_score": 60.0,
+          "rank": 13
+        },
+        "gopher": {
+          "reward": 24.0,
+          "normalized_score": 15.189873417721518,
+          "rank": 6
+        },
+        "journey_escape": {
+          "reward": -1000.0,
+          "normalized_score": 91.66666666666667,
+          "rank": 2
+        },
+        "laser_gates": {
+          "reward": 662.0,
+          "normalized_score": 80.73170731707317,
+          "rank": 5
+        },
+        "name_this_game": {
+          "reward": 232.0,
+          "normalized_score": 76.06557377049181,
+          "rank": 9
+        },
+        "pacman": {
+          "reward": 27.166666666666668,
+          "normalized_score": 88.77995642701525,
+          "rank": 3
+        },
+        "phoenix": {
+          "reward": 246.0,
+          "normalized_score": 63.73056994818653,
+          "rank": 9
+        },
+        "qbert": {
+          "reward": 375.0,
+          "normalized_score": 45.18072289156626,
+          "rank": 8
+        },
+        "riverraid": {
+          "reward": 201.8181818181818,
+          "normalized_score": 10.177417136569934,
+          "rank": 19
+        },
+        "robotank": {
+          "reward": 2.272727272727273,
+          "normalized_score": 58.27505827505828,
+          "rank": 2
+        },
+        "seaquest": {
+          "reward": 50.90909090909091,
+          "normalized_score": 20.864381520119224,
+          "rank": 12
+        },
+        "tennis": {
+          "reward": -1.4,
+          "normalized_score": 39.024390243902445,
+          "rank": 3
+        },
+        "time_pilot": {
+          "reward": 270.0,
+          "normalized_score": 24.770642201834864,
+          "rank": 3
+        }
+      },
+      "rank": 3
+    },
+    {
+      "row_key": "gemini-3.1-pro-preview|structured_history|default|high",
+      "label": "Gemini 3.1 Pro (High)",
+      "model": "Gemini 3.1 Pro",
+      "model_key": "gemini-3.1-pro-preview",
+      "think": "High",
+      "prompt_mode": "structured_history",
+      "thinking_mode": "default",
+      "thinking_level": "high",
+      "score": 50.31034628179233,
+      "avg_rank": 7.6,
+      "avg_rank_overlap_16": 7.8125,
+      "games": 20,
+      "per_game": {
+        "air_raid": {
+          "reward": 270.0,
+          "normalized_score": 87.8048780487805,
+          "rank": 9
+        },
+        "assault": {
+          "reward": 128.1,
+          "normalized_score": 33.70165745856353,
+          "rank": 16
+        },
+        "beam_rider": {
+          "reward": 220.0,
+          "normalized_score": 98.0392156862745,
+          "rank": 2
+        },
+        "boxing": {
+          "reward": -6.2,
+          "normalized_score": 1.5463917525773185,
+          "rank": 17
+        },
+        "breakout": {
+          "reward": 4.1,
+          "normalized_score": 58.57142857142856,
+          "rank": 6
+        },
+        "demon_attack": {
+          "reward": 51.0,
+          "normalized_score": 72.85714285714286,
+          "rank": 5
+        },
+        "fishing_derby": {
+          "reward": -7.6,
+          "normalized_score": 18.62745098039216,
+          "rank": 4
+        },
+        "freeway": {
+          "reward": 1.2,
+          "normalized_score": 30.0,
+          "rank": 18
+        },
+        "gopher": {
+          "reward": 2.0,
+          "normalized_score": 1.2658227848101267,
+          "rank": 16
+        },
+        "journey_escape": {
+          "reward": -3220.0,
+          "normalized_score": 64.05472636815921,
+          "rank": 10
+        },
+        "laser_gates": {
+          "reward": 611.5,
+          "normalized_score": 74.57317073170732,
+          "rank": 6
+        },
+        "name_this_game": {
+          "reward": 280.0,
+          "normalized_score": 91.80327868852459,
+          "rank": 2
+        },
+        "pacman": {
+          "reward": 27.8,
+          "normalized_score": 90.84967320261437,
+          "rank": 2
+        },
+        "phoenix": {
+          "reward": 252.0,
+          "normalized_score": 65.28497409326425,
+          "rank": 7
+        },
+        "qbert": {
+          "reward": 500.0,
+          "normalized_score": 60.24096385542169,
+          "rank": 2
+        },
+        "riverraid": {
+          "reward": 601.0,
+          "normalized_score": 30.307614725163894,
+          "rank": 9
+        },
+        "robotank": {
+          "reward": 1.6,
+          "normalized_score": 41.02564102564103,
+          "rank": 7
+        },
+        "seaquest": {
+          "reward": 66.0,
+          "normalized_score": 27.049180327868854,
+          "rank": 4
+        },
+        "tennis": {
+          "reward": -1.5,
+          "normalized_score": 36.58536585365854,
+          "rank": 5
+        },
+        "time_pilot": {
+          "reward": 240.0,
+          "normalized_score": 22.01834862385321,
+          "rank": 5
+        }
+      },
+      "rank": 4
+    },
+    {
+      "row_key": "gpt-5.4|structured_history|default|low",
+      "label": "GPT-5.4 (Low)",
+      "model": "GPT-5.4",
+      "model_key": "gpt-5.4",
+      "think": "Low",
+      "prompt_mode": "structured_history",
+      "thinking_mode": "default",
+      "thinking_level": "low",
+      "score": 51.91045094801339,
+      "avg_rank": 8.05,
+      "avg_rank_overlap_16": 9.3125,
+      "games": 20,
+      "per_game": {
+        "air_raid": {
+          "reward": 307.5,
+          "normalized_score": 100.0,
+          "rank": 1
+        },
+        "assault": {
+          "reward": 144.9,
+          "normalized_score": 38.12154696132596,
+          "rank": 10
+        },
+        "beam_rider": {
+          "reward": 198.0,
+          "normalized_score": 88.23529411764706,
+          "rank": 4
+        },
+        "boxing": {
+          "reward": -3.8,
+          "normalized_score": 5.6701030927835046,
+          "rank": 11
+        },
+        "breakout": {
+          "reward": 5.8,
+          "normalized_score": 82.85714285714286,
+          "rank": 2
+        },
+        "demon_attack": {
+          "reward": 47.0,
+          "normalized_score": 67.14285714285714,
+          "rank": 9
+        },
+        "fishing_derby": {
+          "reward": -10.0,
+          "normalized_score": 6.862745098039218,
+          "rank": 13
+        },
+        "freeway": {
+          "reward": 2.5,
+          "normalized_score": 62.5,
+          "rank": 12
+        },
+        "gopher": {
+          "reward": 4.0,
+          "normalized_score": 2.5316455696202533,
+          "rank": 13
+        },
+        "journey_escape": {
+          "reward": -1600.0,
+          "normalized_score": 84.20398009950249,
+          "rank": 3
+        },
+        "laser_gates": {
+          "reward": 820.0,
+          "normalized_score": 100.0,
+          "rank": 1
+        },
+        "name_this_game": {
+          "reward": 260.0,
+          "normalized_score": 85.24590163934427,
+          "rank": 6
+        },
+        "pacman": {
+          "reward": 17.9,
+          "normalized_score": 58.49673202614378,
+          "rank": 7
+        },
+        "phoenix": {
+          "reward": 236.0,
+          "normalized_score": 61.13989637305699,
+          "rank": 11
+        },
+        "qbert": {
+          "reward": 355.0,
+          "normalized_score": 42.7710843373494,
+          "rank": 9
+        },
+        "riverraid": {
+          "reward": 123.0,
+          "normalized_score": 6.202723146747353,
+          "rank": 20
+        },
+        "robotank": {
+          "reward": 2.1,
+          "normalized_score": 53.84615384615385,
+          "rank": 3
+        },
+        "seaquest": {
+          "reward": 46.0,
+          "normalized_score": 18.852459016393443,
+          "rank": 13
+        },
+        "tennis": {
+          "reward": -0.7,
+          "normalized_score": 56.09756097560975,
+          "rank": 2
+        },
+        "time_pilot": {
+          "reward": 190.0,
+          "normalized_score": 17.431192660550458,
+          "rank": 11
+        }
+      },
+      "rank": 5
+    },
+    {
+      "row_key": "gemini-3-flash-preview|structured_history|default|high",
+      "label": "Gemini 3 Flash (High)",
+      "model": "Gemini 3 Flash",
+      "model_key": "gemini-3-flash-preview",
+      "think": "High",
+      "prompt_mode": "structured_history",
+      "thinking_mode": "default",
+      "thinking_level": "high",
+      "score": 44.722714655522836,
+      "avg_rank": 8.9,
+      "avg_rank_overlap_16": 8.625,
+      "games": 20,
+      "per_game": {
+        "air_raid": {
+          "reward": 285.0,
+          "normalized_score": 92.6829268292683,
+          "rank": 7
+        },
+        "assault": {
+          "reward": 115.5,
+          "normalized_score": 30.386740331491712,
+          "rank": 17
+        },
+        "beam_rider": {
+          "reward": 189.2,
+          "normalized_score": 84.31372549019608,
+          "rank": 7
+        },
+        "boxing": {
+          "reward": -1.7,
+          "normalized_score": 9.278350515463917,
+          "rank": 3
+        },
+        "breakout": {
+          "reward": 3.9,
+          "normalized_score": 55.714285714285715,
+          "rank": 8
+        },
+        "demon_attack": {
+          "reward": 47.0,
+          "normalized_score": 67.14285714285714,
+          "rank": 9
+        },
+        "fishing_derby": {
+          "reward": -8.0,
+          "normalized_score": 16.66666666666667,
+          "rank": 7
+        },
+        "freeway": {
+          "reward": 1.9,
+          "normalized_score": 47.5,
+          "rank": 15
+        },
+        "gopher": {
+          "reward": 16.0,
+          "normalized_score": 10.126582278481013,
+          "rank": 8
+        },
+        "journey_escape": {
+          "reward": -2610.0,
+          "normalized_score": 71.64179104477611,
+          "rank": 8
+        },
+        "laser_gates": {
+          "reward": 348.5,
+          "normalized_score": 42.5,
+          "rank": 12
+        },
+        "name_this_game": {
+          "reward": 263.0,
+          "normalized_score": 86.22950819672131,
+          "rank": 4
+        },
+        "pacman": {
+          "reward": 12.4,
+          "normalized_score": 40.52287581699346,
+          "rank": 13
+        },
+        "phoenix": {
+          "reward": 238.0,
+          "normalized_score": 61.6580310880829,
+          "rank": 10
+        },
+        "qbert": {
+          "reward": 500.0,
+          "normalized_score": 60.24096385542169,
+          "rank": 2
+        },
+        "riverraid": {
+          "reward": 604.0,
+          "normalized_score": 30.458900655572364,
+          "rank": 8
+        },
+        "robotank": {
+          "reward": 1.0,
+          "normalized_score": 25.641025641025642,
+          "rank": 14
+        },
+        "seaquest": {
+          "reward": 62.0,
+          "normalized_score": 25.40983606557377,
+          "rank": 7
+        },
+        "tennis": {
+          "reward": -2.3,
+          "normalized_score": 17.07317073170732,
+          "rank": 12
+        },
+        "time_pilot": {
+          "reward": 210.0,
+          "normalized_score": 19.26605504587156,
+          "rank": 7
+        }
+      },
+      "rank": 6
+    },
+    {
+      "row_key": "gpt-5.4-mini|structured_history|default|high",
+      "label": "GPT-5.4 Mini (High)",
+      "model": "GPT-5.4 Mini",
+      "model_key": "gpt-5.4-mini",
+      "think": "High",
+      "prompt_mode": "structured_history",
+      "thinking_mode": "default",
+      "thinking_level": "high",
+      "score": 47.5429057305617,
+      "avg_rank": 9,
+      "avg_rank_overlap_16": 9.125,
+      "games": 20,
+      "per_game": {
+        "air_raid": {
+          "reward": 292.5,
+          "normalized_score": 95.1219512195122,
+          "rank": 6
+        },
+        "assault": {
+          "reward": 102.9,
+          "normalized_score": 27.07182320441989,
+          "rank": 19
+        },
+        "beam_rider": {
+          "reward": 198.0,
+          "normalized_score": 88.23529411764706,
+          "rank": 4
+        },
+        "boxing": {
+          "reward": -3.3,
+          "normalized_score": 6.529209621993127,
+          "rank": 8
+        },
+        "breakout": {
+          "reward": 3.7,
+          "normalized_score": 52.857142857142854,
+          "rank": 10
+        },
+        "demon_attack": {
+          "reward": 43.0,
+          "normalized_score": 61.42857142857143,
+          "rank": 15
+        },
+        "fishing_derby": {
+          "reward": -10.8,
+          "normalized_score": 2.9411764705882337,
+          "rank": 17
+        },
+        "freeway": {
+          "reward": 3.0,
+          "normalized_score": 75.0,
+          "rank": 2
+        },
+        "gopher": {
+          "reward": 70.0,
+          "normalized_score": 44.30379746835443,
+          "rank": 2
+        },
+        "journey_escape": {
+          "reward": -1880.0,
+          "normalized_score": 80.72139303482587,
+          "rank": 5
+        },
+        "laser_gates": {
+          "reward": 591.5,
+          "normalized_score": 72.13414634146342,
+          "rank": 7
+        },
+        "name_this_game": {
+          "reward": 179.0909090909091,
+          "normalized_score": 58.718330849478384,
+          "rank": 19
+        },
+        "pacman": {
+          "reward": 9.7,
+          "normalized_score": 31.699346405228752,
+          "rank": 16
+        },
+        "phoenix": {
+          "reward": 261.6666666666667,
+          "normalized_score": 67.78929188255613,
+          "rank": 6
+        },
+        "qbert": {
+          "reward": 295.8333333333333,
+          "normalized_score": 35.6425702811245,
+          "rank": 10
+        },
+        "riverraid": {
+          "reward": 671.8181818181819,
+          "normalized_score": 33.878879567230555,
+          "rank": 5
+        },
+        "robotank": {
+          "reward": 1.6,
+          "normalized_score": 41.02564102564103,
+          "rank": 7
+        },
+        "seaquest": {
+          "reward": 53.333333333333336,
+          "normalized_score": 21.857923497267763,
+          "rank": 10
+        },
+        "tennis": {
+          "reward": -1.6363636363636365,
+          "normalized_score": 33.25942350332594,
+          "rank": 6
+        },
+        "time_pilot": {
+          "reward": 225.0,
+          "normalized_score": 20.642201834862384,
+          "rank": 6
+        }
+      },
+      "rank": 7
+    },
+    {
+      "row_key": "gemini-3-flash-preview|structured_history|default|low",
+      "label": "Gemini 3 Flash (Low)",
+      "model": "Gemini 3 Flash",
+      "model_key": "gemini-3-flash-preview",
+      "think": "Low",
+      "prompt_mode": "structured_history",
+      "thinking_mode": "default",
+      "thinking_level": "low",
+      "score": 45.02763271538025,
+      "avg_rank": 9.15,
+      "avg_rank_overlap_16": 8.875,
+      "games": 20,
+      "per_game": {
+        "air_raid": {
+          "reward": 300.0,
+          "normalized_score": 97.5609756097561,
+          "rank": 3
+        },
+        "assault": {
+          "reward": 136.5,
+          "normalized_score": 35.911602209944746,
+          "rank": 12
+        },
+        "beam_rider": {
+          "reward": 198.0,
+          "normalized_score": 88.23529411764706,
+          "rank": 4
+        },
+        "boxing": {
+          "reward": -3.1,
+          "normalized_score": 6.872852233676975,
+          "rank": 7
+        },
+        "breakout": {
+          "reward": 4.5,
+          "normalized_score": 64.28571428571429,
+          "rank": 5
+        },
+        "demon_attack": {
+          "reward": 54.0,
+          "normalized_score": 77.14285714285714,
+          "rank": 3
+        },
+        "fishing_derby": {
+          "reward": -9.6,
+          "normalized_score": 8.82352941176471,
+          "rank": 11
+        },
+        "freeway": {
+          "reward": 2.0,
+          "normalized_score": 50.0,
+          "rank": 14
+        },
+        "gopher": {
+          "reward": 16.0,
+          "normalized_score": 10.126582278481013,
+          "rank": 8
+        },
+        "journey_escape": {
+          "reward": -4240.0,
+          "normalized_score": 51.3681592039801,
+          "rank": 11
+        },
+        "laser_gates": {
+          "reward": 546.0,
+          "normalized_score": 66.58536585365853,
+          "rank": 8
+        },
+        "name_this_game": {
+          "reward": 261.0,
+          "normalized_score": 85.57377049180327,
+          "rank": 5
+        },
+        "pacman": {
+          "reward": 7.3,
+          "normalized_score": 23.856209150326798,
+          "rank": 19
+        },
+        "phoenix": {
+          "reward": 274.0,
+          "normalized_score": 70.98445595854922,
+          "rank": 4
+        },
+        "qbert": {
+          "reward": 430.0,
+          "normalized_score": 51.80722891566265,
+          "rank": 6
+        },
+        "riverraid": {
+          "reward": 576.0,
+          "normalized_score": 29.046898638426626,
+          "rank": 12
+        },
+        "robotank": {
+          "reward": 1.2,
+          "normalized_score": 30.76923076923077,
+          "rank": 12
+        },
+        "seaquest": {
+          "reward": 70.0,
+          "normalized_score": 28.688524590163933,
+          "rank": 3
+        },
+        "tennis": {
+          "reward": -2.7,
+          "normalized_score": 7.317073170731704,
+          "rank": 19
+        },
+        "time_pilot": {
+          "reward": 170.0,
+          "normalized_score": 15.596330275229358,
+          "rank": 17
+        }
+      },
+      "rank": 8
+    },
+    {
+      "row_key": "gemini-3.1-pro-preview|append_only|default|low",
+      "label": "Gemini 3.1 Pro (Low, AO)",
+      "model": "Gemini 3.1 Pro",
+      "model_key": "gemini-3.1-pro-preview",
+      "think": "Low",
+      "prompt_mode": "append_only",
+      "thinking_mode": "default",
+      "thinking_level": "low",
+      "score": 46.22899929607911,
+      "avg_rank": 9.7,
+      "avg_rank_overlap_16": 10.25,
+      "games": 20,
+      "per_game": {
+        "air_raid": {
+          "reward": 233.33333333333334,
+          "normalized_score": 75.88075880758808,
+          "rank": 14
+        },
+        "assault": {
+          "reward": 158.45454545454547,
+          "normalized_score": 41.68759417378202,
+          "rank": 7
+        },
+        "beam_rider": {
+          "reward": 189.2,
+          "normalized_score": 84.31372549019608,
+          "rank": 7
+        },
+        "boxing": {
+          "reward": -4.7,
+          "normalized_score": 4.123711340206184,
+          "rank": 13
+        },
+        "breakout": {
+          "reward": 3.1,
+          "normalized_score": 44.285714285714285,
+          "rank": 15
+        },
+        "demon_attack": {
+          "reward": 51.0,
+          "normalized_score": 72.85714285714286,
+          "rank": 5
+        },
+        "fishing_derby": {
+          "reward": -10.8,
+          "normalized_score": 2.9411764705882337,
+          "rank": 17
+        },
+        "freeway": {
+          "reward": 1.5,
+          "normalized_score": 37.5,
+          "rank": 17
+        },
+        "gopher": {
+          "reward": 8.0,
+          "normalized_score": 5.063291139240507,
+          "rank": 12
+        },
+        "journey_escape": {
+          "reward": -4770.0,
+          "normalized_score": 44.776119402985074,
+          "rank": 13
+        },
+        "laser_gates": {
+          "reward": 757.5,
+          "normalized_score": 92.3780487804878,
+          "rank": 2
+        },
+        "name_this_game": {
+          "reward": 266.0,
+          "normalized_score": 87.21311475409836,
+          "rank": 3
+        },
+        "pacman": {
+          "reward": 30.6,
+          "normalized_score": 100.0,
+          "rank": 1
+        },
+        "phoenix": {
+          "reward": 252.0,
+          "normalized_score": 65.28497409326425,
+          "rank": 7
+        },
+        "qbert": {
+          "reward": 432.5,
+          "normalized_score": 52.10843373493976,
+          "rank": 5
+        },
+        "riverraid": {
+          "reward": 467.14285714285717,
+          "normalized_score": 23.557380592176358,
+          "rank": 14
+        },
+        "robotank": {
+          "reward": 1.0,
+          "normalized_score": 25.641025641025642,
+          "rank": 14
+        },
+        "seaquest": {
+          "reward": 52.0,
+          "normalized_score": 21.311475409836067,
+          "rank": 11
+        },
+        "tennis": {
+          "reward": -2.0,
+          "normalized_score": 24.390243902439025,
+          "rank": 10
+        },
+        "time_pilot": {
+          "reward": 210.0,
+          "normalized_score": 19.26605504587156,
+          "rank": 7
+        }
+      },
+      "rank": 9
+    },
+    {
+      "row_key": "claude-sonnet-4-6|structured_history|default|high",
+      "label": "Claude Sonnet 4.6 (High)",
+      "model": "Claude Sonnet 4.6",
+      "model_key": "claude-sonnet-4-6",
+      "think": "High",
+      "prompt_mode": "structured_history",
+      "thinking_mode": "default",
+      "thinking_level": "high",
+      "score": 45.33579579946768,
+      "avg_rank": 9.75,
+      "avg_rank_overlap_16": 10.25,
+      "games": 20,
+      "per_game": {
+        "air_raid": {
+          "reward": 297.5,
+          "normalized_score": 96.7479674796748,
+          "rank": 4
+        },
+        "assault": {
+          "reward": 159.6,
+          "normalized_score": 41.98895027624309,
+          "rank": 6
+        },
+        "beam_rider": {
+          "reward": 158.4,
+          "normalized_score": 70.58823529411765,
+          "rank": 11
+        },
+        "boxing": {
+          "reward": -7.1,
+          "normalized_score": 0.0,
+          "rank": 20
+        },
+        "breakout": {
+          "reward": 3.1,
+          "normalized_score": 44.285714285714285,
+          "rank": 15
+        },
+        "demon_attack": {
+          "reward": 58.0,
+          "normalized_score": 82.85714285714286,
+          "rank": 2
+        },
+        "fishing_derby": {
+          "reward": -6.4,
+          "normalized_score": 24.50980392156863,
+          "rank": 2
+        },
+        "freeway": {
+          "reward": 3.0,
+          "normalized_score": 75.0,
+          "rank": 2
+        },
+        "gopher": {
+          "reward": 0.0,
+          "normalized_score": 0.0,
+          "rank": 19
+        },
+        "journey_escape": {
+          "reward": -2040.0,
+          "normalized_score": 78.73134328358209,
+          "rank": 6
+        },
+        "laser_gates": {
+          "reward": 457.5,
+          "normalized_score": 55.792682926829265,
+          "rank": 11
+        },
+        "name_this_game": {
+          "reward": 233.0,
+          "normalized_score": 76.39344262295081,
+          "rank": 8
+        },
+        "pacman": {
+          "reward": 15.1,
+          "normalized_score": 49.346405228758165,
+          "rank": 10
+        },
+        "phoenix": {
+          "reward": 226.0,
+          "normalized_score": 58.54922279792746,
+          "rank": 12
+        },
+        "qbert": {
+          "reward": 250.0,
+          "normalized_score": 30.120481927710845,
+          "rank": 12
+        },
+        "riverraid": {
+          "reward": 592.0,
+          "normalized_score": 29.853756933938477,
+          "rank": 11
+        },
+        "robotank": {
+          "reward": 1.7,
+          "normalized_score": 43.58974358974359,
+          "rank": 5
+        },
+        "seaquest": {
+          "reward": 42.0,
+          "normalized_score": 17.21311475409836,
+          "rank": 14
+        },
+        "tennis": {
+          "reward": -2.4,
+          "normalized_score": 14.634146341463417,
+          "rank": 13
+        },
+        "time_pilot": {
+          "reward": 180.0,
+          "normalized_score": 16.513761467889907,
+          "rank": 12
+        }
+      },
+      "rank": 10
+    },
+    {
+      "row_key": "claude-opus-4-6|structured_history|default|low",
+      "label": "Claude Opus 4.6 (Low)",
+      "model": "Claude Opus 4.6",
+      "model_key": "claude-opus-4-6",
+      "think": "Low",
+      "prompt_mode": "structured_history",
+      "thinking_mode": "default",
+      "thinking_level": "low",
+      "score": 43.05852471883969,
+      "avg_rank": 10.25,
+      "avg_rank_overlap_16": 11.0625,
+      "games": 20,
+      "per_game": {
+        "air_raid": {
+          "reward": 272.5,
+          "normalized_score": 88.6178861788618,
+          "rank": 8
+        },
+        "assault": {
+          "reward": 161.7,
+          "normalized_score": 42.54143646408839,
+          "rank": 5
+        },
+        "beam_rider": {
+          "reward": 127.6,
+          "normalized_score": 56.86274509803921,
+          "rank": 17
+        },
+        "boxing": {
+          "reward": -5.6,
+          "normalized_score": 2.5773195876288657,
+          "rank": 15
+        },
+        "breakout": {
+          "reward": 3.5,
+          "normalized_score": 50.0,
+          "rank": 11
+        },
+        "demon_attack": {
+          "reward": 47.0,
+          "normalized_score": 67.14285714285714,
+          "rank": 9
+        },
+        "fishing_derby": {
+          "reward": -7.6,
+          "normalized_score": 18.62745098039216,
+          "rank": 4
+        },
+        "freeway": {
+          "reward": 3.0,
+          "normalized_score": 75.0,
+          "rank": 2
+        },
+        "gopher": {
+          "reward": 4.0,
+          "normalized_score": 2.5316455696202533,
+          "rank": 13
+        },
+        "journey_escape": {
+          "reward": -330.0,
+          "normalized_score": 100.0,
+          "rank": 1
+        },
+        "laser_gates": {
+          "reward": 212.5,
+          "normalized_score": 25.914634146341463,
+          "rank": 15
+        },
+        "name_this_game": {
+          "reward": 229.0,
+          "normalized_score": 75.08196721311475,
+          "rank": 10
+        },
+        "pacman": {
+          "reward": 24.8,
+          "normalized_score": 81.04575163398692,
+          "rank": 4
+        },
+        "phoenix": {
+          "reward": 220.0,
+          "normalized_score": 56.994818652849744,
+          "rank": 14
+        },
+        "qbert": {
+          "reward": 232.5,
+          "normalized_score": 28.012048192771083,
+          "rank": 13
+        },
+        "riverraid": {
+          "reward": 600.0,
+          "normalized_score": 30.257186081694403,
+          "rank": 10
+        },
+        "robotank": {
+          "reward": 0.6,
+          "normalized_score": 15.384615384615385,
+          "rank": 19
+        },
+        "seaquest": {
+          "reward": 64.0,
+          "normalized_score": 26.229508196721312,
+          "rank": 6
+        },
+        "tennis": {
+          "reward": -3.0,
+          "normalized_score": 0.0,
+          "rank": 20
+        },
+        "time_pilot": {
+          "reward": 200.0,
+          "normalized_score": 18.34862385321101,
+          "rank": 9
+        }
+      },
+      "rank": 11
+    },
+    {
+      "row_key": "gemini-2.5-flash|structured_history|off|none",
+      "label": "Gemini 2.5 Flash (None)",
+      "model": "Gemini 2.5 Flash",
+      "model_key": "gemini-2.5-flash",
+      "think": "None",
+      "prompt_mode": "structured_history",
+      "thinking_mode": "off",
+      "thinking_level": "none",
+      "score": 44.46278978927829,
+      "avg_rank": 10.55,
+      "avg_rank_overlap_16": 10.875,
+      "games": 20,
+      "per_game": {
+        "air_raid": {
+          "reward": 245.0,
+          "normalized_score": 79.67479674796748,
+          "rank": 12
+        },
+        "assault": {
+          "reward": 170.1,
+          "normalized_score": 44.751381215469614,
+          "rank": 4
+        },
+        "beam_rider": {
+          "reward": 184.8,
+          "normalized_score": 82.35294117647058,
+          "rank": 9
+        },
+        "boxing": {
+          "reward": -3.6,
+          "normalized_score": 6.013745704467353,
+          "rank": 10
+        },
+        "breakout": {
+          "reward": 3.2,
+          "normalized_score": 45.714285714285715,
+          "rank": 13
+        },
+        "demon_attack": {
+          "reward": 41.0,
+          "normalized_score": 58.57142857142857,
+          "rank": 16
+        },
+        "fishing_derby": {
+          "reward": -11.4,
+          "normalized_score": 0.0,
+          "rank": 19
+        },
+        "freeway": {
+          "reward": 3.0,
+          "normalized_score": 75.0,
+          "rank": 2
+        },
+        "gopher": {
+          "reward": 54.0,
+          "normalized_score": 34.177215189873415,
+          "rank": 3
+        },
+        "journey_escape": {
+          "reward": -3110.0,
+          "normalized_score": 65.42288557213931,
+          "rank": 9
+        },
+        "laser_gates": {
+          "reward": 489.5,
+          "normalized_score": 59.69512195121951,
+          "rank": 10
+        },
+        "name_this_game": {
+          "reward": 177.0,
+          "normalized_score": 58.032786885245905,
+          "rank": 20
+        },
+        "pacman": {
+          "reward": 22.0,
+          "normalized_score": 71.89542483660131,
+          "rank": 6
+        },
+        "phoenix": {
+          "reward": 198.0,
+          "normalized_score": 51.295336787564764,
+          "rank": 15
+        },
+        "qbert": {
+          "reward": 255.0,
+          "normalized_score": 30.72289156626506,
+          "rank": 11
+        },
+        "riverraid": {
+          "reward": 498.0,
+          "normalized_score": 25.113464447806354,
+          "rank": 13
+        },
+        "robotank": {
+          "reward": 1.6,
+          "normalized_score": 41.02564102564103,
+          "rank": 7
+        },
+        "seaquest": {
+          "reward": 58.0,
+          "normalized_score": 23.770491803278688,
+          "rank": 9
+        },
+        "tennis": {
+          "reward": -2.2,
+          "normalized_score": 19.51219512195122,
+          "rank": 11
+        },
+        "time_pilot": {
+          "reward": 180.0,
+          "normalized_score": 16.513761467889907,
+          "rank": 12
+        }
+      },
+      "rank": 12
+    },
+    {
+      "row_key": "gemini-3.1-pro-preview|append_only|default|high",
+      "label": "Gemini 3.1 Pro (High, AO)",
+      "model": "Gemini 3.1 Pro",
+      "model_key": "gemini-3.1-pro-preview",
+      "think": "High",
+      "prompt_mode": "append_only",
+      "thinking_mode": "default",
+      "thinking_level": "high",
+      "score": 41.988566378938025,
+      "avg_rank": 10.8,
+      "avg_rank_overlap_16": 10.9375,
+      "games": 20,
+      "per_game": {
+        "air_raid": {
+          "reward": 218.1818181818182,
+          "normalized_score": 70.95343680709534,
+          "rank": 16
+        },
+        "assault": {
+          "reward": 144.9,
+          "normalized_score": 38.12154696132596,
+          "rank": 10
+        },
+        "beam_rider": {
+          "reward": 145.2,
+          "normalized_score": 64.70588235294116,
+          "rank": 15
+        },
+        "boxing": {
+          "reward": -4.0,
+          "normalized_score": 5.326460481099655,
+          "rank": 12
+        },
+        "breakout": {
+          "reward": 3.1,
+          "normalized_score": 44.285714285714285,
+          "rank": 15
+        },
+        "demon_attack": {
+          "reward": 47.27272727272727,
+          "normalized_score": 67.53246753246754,
+          "rank": 8
+        },
+        "fishing_derby": {
+          "reward": -10.727272727272727,
+          "normalized_score": 3.29768270944742,
+          "rank": 16
+        },
+        "freeway": {
+          "reward": 0.9,
+          "normalized_score": 22.5,
+          "rank": 19
+        },
+        "gopher": {
+          "reward": 0.0,
+          "normalized_score": 0.0,
+          "rank": 19
+        },
+        "journey_escape": {
+          "reward": -5470.0,
+          "normalized_score": 36.069651741293534,
+          "rank": 14
+        },
+        "laser_gates": {
+          "reward": 757.5,
+          "normalized_score": 92.3780487804878,
+          "rank": 2
+        },
+        "name_this_game": {
+          "reward": 186.0,
+          "normalized_score": 60.98360655737705,
+          "rank": 16
+        },
+        "pacman": {
+          "reward": 17.1,
+          "normalized_score": 55.88235294117648,
+          "rank": 9
+        },
+        "phoenix": {
+          "reward": 348.0,
+          "normalized_score": 90.15544041450777,
+          "rank": 2
+        },
+        "qbert": {
+          "reward": 393.75,
+          "normalized_score": 47.43975903614458,
+          "rank": 7
+        },
+        "riverraid": {
+          "reward": 663.75,
+          "normalized_score": 33.47201210287443,
+          "rank": 6
+        },
+        "robotank": {
+          "reward": 1.7,
+          "normalized_score": 43.58974358974359,
+          "rank": 5
+        },
+        "seaquest": {
+          "reward": 60.0,
+          "normalized_score": 24.59016393442623,
+          "rank": 8
+        },
+        "tennis": {
+          "reward": -2.4,
+          "normalized_score": 14.634146341463417,
+          "rank": 13
+        },
+        "time_pilot": {
+          "reward": 260.0,
+          "normalized_score": 23.853211009174313,
+          "rank": 4
+        }
+      },
+      "rank": 13
+    },
+    {
+      "row_key": "claude-sonnet-4-6|structured_history|default|low",
+      "label": "Claude Sonnet 4.6 (Low)",
+      "model": "Claude Sonnet 4.6",
+      "model_key": "claude-sonnet-4-6",
+      "think": "Low",
+      "prompt_mode": "structured_history",
+      "thinking_mode": "default",
+      "thinking_level": "low",
+      "score": 40.281269313582236,
+      "avg_rank": 11.45,
+      "avg_rank_overlap_16": 11.4375,
+      "games": 20,
+      "per_game": {
+        "air_raid": {
+          "reward": 235.0,
+          "normalized_score": 76.42276422764228,
+          "rank": 13
+        },
+        "assault": {
+          "reward": 136.5,
+          "normalized_score": 35.911602209944746,
+          "rank": 12
+        },
+        "beam_rider": {
+          "reward": 123.2,
+          "normalized_score": 54.90196078431372,
+          "rank": 19
+        },
+        "boxing": {
+          "reward": -4.9,
+          "normalized_score": 3.7800687285223358,
+          "rank": 14
+        },
+        "breakout": {
+          "reward": 3.2,
+          "normalized_score": 45.714285714285715,
+          "rank": 13
+        },
+        "demon_attack": {
+          "reward": 45.0,
+          "normalized_score": 64.28571428571429,
+          "rank": 12
+        },
+        "fishing_derby": {
+          "reward": -8.6,
+          "normalized_score": 13.725490196078436,
+          "rank": 10
+        },
+        "freeway": {
+          "reward": 3.0,
+          "normalized_score": 75.0,
+          "rank": 2
+        },
+        "gopher": {
+          "reward": 2.0,
+          "normalized_score": 1.2658227848101267,
+          "rank": 16
+        },
+        "journey_escape": {
+          "reward": -2460.0,
+          "normalized_score": 73.50746268656717,
+          "rank": 7
+        },
+        "laser_gates": {
+          "reward": 80.0,
+          "normalized_score": 9.75609756097561,
+          "rank": 18
+        },
+        "name_this_game": {
+          "reward": 217.0,
+          "normalized_score": 71.14754098360656,
+          "rank": 11
+        },
+        "pacman": {
+          "reward": 17.7,
+          "normalized_score": 57.84313725490196,
+          "rank": 8
+        },
+        "phoenix": {
+          "reward": 222.0,
+          "normalized_score": 57.512953367875646,
+          "rank": 13
+        },
+        "qbert": {
+          "reward": 222.5,
+          "normalized_score": 26.80722891566265,
+          "rank": 17
+        },
+        "riverraid": {
+          "reward": 770.0,
+          "normalized_score": 38.83005547150782,
+          "rank": 2
+        },
+        "robotank": {
+          "reward": 1.5,
+          "normalized_score": 38.46153846153846,
+          "rank": 10
+        },
+        "seaquest": {
+          "reward": 38.0,
+          "normalized_score": 15.573770491803279,
+          "rank": 15
+        },
+        "tennis": {
+          "reward": -1.9,
+          "normalized_score": 26.829268292682933,
+          "rank": 8
+        },
+        "time_pilot": {
+          "reward": 200.0,
+          "normalized_score": 18.34862385321101,
+          "rank": 9
+        }
+      },
+      "rank": 14
+    },
+    {
+      "row_key": "claude-opus-4-6|structured_history|default|high",
+      "label": "Claude Opus 4.6 (High)",
+      "model": "Claude Opus 4.6",
+      "model_key": "claude-opus-4-6",
+      "think": "High",
+      "prompt_mode": "structured_history",
+      "thinking_mode": "default",
+      "thinking_level": "high",
+      "score": 40.258936688164994,
+      "avg_rank": 11.7,
+      "avg_rank_overlap_16": 11.375,
+      "games": 20,
+      "per_game": {
+        "air_raid": {
+          "reward": 215.0,
+          "normalized_score": 69.91869918699187,
+          "rank": 18
+        },
+        "assault": {
+          "reward": 147.0,
+          "normalized_score": 38.674033149171265,
+          "rank": 8
+        },
+        "beam_rider": {
+          "reward": 140.8,
+          "normalized_score": 62.74509803921569,
+          "rank": 16
+        },
+        "boxing": {
+          "reward": -6.5,
+          "normalized_score": 1.0309278350515458,
+          "rank": 18
+        },
+        "breakout": {
+          "reward": 4.0,
+          "normalized_score": 57.142857142857146,
+          "rank": 7
+        },
+        "demon_attack": {
+          "reward": 44.0,
+          "normalized_score": 62.857142857142854,
+          "rank": 13
+        },
+        "fishing_derby": {
+          "reward": -8.2,
+          "normalized_score": 15.686274509803928,
+          "rank": 9
+        },
+        "freeway": {
+          "reward": 3.0,
+          "normalized_score": 75.0,
+          "rank": 2
+        },
+        "gopher": {
+          "reward": 28.0,
+          "normalized_score": 17.72151898734177,
+          "rank": 5
+        },
+        "journey_escape": {
+          "reward": -6370.0,
+          "normalized_score": 24.875621890547265,
+          "rank": 16
+        },
+        "laser_gates": {
+          "reward": 703.0,
+          "normalized_score": 85.73170731707317,
+          "rank": 4
+        },
+        "name_this_game": {
+          "reward": 206.0,
+          "normalized_score": 67.54098360655738,
+          "rank": 13
+        },
+        "pacman": {
+          "reward": 10.8,
+          "normalized_score": 35.29411764705882,
+          "rank": 14
+        },
+        "phoenix": {
+          "reward": 268.0,
+          "normalized_score": 69.43005181347151,
+          "rank": 5
+        },
+        "qbert": {
+          "reward": 227.5,
+          "normalized_score": 27.40963855421687,
+          "rank": 15
+        },
+        "riverraid": {
+          "reward": 296.0,
+          "normalized_score": 14.926878466969239,
+          "rank": 18
+        },
+        "robotank": {
+          "reward": 1.0,
+          "normalized_score": 25.641025641025642,
+          "rank": 14
+        },
+        "seaquest": {
+          "reward": 80.0,
+          "normalized_score": 32.78688524590164,
+          "rank": 2
+        },
+        "tennis": {
+          "reward": -2.6,
+          "normalized_score": 9.75609756097561,
+          "rank": 17
+        },
+        "time_pilot": {
+          "reward": 120.0,
+          "normalized_score": 11.009174311926605,
+          "rank": 20
+        }
+      },
+      "rank": 15
+    },
+    {
+      "row_key": "gpt-5.4-mini|structured_history|default|low",
+      "label": "GPT-5.4 Mini (Low)",
+      "model": "GPT-5.4 Mini",
+      "model_key": "gpt-5.4-mini",
+      "think": "Low",
+      "prompt_mode": "structured_history",
+      "thinking_mode": "default",
+      "thinking_level": "low",
+      "score": 39.97565503059734,
+      "avg_rank": 11.8,
+      "avg_rank_overlap_16": 11.75,
+      "games": 20,
+      "per_game": {
+        "air_raid": {
+          "reward": 247.5,
+          "normalized_score": 80.48780487804878,
+          "rank": 11
+        },
+        "assault": {
+          "reward": 189.0,
+          "normalized_score": 49.72375690607735,
+          "rank": 2
+        },
+        "beam_rider": {
+          "reward": 149.6,
+          "normalized_score": 66.66666666666667,
+          "rank": 14
+        },
+        "boxing": {
+          "reward": -5.7,
+          "normalized_score": 2.4054982817869406,
+          "rank": 16
+        },
+        "breakout": {
+          "reward": 3.5,
+          "normalized_score": 50.0,
+          "rank": 11
+        },
+        "demon_attack": {
+          "reward": 41.0,
+          "normalized_score": 58.57142857142857,
+          "rank": 16
+        },
+        "fishing_derby": {
+          "reward": -10.2,
+          "normalized_score": 5.882352941176476,
+          "rank": 14
+        },
+        "freeway": {
+          "reward": 3.0,
+          "normalized_score": 75.0,
+          "rank": 2
+        },
+        "gopher": {
+          "reward": 36.0,
+          "normalized_score": 22.78481012658228,
+          "rank": 4
+        },
+        "journey_escape": {
+          "reward": -4320.0,
+          "normalized_score": 50.37313432835821,
+          "rank": 12
+        },
+        "laser_gates": {
+          "reward": 343.0,
+          "normalized_score": 41.829268292682926,
+          "rank": 13
+        },
+        "name_this_game": {
+          "reward": 214.0,
+          "normalized_score": 70.1639344262295,
+          "rank": 12
+        },
+        "pacman": {
+          "reward": 13.0,
+          "normalized_score": 42.48366013071895,
+          "rank": 12
+        },
+        "phoenix": {
+          "reward": 178.0,
+          "normalized_score": 46.1139896373057,
+          "rank": 17
+        },
+        "qbert": {
+          "reward": 225.0,
+          "normalized_score": 27.10843373493976,
+          "rank": 16
+        },
+        "riverraid": {
+          "reward": 402.0,
+          "normalized_score": 20.27231467473525,
+          "rank": 16
+        },
+        "robotank": {
+          "reward": 1.2,
+          "normalized_score": 30.76923076923077,
+          "rank": 12
+        },
+        "seaquest": {
+          "reward": 26.0,
+          "normalized_score": 10.655737704918034,
+          "rank": 17
+        },
+        "tennis": {
+          "reward": -1.7,
+          "normalized_score": 31.707317073170735,
+          "rank": 7
+        },
+        "time_pilot": {
+          "reward": 180.0,
+          "normalized_score": 16.513761467889907,
+          "rank": 12
+        }
+      },
+      "rank": 16
+    },
+    {
+      "row_key": "gpt-5.4-mini|structured_history|none|none",
+      "label": "GPT-5.4 Mini (None)",
+      "model": "GPT-5.4 Mini",
+      "model_key": "gpt-5.4-mini",
+      "think": "None",
+      "prompt_mode": "structured_history",
+      "thinking_mode": "none",
+      "thinking_level": "none",
+      "score": 35.474771129175025,
+      "avg_rank": 13.2,
+      "avg_rank_overlap_16": 12.75,
+      "games": 20,
+      "per_game": {
+        "air_raid": {
+          "reward": 217.5,
+          "normalized_score": 70.73170731707317,
+          "rank": 17
+        },
+        "assault": {
+          "reward": 105.0,
+          "normalized_score": 27.624309392265193,
+          "rank": 18
+        },
+        "beam_rider": {
+          "reward": 158.4,
+          "normalized_score": 70.58823529411765,
+          "rank": 11
+        },
+        "boxing": {
+          "reward": -2.5,
+          "normalized_score": 7.903780068728521,
+          "rank": 6
+        },
+        "breakout": {
+          "reward": 3.9,
+          "normalized_score": 55.714285714285715,
+          "rank": 8
+        },
+        "demon_attack": {
+          "reward": 38.0,
+          "normalized_score": 54.285714285714285,
+          "rank": 20
+        },
+        "fishing_derby": {
+          "reward": -8.0,
+          "normalized_score": 16.66666666666667,
+          "rank": 7
+        },
+        "freeway": {
+          "reward": 3.0,
+          "normalized_score": 75.0,
+          "rank": 2
+        },
+        "gopher": {
+          "reward": 16.0,
+          "normalized_score": 10.126582278481013,
+          "rank": 8
+        },
+        "journey_escape": {
+          "reward": -6910.0,
+          "normalized_score": 18.1592039800995,
+          "rank": 18
+        },
+        "laser_gates": {
+          "reward": 309.0,
+          "normalized_score": 37.68292682926829,
+          "rank": 14
+        },
+        "name_this_game": {
+          "reward": 206.0,
+          "normalized_score": 67.54098360655738,
+          "rank": 13
+        },
+        "pacman": {
+          "reward": 13.9,
+          "normalized_score": 45.424836601307184,
+          "rank": 11
+        },
+        "phoenix": {
+          "reward": 142.0,
+          "normalized_score": 36.78756476683938,
+          "rank": 19
+        },
+        "qbert": {
+          "reward": 220.0,
+          "normalized_score": 26.50602409638554,
+          "rank": 18
+        },
+        "riverraid": {
+          "reward": 448.0,
+          "normalized_score": 22.59203227433182,
+          "rank": 15
+        },
+        "robotank": {
+          "reward": 1.3,
+          "normalized_score": 33.333333333333336,
+          "rank": 11
+        },
+        "seaquest": {
+          "reward": 16.0,
+          "normalized_score": 6.557377049180328,
+          "rank": 19
+        },
+        "tennis": {
+          "reward": -2.6,
+          "normalized_score": 9.75609756097561,
+          "rank": 17
+        },
+        "time_pilot": {
+          "reward": 180.0,
+          "normalized_score": 16.513761467889907,
+          "rank": 12
+        }
+      },
+      "rank": 17
+    },
+    {
+      "row_key": "deepseek-ai/deepseek-v3.1|structured_history|off|none",
+      "label": "DeepSeek V3.1 (None)",
+      "model": "DeepSeek V3.1",
+      "model_key": "deepseek-ai/deepseek-v3.1",
+      "think": "None",
+      "prompt_mode": "structured_history",
+      "thinking_mode": "off",
+      "thinking_level": "none",
+      "score": 27.937763246362664,
+      "avg_rank": 13.7,
+      "avg_rank_overlap_16": 12.8125,
+      "games": 20,
+      "per_game": {
+        "air_raid": {
+          "reward": 222.22222222222223,
+          "normalized_score": 72.26738934056007,
+          "rank": 15
+        },
+        "assault": {
+          "reward": 147.0,
+          "normalized_score": 38.674033149171265,
+          "rank": 8
+        },
+        "beam_rider": {
+          "reward": 30.8,
+          "normalized_score": 13.72549019607843,
+          "rank": 20
+        },
+        "boxing": {
+          "reward": -1.4,
+          "normalized_score": 9.793814432989688,
+          "rank": 2
+        },
+        "breakout": {
+          "reward": 1.1,
+          "normalized_score": 15.714285714285717,
+          "rank": 20
+        },
+        "demon_attack": {
+          "reward": 40.0,
+          "normalized_score": 57.142857142857146,
+          "rank": 18
+        },
+        "fishing_derby": {
+          "reward": -9.6,
+          "normalized_score": 8.82352941176471,
+          "rank": 11
+        },
+        "freeway": {
+          "reward": 2.9,
+          "normalized_score": 72.5,
+          "rank": 11
+        },
+        "gopher": {
+          "reward": 18.0,
+          "normalized_score": 11.39240506329114,
+          "rank": 7
+        },
+        "journey_escape": {
+          "reward": -8370.0,
+          "normalized_score": 0.0,
+          "rank": 19
+        },
+        "laser_gates": {
+          "reward": 40.0,
+          "normalized_score": 4.878048780487805,
+          "rank": 19
+        },
+        "name_this_game": {
+          "reward": 194.44444444444446,
+          "normalized_score": 63.752276867030965,
+          "rank": 15
+        },
+        "pacman": {
+          "reward": 9.7,
+          "normalized_score": 31.699346405228752,
+          "rank": 16
+        },
+        "phoenix": {
+          "reward": 74.0,
+          "normalized_score": 19.17098445595855,
+          "rank": 20
+        },
+        "qbert": {
+          "reward": 180.55555555555554,
+          "normalized_score": 21.75368139223561,
+          "rank": 19
+        },
+        "riverraid": {
+          "reward": 693.3333333333334,
+          "normalized_score": 34.963859472180204,
+          "rank": 4
+        },
+        "robotank": {
+          "reward": 0.7,
+          "normalized_score": 17.94871794871795,
+          "rank": 17
+        },
+        "seaquest": {
+          "reward": 22.0,
+          "normalized_score": 9.01639344262295,
+          "rank": 18
+        },
+        "tennis": {
+          "reward": -1.4,
+          "normalized_score": 39.024390243902445,
+          "rank": 3
+        },
+        "time_pilot": {
+          "reward": 180.0,
+          "normalized_score": 16.513761467889907,
+          "rank": 12
+        }
+      },
+      "rank": 18
+    },
+    {
+      "row_key": "zai-org/glm-5.1|structured_history|off|none",
+      "label": "GLM 5.1 (None)",
+      "model": "GLM 5.1",
+      "model_key": "zai-org/glm-5.1",
+      "think": "None",
+      "prompt_mode": "structured_history",
+      "thinking_mode": "off",
+      "thinking_level": "none",
+      "score": 31.703546039535844,
+      "avg_rank": 14,
+      "avg_rank_overlap_16": 13.25,
+      "games": 20,
+      "per_game": {
+        "air_raid": {
+          "reward": 165.0,
+          "normalized_score": 53.65853658536585,
+          "rank": 19
+        },
+        "assault": {
+          "reward": 178.5,
+          "normalized_score": 46.96132596685083,
+          "rank": 3
+        },
+        "beam_rider": {
+          "reward": 154.0,
+          "normalized_score": 68.62745098039215,
+          "rank": 13
+        },
+        "boxing": {
+          "reward": -2.2,
+          "normalized_score": 8.419243986254294,
+          "rank": 4
+        },
+        "breakout": {
+          "reward": 1.8,
+          "normalized_score": 25.714285714285715,
+          "rank": 18
+        },
+        "demon_attack": {
+          "reward": 39.0,
+          "normalized_score": 55.714285714285715,
+          "rank": 19
+        },
+        "fishing_derby": {
+          "reward": -10.4,
+          "normalized_score": 4.901960784313726,
+          "rank": 15
+        },
+        "freeway": {
+          "reward": 3.0,
+          "normalized_score": 75.0,
+          "rank": 2
+        },
+        "gopher": {
+          "reward": 2.0,
+          "normalized_score": 1.2658227848101267,
+          "rank": 16
+        },
+        "journey_escape": {
+          "reward": -6344.444444444444,
+          "normalized_score": 25.1934770591487,
+          "rank": 15
+        },
+        "laser_gates": {
+          "reward": 207.0,
+          "normalized_score": 25.24390243902439,
+          "rank": 16
+        },
+        "name_this_game": {
+          "reward": 185.0,
+          "normalized_score": 60.65573770491803,
+          "rank": 17
+        },
+        "pacman": {
+          "reward": 9.0,
+          "normalized_score": 29.41176470588235,
+          "rank": 18
+        },
+        "phoenix": {
+          "reward": 146.0,
+          "normalized_score": 37.82383419689119,
+          "rank": 18
+        },
+        "qbert": {
+          "reward": 230.0,
+          "normalized_score": 27.710843373493976,
+          "rank": 14
+        },
+        "riverraid": {
+          "reward": 707.0,
+          "normalized_score": 35.6530509329299,
+          "rank": 3
+        },
+        "robotank": {
+          "reward": 0.7,
+          "normalized_score": 17.94871794871795,
+          "rank": 17
+        },
+        "seaquest": {
+          "reward": 15.555555555555555,
+          "normalized_score": 6.375227686703096,
+          "rank": 20
+        },
+        "tennis": {
+          "reward": -2.5,
+          "normalized_score": 12.195121951219512,
+          "rank": 16
+        },
+        "time_pilot": {
+          "reward": 170.0,
+          "normalized_score": 15.596330275229358,
+          "rank": 17
+        }
+      },
+      "rank": 19
+    },
+    {
+      "row_key": "random|structured_history|off|none",
+      "label": "Random (None)",
+      "model": "Random",
+      "model_key": "random",
+      "think": "None",
+      "prompt_mode": "structured_history",
+      "thinking_mode": "off",
+      "thinking_level": "none",
+      "score": 26.969026891777585,
+      "avg_rank": 16.05,
+      "avg_rank_overlap_16": 16.375,
+      "games": 20,
+      "per_game": {
+        "air_raid": {
+          "reward": 265.0,
+          "normalized_score": 86.17886178861788,
+          "rank": 10
+        },
+        "assault": {
+          "reward": 102.9,
+          "normalized_score": 27.07182320441989,
+          "rank": 19
+        },
+        "beam_rider": {
+          "reward": 127.6,
+          "normalized_score": 56.86274509803921,
+          "rank": 17
+        },
+        "boxing": {
+          "reward": -3.4,
+          "normalized_score": 6.357388316151202,
+          "rank": 9
+        },
+        "breakout": {
+          "reward": 1.3,
+          "normalized_score": 18.571428571428573,
+          "rank": 19
+        },
+        "demon_attack": {
+          "reward": 49.0,
+          "normalized_score": 70.0,
+          "rank": 7
+        },
+        "fishing_derby": {
+          "reward": -11.4,
+          "normalized_score": 0.0,
+          "rank": 19
+        },
+        "freeway": {
+          "reward": 0.0,
+          "normalized_score": 0.0,
+          "rank": 20
+        },
+        "gopher": {
+          "reward": 14.0,
+          "normalized_score": 8.860759493670885,
+          "rank": 11
+        },
+        "journey_escape": {
+          "reward": -6690.0,
+          "normalized_score": 20.895522388059703,
+          "rank": 17
+        },
+        "laser_gates": {
+          "reward": 145.0,
+          "normalized_score": 17.682926829268293,
+          "rank": 17
+        },
+        "name_this_game": {
+          "reward": 180.0,
+          "normalized_score": 59.01639344262295,
+          "rank": 18
+        },
+        "pacman": {
+          "reward": 10.5,
+          "normalized_score": 34.31372549019608,
+          "rank": 15
+        },
+        "phoenix": {
+          "reward": 188.0,
+          "normalized_score": 48.704663212435236,
+          "rank": 16
+        },
+        "qbert": {
+          "reward": 120.0,
+          "normalized_score": 14.457831325301205,
+          "rank": 20
+        },
+        "riverraid": {
+          "reward": 398.0,
+          "normalized_score": 20.070600100857288,
+          "rank": 17
+        },
+        "robotank": {
+          "reward": 0.4,
+          "normalized_score": 10.256410256410257,
+          "rank": 20
+        },
+        "seaquest": {
+          "reward": 32.0,
+          "normalized_score": 13.114754098360656,
+          "rank": 16
+        },
+        "tennis": {
+          "reward": -2.4210526315789473,
+          "normalized_score": 14.1206675224647,
+          "rank": 15
+        },
+        "time_pilot": {
+          "reward": 140.0,
+          "normalized_score": 12.844036697247706,
+          "rank": 19
+        }
+      },
+      "rank": 20
+    }
+  ],
+  "videos": [
+    {
+      "game": "breakout",
+      "model": "GPT-5.4",
+      "prompt_mode": "structured_history",
+      "thinking_mode": "high",
+      "normalized_score": 100.0,
+      "avg_reward": 6.0,
+      "run_count": 1,
+      "src": "assets/videos/breakout-gpt-5-4-high-score6-visualization.mp4",
+      "hero_src": "assets/videos/breakout-gpt-5-4-high-score6-hero-30s-v4.mp4"
+    },
+    {
+      "game": "seaquest",
+      "model": "Gemini 3.1 Pro",
+      "prompt_mode": "structured_history",
+      "thinking_mode": "low",
+      "normalized_score": 100.0,
+      "avg_reward": 100.0,
+      "run_count": 1,
+      "src": "assets/videos/seaquest-gemini-3-1-pro-low-score100-visualization.mp4",
+      "hero_src": "assets/videos/seaquest-gemini-3-1-pro-low-score100-hero-30s-v4.mp4"
+    },
+    {
+      "game": "qbert",
+      "model": "gemini-2.5-flash",
+      "prompt_mode": "structured_history",
+      "thinking_mode": "off",
+      "normalized_score": 100.0,
+      "avg_reward": 255.0,
+      "run_count": 10,
+      "src": "assets/videos/qbert-gemini-2-5-flash.mp4"
+    },
+    {
+      "game": "beam_rider",
+      "model": "gemini-2.5-flash",
+      "prompt_mode": "structured_history",
+      "thinking_mode": "off",
+      "normalized_score": 100.0,
+      "avg_reward": 184.8,
+      "run_count": 10,
+      "src": "assets/videos/beam_rider-gemini-2-5-flash.mp4"
+    },
+    {
+      "game": "riverraid",
+      "model": "zai-org/glm-5.1",
+      "prompt_mode": "structured_history",
+      "thinking_mode": "off",
+      "normalized_score": 100.0,
+      "avg_reward": 707.0,
+      "run_count": 10,
+      "src": "assets/videos/riverraid-zai-org-glm-5-1.mp4"
+    },
+    {
+      "game": "assault",
+      "model": "zai-org/glm-5.1",
+      "prompt_mode": "structured_history",
+      "thinking_mode": "off",
+      "normalized_score": 100.0,
+      "avg_reward": 178.5,
+      "run_count": 10,
+      "src": "assets/videos/assault-zai-org-glm-5-1.mp4"
+    }
+  ]
+}

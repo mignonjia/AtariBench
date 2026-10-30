@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AtariBench: Evaluating Spatiotemporal Reasoning of Vision-Language Models in Atari Gameplay</title>
+    <meta
+      name="description"
+      content="AtariBench leaderboard and benchmark overview for vision-language models in Atari gameplay."
+    />
+    <meta property="og:title" content="AtariBench" />
+    <meta property="og:description" content="Evaluating Spatiotemporal Reasoning of Vision-Language Models in Atari Gameplay" />
+    <meta property="og:url" content="https://mignonjia.github.io/AtariBench/" />
+    <link rel="canonical" href="https://mignonjia.github.io/AtariBench/" />
+    <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans:400,600,700|Castoro" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <link rel="stylesheet" href="styles.css?v=20261030-nerfies-7" />
+  </head>
+  <body>
+    <header class="hero" id="top">
+      <div class="container">
+        <h1 class="publication-title">
+          AtariBench: Evaluating Spatiotemporal Reasoning of<br />Vision-Language Models in Atari Gameplay
+        </h1>
+        <p class="publication-venue">NeurIPS 2026 · Evaluations and Datasets Track</p>
+
+        <div class="publication-authors">
+          <span class="author-block">Mingjia Huo<sup>1,*</sup>,</span>
+          <span class="author-block">Yao Fu<sup>2,†</sup>,</span>
+          <span class="author-block">Bo Chang<sup>2</sup>,</span>
+          <span class="author-block">Yaqing Wang<sup>2</sup>,</span>
+          <span class="author-block">Dawei Zhu<sup>3,*</sup>,</span>
+          <span class="author-block">Dylan Zhang<sup>4,*</sup>,</span>
+          <span class="author-block">Xinyang Yi<sup>2</sup>,</span>
+          <span class="author-block">Lichan Hong<sup>2</sup>,</span>
+          <span class="author-block">Ed H. Chi<sup>2</sup>,</span>
+          <span class="author-block">Hao Zhang<sup>1</sup>,</span>
+          <span class="author-block">Jiaxi Tang<sup>2</sup></span>
+        </div>
+        <div class="publication-affiliations">
+          <span class="author-block"><sup>1</sup>University of California San Diego</span>
+          <span class="author-block"><sup>2</sup>Google DeepMind</span>
+          <span class="author-block"><sup>3</sup>Peking University</span>
+          <span class="author-block"><sup>4</sup>University of Illinois Urbana-Champaign</span>
+        </div>
+        <div class="publication-notes">
+          <span><sup>*</sup>Work done as Student Researcher at Google DeepMind.</span>
+          <span><sup>†</sup>Work done while at Google DeepMind.</span>
+        </div>
+
+        <nav class="publication-links" aria-label="Project links">
+          <a class="link-button" href="neurips_2026.pdf">
+            <i class="fas fa-file-pdf"></i><span>Paper</span>
+          </a>
+          <a
+            class="link-button"
+            href="https://colab.research.google.com/drive/1QGKH3j1goKbDgQy1sJCPXkpEb-tFy38Y"
+            target="_blank"
+            rel="noopener"
+          >
+            <i class="fas fa-laptop-code"></i><span>Colab</span>
+          </a>
+          <a class="link-button" href="#leaderboard">
+            <i class="fas fa-trophy"></i><span>Leaderboard</span>
+          </a>
+          <a class="link-button" href="#citation">
+            <i class="fas fa-quote-right"></i><span>BibTeX</span>
+          </a>
+        </nav>
+      </div>
+    </header>
+
+    <section class="teaser" aria-label="Gameplay montage">
+      <div class="container">
+        <div class="montage" id="hero-montage"></div>
+        <p class="figure-caption">
+          AtariBench evaluates vision-language models on <span id="stat-games">20</span> Atari 2600 games.
+          Models observe high-frame-rate gameplay, emit joystick actions, and are scored from closed-loop trajectories.
+        </p>
+      </div>
+    </section>
+
+    <section class="section is-gray" aria-labelledby="abstract-title">
+      <div class="container narrow">
+        <h2 class="title" id="abstract-title">Abstract</h2>
+        <p class="justified">
+          Vision-Language Models (VLMs) have achieved strong performance on static visual understanding benchmarks,
+          yet their ability to act in dynamic environments remains poorly understood. We introduce AtariBench, a
+          controlled benchmark that evaluates VLMs across 20 Atari 2600 games, requiring models to make sequential
+          decisions from high-temporal-resolution gameplay streams. By decoupling fast in-game dynamics from
+          wall-clock inference speed, AtariBench focuses on whether models can perceive rapid visual state changes,
+          reason over spatiotemporal dynamics, and ground actions in the current observation. Our experiments reveal
+          substantial limitations in state-of-the-art VLMs: models often fail to infer object motion and direction,
+          exhibit brittle sequential decision-making, and over-rely on textual interaction history despite newly
+          appended visual feedback. We further introduce a separability analysis to identify which in-game scores
+          provide reliable signals of model competence, and use the benchmark to study how memory design and
+          prompting strategies affect performance. Overall, AtariBench exposes a persistent gap between passive
+          visual perception and active decision-making, providing a lightweight and rigorous testbed for developing
+          VLMs that can reason and act in dynamic environments.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="method" aria-labelledby="method-title">
+      <div class="container">
+        <h2 class="title" id="method-title">Frame, Prompt, Act, Repeat</h2>
+        <p class="justified">
+          On each turn, the model receives game-specific instructions, a structured history (or an append-only
+          context) of recent frames, and the current frame. It replies with a short thought and a chunk of joystick
+          actions, which the emulator executes before the next turn. Because the game only advances when actions are
+          executed, fast in-game dynamics are decoupled from wall-clock inference speed.
+        </p>
+        <figure>
+          <img class="figure-img" src="assets/workflow.png" alt="AtariBench workflow from gaming environment to VLM agent." />
+        </figure>
+        <ul class="pipeline">
+          <li><strong>Observe</strong> Atari frame sequence</li>
+          <li><strong>Prompt</strong> structured history or append-only context</li>
+          <li><strong>Act</strong> model emits joystick actions</li>
+          <li><strong>Score</strong> reward, frames, turns, tokens, video</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section is-gray" id="leaderboard" aria-labelledby="leaderboard-title">
+      <div class="container">
+        <h2 class="title" id="leaderboard-title">Leaderboard</h2>
+        <p class="section-lead">
+          <span id="stat-models">-</span> model settings ranked across 20 games. <span id="metric-note"></span>
+          VLMs use structured history unless tagged <span class="mode-tag">AO</span> (append-only).
+        </p>
+
+        <div class="toolbar" aria-label="Leaderboard filters">
+          <label>
+            <span>Model</span>
+            <input id="model-filter" type="search" placeholder="Search model" />
+          </label>
+          <label>
+            <span>Prompt</span>
+            <select id="prompt-filter">
+              <option value="all">All</option>
+              <option value="structured_history">Structured history</option>
+              <option value="append_only">Append only</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="table-wrap">
+          <table class="leaderboard-table combined-table">
+            <thead id="leaderboard-head"></thead>
+            <tbody id="leaderboard-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="findings" aria-labelledby="findings-title">
+      <div class="container">
+        <h2 class="title" id="findings-title">Failure Analysis</h2>
+        <p class="justified">AtariBench tests three capabilities:</p>
+        <ul>
+          <li>
+            <b>Spatiotemporal reasoning</b>: track object trajectories, speed, and direction from short high-FPS frame
+            sequences.
+          </li>
+          <li>
+            <b>Sequential decisions</b>: convert the current visual state into the next joystick action under tight
+            feedback loops.
+          </li>
+          <li>
+            <b>Visual grounding</b>: update actions from newly appended frames instead of relying on stale text
+            history.
+          </li>
+        </ul>
+        <p class="justified">
+          <span class="highlight-red">Models miss cues that are obvious to humans.</span> The cases below, from the
+          paper's failure analysis, show the model's thought next to the frames it saw.
+        </p>
+
+        <div class="carousel" id="failure-carousel" aria-roledescription="carousel" aria-label="Failure cases">
+          <div class="carousel-tabs" role="tablist" aria-label="Failure cases"></div>
+          <div class="carousel-track">
+            <figure class="carousel-slide" data-title="Motion reasoning" aria-label="1 of 5">
+              <img src="assets/failures/motion.png" alt="Breakout frames where Gemini 3.1 Pro misreads the ball's direction." loading="lazy" />
+              <figcaption>
+                <b>Motion reasoning.</b> In Breakout, Gemini 3.1 Pro sees the ball and paddle but misidentifies the
+                ball's motion direction, contradicting the ground-truth trajectory.
+              </figcaption>
+            </figure>
+            <figure class="carousel-slide" data-title="Visual perception" aria-label="2 of 5">
+              <img src="assets/failures/perception.png" alt="Name This Game frame where GPT-5.4 says no shark is visible." loading="lazy" />
+              <figcaption>
+                <b>Visual perception.</b> In Name This Game, GPT-5.4 (high) states that no shark is visible despite
+                the white shark in the current frame (10.30 s; enlarged at right).
+              </figcaption>
+            </figure>
+            <figure class="carousel-slide" data-title="Temporal misgrounding" aria-label="3 of 5">
+              <img src="assets/failures/temporal_misgrounding.png" alt="Freeway frames where GPT-5.4 treats a past car position as current." loading="lazy" />
+              <figcaption>
+                <b>Temporal misgrounding.</b> In Freeway, GPT-5.4 (high) describes a historical car position as
+                current. With history removed and everything else unchanged, the erroneous relation is no longer
+                stated.
+              </figcaption>
+            </figure>
+            <figure class="carousel-slide" data-title="Text-history over-reliance" aria-label="4 of 5">
+              <img src="assets/failures/text_overreliance.png" alt="Assault frames where GPT-5.4 Mini keeps firing upward after the alien moves away." loading="lazy" />
+              <figcaption>
+                <b>Text-history over-reliance.</b> In Assault, after an earlier rewarded upward shot, GPT-5.4 Mini
+                says recent shots are hitting even though updated frames show the remaining alien left of its firing
+                lane. Two more upward shots yield no reward.
+              </figcaption>
+            </figure>
+            <figure class="carousel-slide" data-title="Action stagnation" aria-label="5 of 5">
+              <img src="assets/failures/append_only.png" alt="Breakout frames where the model outputs only noop actions under append-only prompting." loading="lazy" />
+              <figcaption>
+                <b>Long-context action stagnation.</b> Under append-only prompting in Breakout, the model repeatedly
+                outputs only <code>noop</code> despite updated frames and feedback. We observe this in Gemini 2.5
+                Flash, Gemini 2.5 Pro, and Gemini 3 Flash, but not in Gemini 3.1 Pro.
+              </figcaption>
+            </figure>
+          </div>
+          <button class="carousel-arrow prev" type="button" aria-label="Previous case"><i class="fas fa-chevron-left"></i></button>
+          <button class="carousel-arrow next" type="button" aria-label="Next case"><i class="fas fa-chevron-right"></i></button>
+          <p class="carousel-hint">
+            <i class="fas fa-arrows-left-right"></i> Swipe, use the arrows, or pick a case above
+            <span class="carousel-counter"></span>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section is-gray" id="gameplay" aria-labelledby="gameplay-title">
+      <div class="container">
+        <h2 class="title" id="gameplay-title">Representative Runs</h2>
+        <div class="video-grid" id="video-grid"></div>
+        <p class="figure-caption">
+          Atari 2600 games are the property of their respective copyright holders. Gameplay clips are shown for
+          research illustration only.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="reproduce" aria-labelledby="reproduce-title">
+      <div class="container">
+        <h2 class="title" id="reproduce-title">Reproduce with Colab</h2>
+        <p class="justified">
+          The code is released as a single
+          <a href="https://colab.research.google.com/drive/1QGKH3j1goKbDgQy1sJCPXkpEb-tFy38Y" target="_blank" rel="noopener">Colab notebook</a>
+          that contains the full AtariBench harness: the 20 game prompts, the prompt builder, the response parser,
+          the gameplay loop, and a Gemini client.
+        </p>
+        <ol>
+          <li>Open the notebook and paste your Gemini API key into the <code>GEMINI_API_KEY</code> field.</li>
+          <li>
+            <b>Play one game.</b> Pick a game and a model to run one 30-second episode and watch the video
+            (about 3 minutes with Gemini 2.5 Flash).
+          </li>
+          <li>
+            <b>Reproduce a paper setting.</b> Pick one of the paper's Gemini settings to run all 20 games with seeds
+            0&ndash;9. The output table shows your mean reward and standard error next to the paper's number.
+          </li>
+        </ol>
+        <p class="justified">
+          Model outputs are stochastic, so expect agreement within the standard error rather than exact matches.
+          Other models can be evaluated by plugging a different model client into the same harness.
+        </p>
+      </div>
+    </section>
+
+    <div class="container"><hr /></div>
+
+    <section class="section" id="citation" aria-labelledby="citation-title">
+      <div class="container">
+        <h2 class="title left" id="citation-title">BibTeX</h2>
+        <pre><code>@inproceedings{huo2026ataribench,
+  title = {Evaluating Spatiotemporal Reasoning of Vision-Language Models in Atari Gameplay},
+  author = {Huo, Mingjia and Fu, Yao and Chang, Bo and Wang, Yaqing and Zhu, Dawei and Zhang, Dylan and Yi, Xinyang and Hong, Lichan and Chi, Ed H. and Zhang, Hao and Tang, Jiaxi},
+  booktitle = {Advances in Neural Information Processing Systems},
+  year = {2026}
+}</code></pre>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>
+        This website is licensed under a
+        <a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0 International License</a>.
+        Template adapted from the <a href="https://nerfies.github.io/">Nerfies</a> project page.
+      </p>
+    </footer>
+
+    <script src="app.js?v=20261030-nerfies-9"></script>
+  </body>
+</html>
